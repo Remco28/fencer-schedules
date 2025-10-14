@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Users{% endblock %}
+
+{% block content %}
+<section>
+    <h1>User management</h1>
+    <p>Review who has access and adjust permissions as needed.</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Signed up</th>
+                    <th>Tracked clubs</th>
+                    <th>Status</th>
+                    <th>Admin</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_row in users %}
+                <tr data-user-id="{{ user_row.id }}">
+                    <td>{{ user_row.username }}</td>
+                    <td>{{ user_row.email }}</td>
+                    <td>{{ user_row.created_at|default('-') }}</td>
+                    <td>{{ user_row.tracked_club_count }}</td>
+                    <td>
+                        <span class="tag {% if user_row.is_active %}success{% else %}warning{% endif %}">
+                            {% if user_row.is_active %}Active{% else %}Disabled{% endif %}
+                        </span>
+                    </td>
+                    <td>{% if user_row.is_admin %}Yes{% else %}No{% endif %}</td>
+                    <td>
+                        <button type="button" class="small toggle-active" data-active="{{ 'true' if user_row.is_active else 'false' }}">
+                            {% if user_row.is_active %}Disable{% else %}Enable{% endif %}
+                        </button>
+                        {% if not user_row.is_admin %}
+                        <button type="button" class="small promote-admin">Make admin</button>
+                        {% else %}
+                        <button type="button" class="small demote-admin">Remove admin</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : '';
+    function showError(message) {
+        alert(message || 'Unable to update user.');
+    }
+
+    async function patchUser(userId, payload) {
+        const response = await fetch(`/admin/users/${userId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || 'Request failed');
+        }
+
+        return response.json();
+    }
+
+    document.querySelectorAll('.toggle-active').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const row = button.closest('tr');
+            const userId = row.dataset.userId;
+            const currentlyActive = button.dataset.active === 'true';
+
+            try {
+                await patchUser(userId, { is_active: !currentlyActive });
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('.promote-admin').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const row = button.closest('tr');
+            const userId = row.dataset.userId;
+
+            try {
+                await patchUser(userId, { is_admin: true });
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('.demote-admin').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const row = button.closest('tr');
+            const userId = row.dataset.userId;
+
+            try {
+                await patchUser(userId, { is_admin: false });
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

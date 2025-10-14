@@ -1,0 +1,135 @@
+<section class="fencers-card">
+    {% set show_management_link = show_management_link if show_management_link is defined else True %}
+    <header>
+        <h2>Tracked Fencers</h2>
+        <p class="muted">Scrapes run with pacing and cooldowns. Changes may take a few minutes to appear.</p>
+        {% if show_management_link %}
+        <p><a href="/fencers">Open full tracked fencer management</a></p>
+        {% endif %}
+    </header>
+
+    {% if fencer_success %}
+    <div role="status" class="info">{{ fencer_success }}</div>
+    {% endif %}
+
+    {% if fencer_error %}
+    <div role="alert" class="error">{{ fencer_error }}</div>
+    {% endif %}
+
+    <article class="fencer-add">
+        <h3>Add a fencer</h3>
+        <form method="post" action="/fencers">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                Fencer profile URL
+                <input type="text" name="fencer_id" required placeholder="https://fencingtracker.com/p/100235805/Nicholas-Iarikov">
+                <small>Paste the full fencingtracker profile URL. We'll automatically extract the fencer's name from the URL.</small>
+            </label>
+            <label>
+                Weapons (optional)
+                <input type="text" name="weapon_filter" placeholder="foil,epee,saber">
+                <small>Use a comma-separated list. Leave blank to monitor all weapons.</small>
+            </label>
+            <button type="submit">Track fencer</button>
+        </form>
+    </article>
+
+    <h3>Active fencers</h3>
+    {% if active_fencers %}
+    <div class="fencer-list">
+        {% for fencer in active_fencers %}
+        <article class="fencer-item" data-fencer-id="{{ fencer.id }}">
+            <header>
+                <div>
+                    <h4>{{ fencer.display_name }}</h4>
+                    <p><a href="{{ fencer.profile_url }}" target="_blank" rel="noopener">View fencingtracker profile</a></p>
+                </div>
+                <span class="{{ fencer.status_css }}">{{ fencer.status_label }}</span>
+            </header>
+            <dl>
+                <div>
+                    <dt>Fencer ID</dt>
+                    <dd>{{ fencer.fencer_id }}</dd>
+                </div>
+                <div>
+                    <dt>Weapons</dt>
+                    <dd>
+                        {% if fencer.weapon_list %}
+                            {% for weapon in fencer.weapon_list %}
+                                <span class="tag">{{ weapon|capitalize }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="tag">All weapons</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Last checked</dt>
+                    <dd>{{ fencer.last_checked or 'Never' }}</dd>
+                </div>
+                <div>
+                    <dt>Last failure</dt>
+                    <dd>
+                        {% if fencer.last_failure %}
+                            {{ fencer.last_failure }} ({{ fencer.failure_count }} recent failure{{ '' if fencer.failure_count == 1 else 's' }})
+                        {% else %}
+                            None recorded
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+
+            {% if fencer.status_description %}
+            <p class="muted">{{ fencer.status_description }}</p>
+            {% endif %}
+
+            <details>
+                <summary>Edit fencer</summary>
+                <form method="post" action="/fencers/{{ fencer.id }}/edit" class="fencer-edit-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label>
+                        Display name
+                        <input type="text" name="display_name" value="{{ fencer.raw_display_name }}" placeholder="Defaults to scraped name">
+                    </label>
+                    <label>
+                        Weapons
+                        <input type="text" name="weapon_filter" value="{{ fencer.weapon_filter or '' }}" placeholder="foil,epee,saber">
+                        <small>Leave blank for all weapons.</small>
+                    </label>
+                    <button type="submit">Save changes</button>
+                </form>
+                <div style="display: flex; gap: 0.5rem;">
+                    <form method="post" action="/fencers/{{ fencer.id }}/deactivate" class="inline deactivate-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="outline" onclick="return confirm('Deactivate this fencer?');">Deactivate</button>
+                    </form>
+                    <form method="post" action="/fencers/{{ fencer.id }}/delete" class="inline delete-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="outline secondary" onclick="return confirm('Permanently DELETE this fencer? This cannot be undone.');">Delete</button>
+                    </form>
+                </div>
+            </details>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">You are not tracking any fencers yet.</p>
+    {% endif %}
+
+    <h3>Inactive fencers</h3>
+    {% if inactive_fencers %}
+    <ul class="inactive-fencers">
+        {% for fencer in inactive_fencers %}
+        <li>
+            <span>{{ fencer.display_name }} (ID {{ fencer.fencer_id }})</span>
+            <form method="post" action="/fencers/{{ fencer.id }}/reactivate">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="small">Reactivate</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No inactive fencers.</p>
+    {% endif %}
+</section>

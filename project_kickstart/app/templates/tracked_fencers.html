@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Tracked Fencers{% endblock %}
+
+{% block content %}
+{% set fencer_success = success %}
+{% set fencer_error = error %}
+{% set show_management_link = False %}
+{% include "partials/tracked_fencers_card.html" %}
+{% endblock %}

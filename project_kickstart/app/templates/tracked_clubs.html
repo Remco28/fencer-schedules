@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Tracked Clubs{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Tracked Clubs</h1>
+    <p>Add a club from fencingtracker.com and choose which weapons you care about. We verify each URL before saving.</p>
+
+    {% if error %}
+    <div role="alert" class="error">{{ error }}</div>
+    {% endif %}
+
+    <article>
+        <h2>Add a club</h2>
+        <form method="post" action="/clubs/add" class="club-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                Club URL
+                <input type="url" name="club_url" required placeholder="https://fencingtracker.com/club/.../registrations">
+            </label>
+            <label>
+                Display name (optional)
+                <input type="text" name="club_name" placeholder="Will be auto-filled from the club page if omitted">
+            </label>
+            <fieldset>
+                <legend>Weapons (leave all checked to track everything)</legend>
+                {% for weapon in weapon_options %}
+                <label class="checkbox">
+                    <input type="checkbox" name="weapon_filter" value="{{ weapon }}" checked>
+                    {{ weapon|capitalize }}
+                </label>
+                {% endfor %}
+            </fieldset>
+            <button type="submit">Add club</button>
+        </form>
+    </article>
+</section>
+
+<section>
+    <h2>Active clubs</h2>
+    {% if active_clubs %}
+    <div class="club-list">
+        {% for club in active_clubs %}
+        {% set selected_weapons = club.weapon_filter.split(',') if club.weapon_filter else weapon_options %}
+        <article class="club-item" data-club-id="{{ club.id }}">
+            <header>
+                <h3>{{ club.club_name or 'Unnamed club' }}</h3>
+                <p><a href="{{ club.club_url }}" target="_blank" rel="noopener">View on fencingtracker</a></p>
+            </header>
+            <p>
+                {% if club.weapon_filter %}
+                Tracking: {% for weapon in selected_weapons %}<span class="tag">{{ weapon|capitalize }}</span>{% endfor %}
+                {% else %}
+                Tracking: <span class="tag">All weapons</span>
+                {% endif %}
+            </p>
+            <details>
+                <summary>Edit preferences</summary>
+                <form class="club-update-form" data-club-id="{{ club.id }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label>
+                        Display name
+                        <input type="text" name="club_name" value="{{ club.club_name or '' }}">
+                    </label>
+                    <fieldset>
+                        <legend>Weapons</legend>
+                        {% for weapon in weapon_options %}
+                        <label class="checkbox">
+                            <input type="checkbox" name="weapon_filter" value="{{ weapon }}" {% if weapon in selected_weapons %}checked{% endif %}>
+                            {{ weapon|capitalize }}
+                        </label>
+                        {% endfor %}
+                    </fieldset>
+                    <div class="actions">
+                        <button type="submit">Save</button>
+                        <button type="button" class="outline club-remove-button" data-club-id="{{ club.id }}">Remove</button>
+                    </div>
+                </form>
+            </details>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">You are not tracking any clubs yet.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Inactive clubs</h2>
+    {% if inactive_clubs %}
+    <ul class="inactive-clubs">
+        {% for club in inactive_clubs %}
+        <li>
+            <strong>{{ club.club_name or club.club_url }}</strong>
+            <button type="button" class="small reactivate-club" data-club-id="{{ club.id }}">Reactivate</button>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No inactive clubs.</p>
+    {% endif %}
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : '';
+    function getSelectedWeapons(container) {
+        return Array.from(container.querySelectorAll("input[name='weapon_filter']:checked"))
+            .map((checkbox) => checkbox.value);
+    }
+
+    function showError(message) {
+        alert(message || "Something went wrong. Please try again.");
+    }
+
+    document.querySelectorAll('.club-update-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const clubId = form.dataset.clubId;
+            const payload = {
+                club_name: form.querySelector("input[name='club_name']").value,
+                weapon_filter: getSelectedWeapons(form)
+            };
+
+            try {
+                const response = await fetch(`/clubs/${clubId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Unable to update club.');
+                    return;
+                }
+
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('.club-remove-button').forEach((button) => {
+        button.addEventListener('click', async () => {
+            if (!confirm('Remove this club from tracking?')) {
+                return;
+            }
+
+            const clubId = button.dataset.clubId;
+
+            try {
+                const response = await fetch(`/clubs/${clubId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-Token': csrfToken },
+                });
+                if (!response.ok && response.status !== 204) {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Unable to remove club.');
+                    return;
+                }
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('.reactivate-club').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const clubId = button.dataset.clubId;
+
+            try {
+                const response = await fetch(`/clubs/${clubId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify({ active: true }),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Unable to reactivate club.');
+                    return;
+                }
+
+                window.location.reload();
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

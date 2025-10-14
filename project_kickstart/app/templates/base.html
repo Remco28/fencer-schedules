@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Fencing Club Registration Notifications{% endblock %}</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <style>
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted-color);
+        }
+        .filter-form {
+            margin-bottom: 2rem;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+        }
+        th {
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background-color: var(--table-row-stripped-background-color);
+        }
+        .tag {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            border-radius: 999px;
+            background: var(--code-background-color);
+            margin-right: 0.25rem;
+            font-size: 0.85em;
+        }
+        .tag.success {
+            background: #1a936f33;
+            color: #1a936f;
+        }
+        .tag.warning {
+            background: #f0aa0c33;
+            color: #8f5b00;
+        }
+        .error {
+            background: #ffe8e8;
+            border-left: 4px solid #c0392b;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .info {
+            background: #e8f4ff;
+            border-left: 4px solid #2980b9;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .club-list {
+            display: grid;
+            gap: 1rem;
+        }
+        .club-item {
+            border: 1px solid var(--card-border-color, #d0d7de);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .club-item header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+        }
+        .club-item details {
+            margin-top: 1rem;
+        }
+        .club-item .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .outline {
+            background: transparent;
+            border: 1px solid currentColor;
+        }
+        .small {
+            font-size: 0.85em;
+            padding: 0.25rem 0.5rem;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        .stats article {
+            text-align: center;
+        }
+        .inactive-clubs {
+            list-style: none;
+            padding: 0;
+        }
+        .inactive-clubs li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--muted-border-color, #e1e4e8);
+        }
+        nav ul {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        nav form {
+            margin: 0;
+        }
+        nav button {
+            margin: 0;
+        }
+        .checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-right: 1rem;
+        }
+        details summary {
+            cursor: pointer;
+        }
+        .muted {
+            color: var(--muted-color);
+        }
+        .fencers-card {
+            margin-top: 2rem;
+            display: grid;
+            gap: 1.5rem;
+        }
+        .fencers-card header h2 {
+            margin-bottom: 0.25rem;
+        }
+        .fencer-list {
+            display: grid;
+            gap: 1rem;
+        }
+        .fencer-item {
+            border: 1px solid var(--card-border-color, #d0d7de);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .fencer-item header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .fencer-item dl {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .fencer-item dl dt {
+            font-weight: bold;
+        }
+        .fencer-item dl dd {
+            margin: 0;
+        }
+        .inactive-fencers {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            gap: 0.5rem;
+        }
+        .inactive-fencers li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px dashed var(--card-border-color, #d0d7de);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .inline {
+            display: inline;
+        }
+        .deactivate-form {
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+    </style>
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>Fencing Club Registration Notifications</strong></li>
+            </ul>
+            <ul>
+                {% if user %}
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/clubs">Tracked Clubs</a></li>
+                <li><a href="/fencers">Tracked Fencers</a></li>
+                {% if user.is_admin %}
+                <li><a href="/admin/users">Admin</a></li>
+                {% endif %}
+                <li>
+                    <form method="post" action="/auth/logout">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="small outline">Log out</button>
+                    </form>
+                </li>
+                {% else %}
+                <li><a href="/login">Login</a></li>
+                <li><a href="/register">Register</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>Fencing Club Registration Monitoring System</small>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

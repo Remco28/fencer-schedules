@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Welcome, {{ user.username }}!</h1>
+    <p>Your notifications go to <strong>{{ user.email }}</strong>.</p>
+
+    <div class="grid stats">
+        <article>
+            <h2>Active Clubs</h2>
+            <p class="stat-number">{{ tracked_club_count }}</p>
+        </article>
+        <article>
+            <h2>Inactive Clubs</h2>
+            <p class="stat-number">{{ inactive_club_count }}</p>
+        </article>
+        <article>
+            <h2>Active Fencers</h2>
+            <p class="stat-number">{{ tracked_fencer_count }}</p>
+        </article>
+        <article>
+            <h2>Inactive Fencers</h2>
+            <p class="stat-number">{{ inactive_fencer_count }}</p>
+        </article>
+    </div>
+
+    <p>
+        Manage your tracking list from the <a href="/clubs">Tracked Clubs</a> page. Daily digests start arriving at 9:00 AM.
+    </p>
+
+    <section class="dashboard-fencers">
+        {% set fencer_success = None %}
+        {% set fencer_error = None %}
+        {% include "partials/tracked_fencers_card.html" %}
+    </section>
+
+    {% if user.is_admin %}
+    <p><a href="/admin/users">Go to admin panel</a></p>
+    {% endif %}
+</section>
+{% endblock %}

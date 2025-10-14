@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Create an account</h1>
+    <p>Track clubs and receive daily registration digests tailored to you.</p>
+
+    {% if error %}
+    <div role="alert" class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/auth/register">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+            Username
+            <input type="text" name="username" required value="{{ values.username if values else '' }}" autocomplete="username">
+        </label>
+        <label>
+            Email
+            <input type="email" name="email" required value="{{ values.email if values else '' }}" autocomplete="email">
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" required minlength="8" autocomplete="new-password">
+        </label>
+        <button type="submit">Register</button>
+    </form>
+
+    <p>Already have an account? <a href="/login">Log in</a>.</p>
+</section>
+{% endblock %}

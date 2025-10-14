@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Tournament Registrations - Fencing Club{% endblock %}
+
+{% block content %}
+<h1>Tournament Registrations</h1>
+
+<form method="GET" action="/" class="filter-form">
+    <div class="grid">
+        <div>
+            <label for="fencer">
+                Fencer Name
+                <input type="text" id="fencer" name="fencer" placeholder="Filter by fencer name..." value="{{ fencer_filter or '' }}">
+            </label>
+        </div>
+        <div>
+            <label for="tournament">
+                Tournament Name
+                <input type="text" id="tournament" name="tournament" placeholder="Filter by tournament name..." value="{{ tournament_filter or '' }}">
+            </label>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div>
+            <label for="sort_by">
+                Sort By
+                <select id="sort_by" name="sort_by">
+                    <option value="last_seen_at" {% if sort_by == 'last_seen_at' %}selected{% endif %}>Last Seen Date</option>
+                    <option value="fencer_name" {% if sort_by == 'fencer_name' %}selected{% endif %}>Fencer Name</option>
+                    <option value="tournament_name" {% if sort_by == 'tournament_name' %}selected{% endif %}>Tournament Name</option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label for="sort_order">
+                Order
+                <select id="sort_order" name="sort_order">
+                    <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
+                    <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <div class="grid">
+        <button type="submit">Apply Filters</button>
+        <a href="/" role="button" class="secondary">Clear Filters</a>
+    </div>
+</form>
+
+{% if registrations %}
+<div class="table-container">
+    <table role="grid">
+        <thead>
+            <tr>
+                <th scope="col">Fencer Name</th>
+                <th scope="col">Tournament Name</th>
+                <th scope="col">Tournament Date</th>
+                <th scope="col">Events</th>
+                <th scope="col">Last Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in registrations %}
+            <tr>
+                <td>{{ reg.fencer_name }}</td>
+                <td>{{ reg.tournament_name }}</td>
+                <td>{{ reg.tournament_date }}</td>
+                <td>{{ reg.events }}</td>
+                <td>
+                    <time datetime="{{ reg.last_seen_at }}">
+                        {{ reg.last_seen_at }}
+                    </time>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p><small>Showing {{ registrations|length }} registration(s)</small></p>
+{% else %}
+<div class="empty-state">
+    <p><strong>No registrations found</strong></p>
+    <p>{% if fencer_filter or tournament_filter %}Try adjusting your filters{% else %}No tournament registrations have been scraped yet{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Format relative time for last seen dates
+    document.addEventListener('DOMContentLoaded', function() {
+        const times = document.querySelectorAll('time[datetime]');
+        times.forEach(function(timeEl) {
+            const datetime = new Date(timeEl.getAttribute('datetime'));
+            if (!isNaN(datetime.getTime())) {
+                timeEl.textContent = getRelativeTime(datetime);
+                timeEl.title = datetime.toLocaleString();
+            }
+        });
+    });
+
+    function getRelativeTime(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffSecs < 60) return 'just now';
+        if (diffMins < 60) return diffMins + ' minute' + (diffMins !== 1 ? 's' : '') + ' ago';
+        if (diffHours < 24) return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
+        if (diffDays < 7) return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
+        if (diffDays < 30) return Math.floor(diffDays / 7) + ' week' + (Math.floor(diffDays / 7) !== 1 ? 's' : '') + ' ago';
+        if (diffDays < 365) return Math.floor(diffDays / 30) + ' month' + (Math.floor(diffDays / 30) !== 1 ? 's' : '') + ' ago';
+        return Math.floor(diffDays / 365) + ' year' + (Math.floor(diffDays / 365) !== 1 ? 's' : '') + ' ago';
+    }
+</script>
+{% endblock %}
