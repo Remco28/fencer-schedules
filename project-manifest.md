@@ -21,6 +21,7 @@
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
 - **Session Summaries:** `comms/SESSION_SUMMARY_*.md` - Detailed session notes (e.g., `SESSION_SUMMARY_2025-11-20.md`)
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
+- **Current Task Spec:** `comms/tasks/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md` - Day 1 implementation spec (FTL scaffold + pool ID extractor)
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*
@@ -39,11 +40,14 @@
 **Note:** As of 2025-11-20, implementation has not yet begun. These will be created during Phase 1 and Phase 2 development.
 
 **Planned Structure:**
-- **Main Application:** TBD (will be Python-based backend + mobile-first frontend)
-- **Scraper Service:** TBD (will be in `scraper_service/` or `backend/scraper/`)
+- **Main Application:** `app/` (root) — Python backend + mobile-first frontend to be added
+- **Scraper Service:** `app/ftl/` — FTL scraper and parsers (new)
 - **Dependencies:** TBD (`requirements.txt` for Python backend)
-- **Database Schema:** TBD (SQLite or PostgreSQL)
+- **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`)
 - **API Routes:** TBD (FastAPI or Flask)
+
+**Legacy Reference (to be retired):**
+- `project_kickstart/` — temporary scaffold (FastAPI/Jinja/Auth/scraper for fencingtracker.com). Use as reference only; planned for removal after FTL implementation stands up.
 
 ## 5. Testing & Development
 *Resources for testing and local development.*

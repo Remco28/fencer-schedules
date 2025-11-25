@@ -10,6 +10,7 @@ Build a **mobile-first**, read-only web app for coaches, parents, and clubmates 
 Scope clarifications:
 - No email notifications or digests.
 - Live data comes from FencingTimeLive scraping; registration notifications from the legacy kickstart are out-of-scope.
+- The `project_kickstart/` codebase is a temporary reference; we will extract what we need, then retire/remove it.
 
 ## 2. Phased Rollout Plan
 

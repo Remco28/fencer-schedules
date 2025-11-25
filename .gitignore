@@ -1,0 +1,15 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+
+# Pytest cache
+.pytest_cache/
+
+# Local SQLite databases
+*.db
+
+# OS metadata
+.DS_Store
