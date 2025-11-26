@@ -8,3 +8,30 @@ class PoolIdListing(BaseModel):
     event_id: Optional[str] = None
     pool_round_id: str
     pool_ids: list[str]
+
+
+class PoolBout(BaseModel):
+    """Individual bout within a pool."""
+    fencer_a: str
+    fencer_b: str
+    score_a: Optional[int] = None
+    score_b: Optional[int] = None
+    winner: Optional[str] = None  # "A" | "B" | None
+    status: str  # "complete" | "incomplete"
+
+
+class PoolFencer(BaseModel):
+    """Fencer participating in a pool."""
+    name: str
+    club: Optional[str] = None
+    seed: Optional[int] = None
+    indicator: Optional[str] = None  # e.g., "+14", "-5"
+
+
+class PoolDetails(BaseModel):
+    """Complete pool data including strip, fencers, and bouts."""
+    pool_id: Optional[str] = None
+    pool_number: int
+    strip: Optional[str] = None
+    fencers: list[PoolFencer]
+    bouts: list[PoolBout]

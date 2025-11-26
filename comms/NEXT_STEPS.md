@@ -1,52 +1,32 @@
 # Next Steps for Fencer Schedules
 
-**Last Updated:** 2025-11-20
-**Current Phase:** Phase 2 Research Complete - Ready for Implementation
+**Last Updated:** 2025-11-26
+**Current Phase:** Phase 2 Implementation (in progress)
 
 ---
 
 ## Immediate Tasks (Week 1)
 
-### Day 0 (PRIORITY): Review Existing Codebase
-**Duration:** 2-4 hours
-**Purpose:** Decide whether to extend `project_kickstart/` or start fresh
-
-- [ ] **Morning: Code Review (2 hours)**
-  - [ ] Review `project_kickstart/app/` structure - what framework? (Flask/FastAPI?)
-  - [ ] Check `requirements.txt` - what dependencies exist?
-  - [ ] Review `app/models.py` - what's the database schema?
-  - [ ] Check `app/routes/` or `app/api/` - what endpoints exist?
-  - [ ] Examine `templates/` - is it mobile-friendly? Responsive?
-  - [ ] Check `tests/` - what's the testing setup?
-- [ ] **Afternoon: Architecture Decision (1-2 hours)**
-  - [ ] Decide: Extend existing project OR start fresh?
-  - [ ] If extending: Plan where scraper module fits (`app/scraper/`?)
-  - [ ] If fresh: Identify what to copy (alembic, structure, tests)
-  - [ ] Document decision and findings in `comms/project_kickstart_review.md`
-  - [ ] Update `project-manifest.md` with code entrypoints
-  - [ ] Update `comms/log.md` with decision
-
-**Decision Criteria:**
-- ✅ Extend if: Clean code, good framework, adaptable templates, easy to add scraper module
-- 🔄 Start fresh if: Messy code, wrong framework, technical debt > reuse benefits
-
-**Key Principle:** Keep scraper isolated regardless of decision - clear module boundaries, minimal coupling
+### Done
+- ✅ Day 1: FTL scaffold + pool ID extractor (`app/ftl/parsers/pool_ids.py`, tests in `tests/ftl/test_pool_ids.py`)
+- ✅ Day 2: Pool HTML parser (strip/fencers/bouts) (`app/ftl/parsers/pools.py`, tests in `tests/ftl/test_pools_parser.py`)
+- ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`
 
 ---
 
 ### Day 1: Setup & Pool ID Extraction
-- [ ] Read `docs/ftl-api-specification.md` (complete technical spec)
-- [ ] Set up Python project structure (extend `project_kickstart/` or create new)
-- [ ] Install scraper dependencies: `requests`, `beautifulsoup4`, `pytest` (add to existing `requirements.txt`)
-- [ ] Implement pool ID extractor (parse JavaScript array from HTML)
-- [ ] Write unit tests using saved HTML samples in `comms/ftl_research_human_pool_ids.md`
-- [ ] Test against live FTL data (November NAC event)
+- [x] Read `docs/ftl-api-specification.md` (complete technical spec)
+- [x] Set up Python project structure (`app/ftl/`, `app/database.py` at repo root)
+- [x] Install scraper dependencies: `requests`, `beautifulsoup4`, `pytest`
+- [x] Implement pool ID extractor (parse JavaScript array from HTML)
+- [x] Write unit tests using saved HTML samples in `comms/ftl_research_human_pool_ids.md`
+- [ ] Test against live FTL data (November NAC event) — **TO DO** (manual)
 
 ### Day 2-3: Pool HTML Parser
-- [ ] Implement pool HTML parser (extract strip, fencers, bout results)
-- [ ] Handle edge cases (missing strip assignment, incomplete pools)
-- [ ] Write unit tests using `comms/ftl_research_human_pools.md`
-- [ ] Test with all 45 pools from test event
+- [x] Implement pool HTML parser (extract strip, fencers, bout results)
+- [x] Handle edge cases (missing strip assignment, incomplete pools)
+- [x] Write unit tests using `comms/ftl_research_human_pools.md`
+- [ ] Test with all 45 pools from test event — **TO DO** (after bulk fetching)
 
 ### Day 4: Pool Results JSON Parser
 - [ ] Implement pool results JSON parser (advancement status)
@@ -63,7 +43,7 @@
 ## Week 2 Tasks
 
 ### HTTP Client & Parallel Fetching
-- [ ] Build HTTP client with rate limiting (max 10 concurrent)
+- [ ] Build HTTP client with rate limiting (max 10 concurrent) — reuse `requests`; consider `httpx` if async later
 - [ ] Implement parallel pool fetching (ThreadPoolExecutor)
 - [ ] Add timeout handling (10 sec per request)
 - [ ] Add retry logic (3 attempts with exponential backoff)

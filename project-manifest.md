@@ -21,7 +21,9 @@
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
 - **Session Summaries:** `comms/SESSION_SUMMARY_*.md` - Detailed session notes (e.g., `SESSION_SUMMARY_2025-11-20.md`)
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
-- **Current Task Spec:** `comms/tasks/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md` - Day 1 implementation spec (FTL scaffold + pool ID extractor)
+- **Current Task Spec:** _None active_
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md` - Day 1 (FTL scaffold + pool ID extractor)
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md` - Day 2 (pool HTML parser)
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*
