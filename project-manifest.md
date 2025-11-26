@@ -24,7 +24,7 @@
 - **Code Location (active):** `app/` at repo root (new FTL parsers and database)
 - **Legacy Reference:** `project_kickstart/` (temporary scaffold; planned removal after extraction)
 - **Current Task Spec:** _None active_
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*

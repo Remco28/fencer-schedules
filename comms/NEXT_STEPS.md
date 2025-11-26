@@ -11,7 +11,9 @@
 - ✅ Day 1: FTL scaffold + pool ID extractor (`app/ftl/parsers/pool_ids.py`, tests in `tests/ftl/test_pool_ids.py`)
 - ✅ Day 2: Pool HTML parser (strip/fencers/bouts) (`app/ftl/parsers/pools.py`, tests in `tests/ftl/test_pools_parser.py`)
 - ✅ Day 3: Pool results JSON parser (advancement status) (`app/ftl/parsers/pool_results.py`, tests in `tests/ftl/test_pool_results_parser.py`)
+- ✅ Day 4: HTTP client + bulk fetch + in-memory cache (`app/ftl/client.py`, tests in `tests/ftl/test_client_bulk_fetch.py`)
 - ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`, `comms/ftl_research_human_pools_results.md`
+- ✅ Dependencies installed: `requests`, `pydantic`, `beautifulsoup4`, `pytest`
 
 ---
 
@@ -35,6 +37,13 @@
 - [x] Write unit tests using `comms/ftl_research_human_pools_results.md`
 - [x] Verify advancement indicator logic (Advanced→advanced, others→eliminated, empty→unknown)
 - [x] Create fixture with real FTL data including edge cases
+
+### Day 4: HTTP Client + Bulk Pool Fetch
+- [x] Build HTTP client with timeout/retry and concurrency cap
+- [x] Implement bulk fetch orchestration for pool IDs, pool HTML, pool results
+- [x] Add in-memory TTL cache with force-refresh flag
+- [x] Tests with mocked HTTP responses (no real network)
+- [x] All 76 tests passing (8 + 28 + 16 + 24)
 
 ### Day 5-7: DE Tableau Parser (Basic)
 - [ ] Implement basic tableau parser (find tracked fencers in bracket)
