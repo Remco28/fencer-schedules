@@ -2,7 +2,7 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-26
 
 ---
 
@@ -12,7 +12,7 @@
 - **Architecture:** `docs/ARCHITECTURE.md`
 - **Development Plan:** `comms/plan.md` - Phased rollout plan with Phase 1 (MVP) and Phase 2 (Live Tracking)
 - **FTL API Specification:** `docs/ftl-api-specification.md` - Complete technical specification for FencingTimeLive scraper (15,000+ words)
-- **Agent Roles:** `comms/roles/TECHADVISOR.md` - AI Technical Advisor role definition
+- **Agent Roles:** `comms/roles/ARCHITECT.md`, `comms/roles/TECHADVISOR.md`
 
 ## 2. Dynamic State (Volatile)
 *These files and directories reflect the current status, recent work, and active tasks. The AI should check these to understand what's happening right now.*
@@ -21,9 +21,10 @@
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
 - **Session Summaries:** `comms/SESSION_SUMMARY_*.md` - Detailed session notes (e.g., `SESSION_SUMMARY_2025-11-20.md`)
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
+- **Code Location (active):** `app/` at repo root (new FTL parsers and database)
+- **Legacy Reference:** `project_kickstart/` (temporary scaffold; planned removal after extraction)
 - **Current Task Spec:** _None active_
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md` - Day 1 (FTL scaffold + pool ID extractor)
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md` - Day 2 (pool HTML parser)
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*
@@ -37,23 +38,19 @@
   - `comms/ftl_research_human_pool_ids.md` - Pool IDs JavaScript array sample
 
 ## 4. Code & Config (Entrypoints)
-*These are the primary technical entrypoints for understanding the application's structure, dependencies, and configuration.*
+*Primary technical entrypoints for understanding the application's structure, dependencies, and configuration.*
 
-**Note:** As of 2025-11-20, implementation has not yet begun. These will be created during Phase 1 and Phase 2 development.
-
-**Planned Structure:**
-- **Main Application:** `app/` (root) — Python backend + mobile-first frontend to be added
-- **Scraper Service:** `app/ftl/` — FTL scraper and parsers (new)
-- **Dependencies:** TBD (`requirements.txt` for Python backend)
-- **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`)
-- **API Routes:** TBD (FastAPI or Flask)
-
-**Legacy Reference (to be retired):**
-- `project_kickstart/` — temporary scaffold (FastAPI/Jinja/Auth/scraper for fencingtracker.com). Use as reference only; planned for removal after FTL implementation stands up.
+- **Main Application:** `app/` (root) — Python backend; mobile-first frontend to be added in later phases.
+- **FTL Module:** `app/ftl/` with parsers (`parsers/pool_ids.py`, `parsers/pools.py`), schemas (`schemas.py`), models (`models.py`), and HTTP client stub (`client.py`).
+- **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`; imports SQLAlchemy `Base` and FTL models).
+- **Tests:** `tests/ftl/` (24 passing tests covering pool ID and pool HTML parsers); `tests/conftest.py` ensures repo root on `sys.path`.
+- **Dependencies:** Use `.venv`; install `requests`, `beautifulsoup4`, `pydantic`, `pytest` (SQLAlchemy is required for database models and for running legacy kickstart tests).
+- **Legacy Reference:** `project_kickstart/` — temporary FastAPI/Jinja scaffold for fencingtracker.com. Keep read-only; tests there require extra deps (e.g., SQLAlchemy) and are not part of the active Phase 2 work.
 
 ## 5. Testing & Development
 *Resources for testing and local development.*
 
+- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (pool IDs + pool HTML parsers). Legacy `project_kickstart/tests` need additional dependencies if ever run.
 - **Test Event Data:** See FTL sample files in `comms/ftl_research_human*.md`
 - **Test URLs:** November NAC 2025 - Div I Men's Épée
   - Event ID: `54B9EF9A9707492E93F1D1F46CF715A2`
@@ -65,14 +62,15 @@
 ## Quick Start for AI Agents
 
 **On session start:**
-1. Read `comms/log.md` for recent activity
-2. Read `comms/NEXT_STEPS.md` for current priorities
-3. Review `comms/plan.md` for overall project status
-4. If implementing FTL scraper: Read `docs/ftl-api-specification.md`
+1. Read `comms/log.md` for recent activity.
+2. Read `comms/NEXT_STEPS.md` for current priorities (Phase 2 implementation).
+3. Review `comms/plan.md` for overall project status.
+4. If implementing FTL scraper: read `docs/ftl-api-specification.md`.
+5. Run `.venv/bin/pytest tests/ftl` to verify parsers before/after changes.
 
-**Current Phase:** Research Complete - Ready for Implementation (Phase 2)
+**Current Phase:** Phase 2 Implementation (Week 1 done: pool IDs + pool HTML parsers)
 
-**Current Priority:** Begin scraper implementation (parsers, HTTP client, caching)
+**Current Priority:** Implement pool results JSON parser (advancement status) and start HTTP client for bulk pool fetching.
 
 ---
 
@@ -92,18 +90,21 @@
 - `ftl-api-specification.md` - Complete FTL scraper spec
 - `project-manifest.template.md` - Template for this file
 
-### `/src/` or `/backend/` - Source Code (Not Yet Created)
-Future location for application code
+### `/app/` - Source Code (Active)
+Python application code (FTL parsers under `app/ftl/`, database at `app/database.py`)
 
-### `/tests/` - Test Suite (Not Yet Created)
-Future location for unit and integration tests
+### `/tests/` - Test Suite (Active)
+Current tests for FTL parsers (`tests/ftl/`)
+
+### `/project_kickstart/` - Legacy Reference
+Temporary scaffold (FastAPI/Jinja/Auth/scraper for fencingtracker.com); keep read-only
 
 ---
 
 ## Notes for Future Sessions
 
 - **Phase 1 Status:** Not started (Core Schedule MVP without live tracking)
-- **Phase 2 Status:** Research complete ✅, Implementation ready to begin
+- **Phase 2 Status:** Implementation in progress (pool ID + pool HTML parsers complete)
 - **Key Decision:** Use Python for scraper (BeautifulSoup for HTML parsing, requests for HTTP)
 - **Architecture Decision:** Parallel fetching (ThreadPoolExecutor) + aggressive caching (3-5 min TTL)
 - **Risk Level:** LOW-MEDIUM (acceptable for MVP)

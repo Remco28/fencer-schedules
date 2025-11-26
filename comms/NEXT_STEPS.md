@@ -10,7 +10,8 @@
 ### Done
 - ✅ Day 1: FTL scaffold + pool ID extractor (`app/ftl/parsers/pool_ids.py`, tests in `tests/ftl/test_pool_ids.py`)
 - ✅ Day 2: Pool HTML parser (strip/fencers/bouts) (`app/ftl/parsers/pools.py`, tests in `tests/ftl/test_pools_parser.py`)
-- ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`
+- ✅ Day 3: Pool results JSON parser (advancement status) (`app/ftl/parsers/pool_results.py`, tests in `tests/ftl/test_pool_results_parser.py`)
+- ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`, `comms/ftl_research_human_pools_results.md`
 
 ---
 
@@ -22,17 +23,18 @@
 - [x] Write unit tests using saved HTML samples in `comms/ftl_research_human_pool_ids.md`
 - [ ] Test against live FTL data (November NAC event) — **TO DO** (manual)
 
-### Day 2-3: Pool HTML Parser
+### Day 2: Pool HTML Parser
 - [x] Implement pool HTML parser (extract strip, fencers, bout results)
 - [x] Handle edge cases (missing strip assignment, incomplete pools)
 - [x] Write unit tests using `comms/ftl_research_human_pools.md`
 - [ ] Test with all 45 pools from test event — **TO DO** (after bulk fetching)
 
-### Day 4: Pool Results JSON Parser
-- [ ] Implement pool results JSON parser (advancement status)
-- [ ] Extract fencer data, club, place, advanced/eliminated status
-- [ ] Write unit tests using `comms/ftl_research_human_pools_results.md`
-- [ ] Verify advancement indicator logic
+### Day 3: Pool Results JSON Parser
+- [x] Implement pool results JSON parser (advancement status)
+- [x] Extract fencer data, club, place, advanced/eliminated status
+- [x] Write unit tests using `comms/ftl_research_human_pools_results.md`
+- [x] Verify advancement indicator logic (Advanced→advanced, others→eliminated, empty→unknown)
+- [x] Create fixture with real FTL data including edge cases
 
 ### Day 5-7: DE Tableau Parser (Basic)
 - [ ] Implement basic tableau parser (find tracked fencers in bracket)
@@ -148,3 +150,5 @@ Notes:
 - See `comms/plan.md` for overall project phases
 - See `docs/ftl-api-specification.md` for detailed implementation guide
 - Update checkboxes as tasks are completed
+- Active code lives under `app/` (FTL parsers). Legacy `project_kickstart/` remains read-only; its tests need extra deps (e.g., SQLAlchemy).
+- Run `.venv/bin/pytest tests/ftl` before/after changes (legacy tests are not required).

@@ -35,3 +35,30 @@ class PoolDetails(BaseModel):
     strip: Optional[str] = None
     fencers: list[PoolFencer]
     bouts: list[PoolBout]
+
+
+class PoolResult(BaseModel):
+    """Individual fencer result from pool rounds with advancement status."""
+    fencer_id: str
+    name: str
+    club_primary: Optional[str] = None
+    club_secondary: Optional[str] = None
+    division: Optional[str] = None
+    country: Optional[str] = None
+    place: Optional[int] = None
+    victories: int
+    matches: int
+    victory_ratio: Optional[float] = None
+    touches_scored: Optional[int] = None
+    touches_received: Optional[int] = None
+    indicator: Optional[int] = None
+    prediction_raw: Optional[str] = None
+    status: str  # "advanced" | "eliminated" | "unknown"
+    tie: Optional[bool] = None
+
+
+class PoolResults(BaseModel):
+    """Complete pool results for an event/round with all fencer outcomes."""
+    event_id: Optional[str] = None
+    pool_round_id: Optional[str] = None
+    fencers: list[PoolResult]
