@@ -53,6 +53,16 @@
 - [x] Write unit tests using inline fixture based on FTL API spec (includes in-progress/byes/priority scenarios)
 - [ ] Integration test: Full event data extraction (pools + DEs)
 
+### Day 6: API Endpoints & Integration (Spec: `comms/tasks/2025-11-26-ftl-day6-api-endpoints-and-integration.md`)
+- [x] Build FastAPI app with endpoints:
+  - [x] `GET /api/pools/{event_id}/{pool_round_id}` (bundle: pool IDs, pools, results)
+  - [x] `GET /api/pools/{event_id}/{pool_round_id}/fencer?name=...` (fencer search across pools/results)
+  - [x] `GET /api/de/{event_id}/{de_round_id}` (DE tableau)
+- [x] Reuse `fetch_pools_bundle` and add tableau fetch helper with retry/cache
+- [x] Add response schemas, error mapping, and config defaults
+- [x] Tests via direct handler unit tests with patched fetch functions (no real network)
+- [x] All 105 tests passing (94 FTL parsers + 11 API unit tests)
+
 ## Week 2 Tasks
 
 ### HTTP Client & Parallel Fetching

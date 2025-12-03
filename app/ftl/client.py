@@ -153,9 +153,10 @@ def _fetch_with_retry(
                 time.sleep(delay)
             continue
 
-    # All retries exhausted
+    # All retries exhausted - preserve exception type info in message
+    error_type = type(last_exception).__name__ if last_exception else "Unknown"
     raise FTLHTTPError(
-        f"Failed to fetch URL after {max_retries} attempts: {url}"
+        f"Failed to fetch URL after {max_retries} attempts ({error_type}): {url}"
     ) from last_exception
 
 
@@ -293,6 +294,42 @@ def fetch_pool_results_raw(
     json_text = _fetch_with_retry(url, timeout=timeout)
     _cache.set(cache_key, json_text)
     return json_text
+
+
+def fetch_tableau_raw(
+    event_id: str,
+    round_id: str,
+    *,
+    timeout: int = 10,
+    force_refresh: bool = False
+) -> str:
+    """
+    Fetch DE tableau HTML with caching.
+
+    Args:
+        event_id: Event UUID
+        round_id: DE round UUID
+        timeout: Request timeout
+        force_refresh: Bypass cache and force fresh fetch
+
+    Returns:
+        Raw HTML text
+
+    Raises:
+        FTLHTTPError: If fetch fails
+    """
+    path = f"/tableaus/scores/{event_id}/{round_id}"
+    url = _build_url(path)
+    cache_key = f"tableau:{event_id}:{round_id}"
+
+    if not force_refresh:
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    html = _fetch_with_retry(url, timeout=timeout)
+    _cache.set(cache_key, html)
+    return html
 
 
 def fetch_pools_bundle(

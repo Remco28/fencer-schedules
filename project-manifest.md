@@ -23,8 +23,8 @@
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
 - **Code Location (active):** `app/` at repo root (new FTL parsers and database)
 - **Legacy Reference:** `project_kickstart/` (temporary scaffold; planned removal after extraction)
-- **Current Task Spec:** None (Day 5 complete; awaiting next spec)
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`; `comms/tasks/archive/2025-11-26-ftl-day5-de-tableau-parser.md`
+- **Current Task Spec:** _None active_ (Day 6 complete; awaiting next spec)
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`; `comms/tasks/archive/2025-11-26-ftl-day5-de-tableau-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day6-api-endpoints-and-integration.md`
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*
@@ -50,7 +50,7 @@
 ## 5. Testing & Development
 *Resources for testing and local development.*
 
-- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (all 94 FTL parser tests + HTTP client tests). Legacy `project_kickstart/tests` need additional dependencies if ever run.
+- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (parsers + HTTP client) and `.venv/bin/pytest tests/api/test_api.py` (API handlers, patched fetches). Legacy `project_kickstart/tests` need extra deps (SQLAlchemy/typer); skip unless working on legacy code.
 - **Test Event Data:** See FTL sample files in `comms/ftl_research_human*.md`
 - **Test URLs:** November NAC 2025 - Div I Men's Épée
   - Event ID: `54B9EF9A9707492E93F1D1F46CF715A2`
