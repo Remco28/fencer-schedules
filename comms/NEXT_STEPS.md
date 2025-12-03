@@ -12,8 +12,10 @@
 - ✅ Day 2: Pool HTML parser (strip/fencers/bouts) (`app/ftl/parsers/pools.py`, tests in `tests/ftl/test_pools_parser.py`)
 - ✅ Day 3: Pool results JSON parser (advancement status) (`app/ftl/parsers/pool_results.py`, tests in `tests/ftl/test_pool_results_parser.py`)
 - ✅ Day 4: HTTP client + bulk fetch + in-memory cache (`app/ftl/client.py`, tests in `tests/ftl/test_client_bulk_fetch.py`)
+- ✅ Day 5: DE tableau parser (elimination bracket) (`app/ftl/parsers/de_tableau.py`, tests in `tests/ftl/test_de_tableau_parser.py`)
 - ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`, `comms/ftl_research_human_pools_results.md`
 - ✅ Dependencies installed: `requests`, `pydantic`, `beautifulsoup4`, `pytest`
+- ✅ All 94 tests passing (8 + 28 + 16 + 24 + 18)
 
 ---
 
@@ -45,10 +47,10 @@
 - [x] Tests with mocked HTTP responses (no real network)
 - [x] All 76 tests passing (8 + 28 + 16 + 24)
 
-### Day 5-7: DE Tableau Parser (Basic)
-- [ ] Implement basic tableau parser (find tracked fencers in bracket)
-- [ ] Extract match results, strip assignments, elimination status
-- [ ] Write unit tests using `comms/ftl_research_human.md`
+### Day 5-7: DE Tableau Parser (Spec: `comms/tasks/2025-11-26-ftl-day5-de-tableau-parser.md`)
+- [x] Implement tableau parser to extract matches (round, seeds, names, clubs, scores, strip/time, status, winner)
+- [x] Add schemas (`TableauMatch`, `Tableau`) and wire parser
+- [x] Write unit tests using inline fixture based on FTL API spec (includes in-progress/byes/priority scenarios)
 - [ ] Integration test: Full event data extraction (pools + DEs)
 
 ## Week 2 Tasks

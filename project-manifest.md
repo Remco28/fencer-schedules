@@ -23,8 +23,8 @@
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
 - **Code Location (active):** `app/` at repo root (new FTL parsers and database)
 - **Legacy Reference:** `project_kickstart/` (temporary scaffold; planned removal after extraction)
-- **Current Task Spec:** _None active_
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`
+- **Current Task Spec:** None (Day 5 complete; awaiting next spec)
+- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`; `comms/tasks/archive/2025-11-26-ftl-day5-de-tableau-parser.md`
 
 ## 3. Research & Documentation (Reference)
 *Background research and detailed findings that inform implementation decisions.*
@@ -41,16 +41,16 @@
 *Primary technical entrypoints for understanding the application's structure, dependencies, and configuration.*
 
 - **Main Application:** `app/` (root) — Python backend; mobile-first frontend to be added in later phases.
-- **FTL Module:** `app/ftl/` with parsers (`parsers/pool_ids.py`, `parsers/pools.py`), schemas (`schemas.py`), models (`models.py`), and HTTP client stub (`client.py`).
+- **FTL Module:** `app/ftl/` with parsers (`parsers/pool_ids.py`, `parsers/pools.py`, `parsers/pool_results.py`, `parsers/de_tableau.py`), schemas (`schemas.py`), models (`models.py`), and HTTP client (`client.py`).
 - **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`; imports SQLAlchemy `Base` and FTL models).
-- **Tests:** `tests/ftl/` (24 passing tests covering pool ID and pool HTML parsers); `tests/conftest.py` ensures repo root on `sys.path`.
+- **Tests:** `tests/ftl/` (94 passing tests: pool IDs, pool HTML, pool results, HTTP client, DE tableau); `tests/conftest.py` ensures repo root on `sys.path`.
 - **Dependencies:** Use `.venv`; install `requests`, `beautifulsoup4`, `pydantic`, `pytest` (SQLAlchemy is required for database models and for running legacy kickstart tests).
 - **Legacy Reference:** `project_kickstart/` — temporary FastAPI/Jinja scaffold for fencingtracker.com. Keep read-only; tests there require extra deps (e.g., SQLAlchemy) and are not part of the active Phase 2 work.
 
 ## 5. Testing & Development
 *Resources for testing and local development.*
 
-- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (pool IDs + pool HTML parsers). Legacy `project_kickstart/tests` need additional dependencies if ever run.
+- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (all 94 FTL parser tests + HTTP client tests). Legacy `project_kickstart/tests` need additional dependencies if ever run.
 - **Test Event Data:** See FTL sample files in `comms/ftl_research_human*.md`
 - **Test URLs:** November NAC 2025 - Div I Men's Épée
   - Event ID: `54B9EF9A9707492E93F1D1F46CF715A2`
@@ -68,9 +68,9 @@
 4. If implementing FTL scraper: read `docs/ftl-api-specification.md`.
 5. Run `.venv/bin/pytest tests/ftl` to verify parsers before/after changes.
 
-**Current Phase:** Phase 2 Implementation (Week 1 done: pool IDs + pool HTML parsers)
+**Current Phase:** Phase 2 Implementation (Week 1 complete: all core parsers + HTTP client done)
 
-**Current Priority:** Implement pool results JSON parser (advancement status) and start HTTP client for bulk pool fetching.
+**Current Priority:** Day 5 complete. Next: Integration tests or API endpoints (Week 2).
 
 ---
 
@@ -104,7 +104,7 @@ Temporary scaffold (FastAPI/Jinja/Auth/scraper for fencingtracker.com); keep rea
 ## Notes for Future Sessions
 
 - **Phase 1 Status:** Not started (Core Schedule MVP without live tracking)
-- **Phase 2 Status:** Implementation in progress (pool ID + pool HTML parsers complete)
+- **Phase 2 Status:** Week 1 complete (all parsers + HTTP client implemented; 94 tests passing)
 - **Key Decision:** Use Python for scraper (BeautifulSoup for HTML parsing, requests for HTTP)
-- **Architecture Decision:** Parallel fetching (ThreadPoolExecutor) + aggressive caching (3-5 min TTL)
+- **Architecture Decision:** Parallel fetching (ThreadPoolExecutor) + aggressive caching (180s TTL)
 - **Risk Level:** LOW-MEDIUM (acceptable for MVP)

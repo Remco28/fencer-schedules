@@ -62,3 +62,30 @@ class PoolResults(BaseModel):
     event_id: Optional[str] = None
     pool_round_id: Optional[str] = None
     fencers: list[PoolResult]
+
+
+class TableauMatch(BaseModel):
+    """Individual match within a DE tableau bracket."""
+    id: Optional[str] = None
+    round: Optional[str] = None  # "64", "32", "16", "8", "SF", "F"
+    seed_a: Optional[int] = None
+    seed_b: Optional[int] = None
+    name_a: Optional[str] = None
+    name_b: Optional[str] = None
+    club_a: Optional[str] = None
+    club_b: Optional[str] = None
+    score_a: Optional[int] = None
+    score_b: Optional[int] = None
+    winner: Optional[str] = None  # "A" | "B" | None
+    status: str  # "complete" | "in_progress" | "pending"
+    strip: Optional[str] = None
+    time: Optional[str] = None
+    note: Optional[str] = None
+    path: Optional[str] = None  # Optional bracket position identifier
+
+
+class Tableau(BaseModel):
+    """Complete DE tableau for an event/round with all matches."""
+    event_id: Optional[str] = None
+    round_id: Optional[str] = None
+    matches: list[TableauMatch]
