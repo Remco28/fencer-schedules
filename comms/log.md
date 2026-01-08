@@ -52,3 +52,4 @@
 [2026-01-05 20:22] [ARCHITECT]: REVIEW DONE: Day 7 frontend/auth migration review found blocking packaging issues (missing `__init__.py` in `app/api` and `app/services`) that prevent imports; changes do not pass as-is.
 [2026-01-07 13:34] [ARCHITECT]: FIX + TEST: Added `app/api/__init__.py` and `app/services/__init__.py`. `tests/ftl` and `tests/api` pass. `tests/web` hang in this environment (FastAPI TestClient requests never return), so auth tests could not be verified here.
 [2026-01-08 14:07] [ARCHITECT]: DOCS: Addressed web test deprecation warnings by updating timezone-aware defaults, Jinja TemplateResponse signatures, and TestClient cookie usage.
+[2026-01-08 14:23] [ARCHITECT]: CLEANUP: Removed legacy `project_kickstart/` scaffold and updated docs to reflect the cleanup.

@@ -79,7 +79,7 @@
 - [ ] Plan Redis integration (production - future)
 
 ### Basic API Endpoints
-- [ ] Set up FastAPI or Flask
+- [x] Set up FastAPI
 - [ ] Create endpoint: `GET /api/pools/{eventId}/{roundId}` (returns all pools)
 - [ ] Create endpoint: `GET /api/pools/{eventId}/{roundId}/fencer/{name}` (find specific fencer)
 - [ ] Create endpoint: `GET /api/de/{eventId}/{roundId}` (DE bracket)
@@ -89,7 +89,7 @@
 ## Week 3 Tasks (Frontend - Phase 1 Integration)
 
 ### Mobile-First UI
-- [ ] Decide on frontend framework (React, Vue, or server-rendered HTML)
+- [x] Decide on frontend framework (server-rendered HTML + Jinja2)
 - [ ] Create fencer search page
 - [ ] Create pool strip display page ("Where is my fencer?")
 - [ ] Create advancement status page ("Who made the cut?")
@@ -116,7 +116,7 @@
 ## Phase 1 Tasks (Parallel or Sequential)
 
 ### Core Schedule MVP (Non-Live Features)
-- [ ] User authentication (registration, login)
+- [x] User authentication (registration, login)
 - [ ] User profile (set home club)
 - [ ] Fencer search and tracking (add/remove fencers to watchlist)
 - [ ] Tournament listing (from `fencingtracker.com`)
@@ -171,5 +171,5 @@ Notes:
 - See `comms/plan.md` for overall project phases
 - See `docs/ftl-api-specification.md` for detailed implementation guide
 - Update checkboxes as tasks are completed
-- Active code lives under `app/` (FTL parsers). Legacy `project_kickstart/` remains read-only; its tests need extra deps (e.g., SQLAlchemy).
+- Active code lives under `app/` (FTL parsers). Legacy `project_kickstart/` has been removed.
 - Run `.venv/bin/pytest tests/ftl` before/after changes (legacy tests are not required).

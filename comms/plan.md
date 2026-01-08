@@ -10,7 +10,7 @@ Build a **mobile-first**, read-only web app for coaches, parents, and clubmates 
 Scope clarifications:
 - No email notifications or digests.
 - Live data comes from FencingTimeLive scraping; registration notifications from the legacy kickstart are out-of-scope.
-- The `project_kickstart/` codebase is a temporary reference; we will extract what we need, then retire/remove it.
+- The `project_kickstart/` reference scaffold has been retired and removed.
 
 ## 2. Phased Rollout Plan
 
@@ -21,7 +21,7 @@ The new live-tracking requirement adds complexity. We will approach this in phas
 Goal: Deliver the core, non-live schedule viewing experience.
 
 - [ ] **User Authentication:**
-    - [ ] User registration and login.
+    - [x] User registration and login.
     - [ ] Ability for a user to set their home club.
 - [ ] **Fencer Tracking:**
     - [ ] A page to search for fencers by name and club.
@@ -87,4 +87,4 @@ Goal: Integrate live data from `fencingtimelive.com` using a user-provided URL (
 
 ---
 *This is an iterative plan. We will update it as we go.*
-*Last updated: 2025-11-20*
+*Last updated: 2026-01-08*

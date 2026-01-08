@@ -2,7 +2,7 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2025-11-26
+**Last Updated:** 2026-01-08
 
 ---
 
@@ -22,7 +22,6 @@
 - **Session Summaries:** `comms/SESSION_SUMMARY_*.md` - Detailed session notes (e.g., `SESSION_SUMMARY_2025-11-20.md`)
 - **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
 - **Code Location (active):** `app/` at repo root (new FTL parsers and database)
-- **Legacy Reference:** `project_kickstart/` (temporary scaffold; planned removal after extraction)
 - **Current Task Spec:** _None active_ (Day 6 complete; awaiting next spec)
 - **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`; `comms/tasks/archive/2025-11-26-ftl-day5-de-tableau-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day6-api-endpoints-and-integration.md`
 
@@ -44,13 +43,12 @@
 - **FTL Module:** `app/ftl/` with parsers (`parsers/pool_ids.py`, `parsers/pools.py`, `parsers/pool_results.py`, `parsers/de_tableau.py`), schemas (`schemas.py`), models (`models.py`), and HTTP client (`client.py`).
 - **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`; imports SQLAlchemy `Base` and FTL models).
 - **Tests:** `tests/ftl/` (94 passing tests: pool IDs, pool HTML, pool results, HTTP client, DE tableau); `tests/conftest.py` ensures repo root on `sys.path`.
-- **Dependencies:** Use `.venv`; install `requests`, `beautifulsoup4`, `pydantic`, `pytest` (SQLAlchemy is required for database models and for running legacy kickstart tests).
-- **Legacy Reference:** `project_kickstart/` — temporary FastAPI/Jinja scaffold for fencingtracker.com. Keep read-only; tests there require extra deps (e.g., SQLAlchemy) and are not part of the active Phase 2 work.
+- **Dependencies:** Use `.venv`; install `requests`, `beautifulsoup4`, `pydantic`, `pytest`, `sqlalchemy`.
 
 ## 5. Testing & Development
 *Resources for testing and local development.*
 
-- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (parsers + HTTP client) and `.venv/bin/pytest tests/api/test_api.py` (API handlers, patched fetches). Legacy `project_kickstart/tests` need extra deps (SQLAlchemy/typer); skip unless working on legacy code.
+- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (parsers + HTTP client) and `.venv/bin/pytest tests/api/test_api.py` (API handlers, patched fetches).
 - **Test Event Data:** See FTL sample files in `comms/ftl_research_human*.md`
 - **Test URLs:** November NAC 2025 - Div I Men's Épée
   - Event ID: `54B9EF9A9707492E93F1D1F46CF715A2`
@@ -95,9 +93,6 @@ Python application code (FTL parsers under `app/ftl/`, database at `app/database
 
 ### `/tests/` - Test Suite (Active)
 Current tests for FTL parsers (`tests/ftl/`)
-
-### `/project_kickstart/` - Legacy Reference
-Temporary scaffold (FastAPI/Jinja/Auth/scraper for fencingtracker.com); keep read-only
 
 ---
 
