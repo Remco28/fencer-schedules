@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Fencer Search{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Fencer Search</h1>
+    <p>Search for a fencer's pool assignment and status in a tournament.</p>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% endif %}
+
+    <form method="post" action="/search">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="grid">
+            <label>
+                Event ID
+                <input type="text" name="event_id" value="{{ values.event_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+            <label>
+                Pool Round ID
+                <input type="text" name="pool_round_id" value="{{ values.pool_round_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+        </div>
+
+        <label>
+            Fencer Name
+            <input type="text" name="name" value="{{ values.name or '' }}"
+                   placeholder="Search by name (partial match)" required>
+        </label>
+
+        <button type="submit">Search</button>
+    </form>
+</section>
+
+{% if results is defined %}
+<section>
+    <h2>Search Results</h2>
+
+    {% if results.matches %}
+    <p>Found <strong>{{ results.matches|length }}</strong> match(es) for "{{ results.query }}"</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Pool</th>
+                <th>Strip</th>
+                <th>Club</th>
+                <th>Status</th>
+                <th>Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for match in results.matches %}
+            <tr>
+                <td>{{ match.name }}</td>
+                <td>{{ match.pool_number if match.pool_number else '—' }}</td>
+                <td>{{ match.strip if match.strip else '—' }}</td>
+                <td>{{ match.club if match.club else '—' }}</td>
+                <td>
+                    {% if match.status == 'advanced' %}
+                    <span class="status-advanced">Advanced</span>
+                    {% elif match.status == 'eliminated' %}
+                    <span class="status-eliminated">Eliminated</span>
+                    {% elif match.status == 'unknown' %}
+                    <span class="status-unknown">Unknown</span>
+                    {% else %}
+                    {{ match.status or '—' }}
+                    {% endif %}
+                </td>
+                <td>{{ match.source }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <article>
+        <p>No matches found for "{{ results.query }}"</p>
+    </article>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}
