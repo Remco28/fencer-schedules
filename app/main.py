@@ -1,9 +1,11 @@
 """FastAPI application for FTL data service."""
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from typing import Optional
 import os
+import re
+from typing import Any, Dict
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api import auth, dependencies
 from app.database import get_db
@@ -53,6 +55,168 @@ def dashboard(
         "dashboard.html",
         {"user": user},
     )
+
+
+# Regex for 32-char hex IDs
+HEX_ID_PATTERN = re.compile(r"^[A-Fa-f0-9]{32}$")
+
+
+def _do_fencer_search(
+    event_id: str,
+    pool_round_id: str,
+    name: str,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Internal helper for fencer search logic.
+
+    Fetches pools bundle and searches for fencer by name (case-insensitive substring).
+    Returns dict with 'query' and 'matches' keys.
+    Raises FTLHTTPError, FTLParseError, or ValueError on failure.
+    """
+    bundle = fetch_pools_bundle(
+        event_id,
+        pool_round_id,
+        force_refresh=force_refresh,
+        timeout=TIMEOUT,
+        max_workers=MAX_WORKERS,
+    )
+
+    query_lower = name.lower().strip()
+    matches = []
+    seen = set()
+
+    # Search in pool rosters
+    for pool in bundle.get("pools", []):
+        pool_number = pool.get("pool_number")
+        strip = pool.get("strip")
+
+        for fencer in pool.get("fencers", []):
+            fencer_name = fencer.get("name", "")
+            if query_lower in fencer_name.lower():
+                match_key = (fencer_name.lower(), pool_number)
+                if match_key not in seen:
+                    seen.add(match_key)
+                    matches.append({
+                        "name": fencer_name,
+                        "pool_number": pool_number,
+                        "strip": strip,
+                        "club": fencer.get("club"),
+                        "seed": fencer.get("seed"),
+                        "indicator": fencer.get("indicator"),
+                        "status": "unknown",
+                        "source": "pool",
+                    })
+
+    # Search in pool results
+    results = bundle.get("results", {})
+    for fencer_result in results.get("fencers", []):
+        fencer_name = fencer_result.get("name", "")
+        if query_lower in fencer_name.lower():
+            match_key = (fencer_name.lower(), None)
+            if match_key not in seen:
+                seen.add(match_key)
+                matches.append({
+                    "name": fencer_name,
+                    "pool_number": None,
+                    "strip": None,
+                    "club": fencer_result.get("club_primary"),
+                    "place": fencer_result.get("place"),
+                    "victories": fencer_result.get("victories"),
+                    "matches": fencer_result.get("matches"),
+                    "status": fencer_result.get("status"),
+                    "source": "results",
+                })
+
+    return {"query": name, "matches": matches}
+
+
+@app.get("/search", response_class=HTMLResponse)
+def search_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render fencer search form."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "search.html",
+        {"user": user, "values": {}},
+    )
+
+
+@app.post("/search", response_class=HTMLResponse)
+async def search_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle fencer search form submission."""
+    form = await request.form()
+    event_id = (form.get("event_id") or "").strip()
+    pool_round_id = (form.get("pool_round_id") or "").strip()
+    name = (form.get("name") or "").strip()
+
+    values = {"event_id": event_id, "pool_round_id": pool_round_id, "name": name}
+
+    # Validate inputs
+    if not event_id or not pool_round_id or not name:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": "All fields are required.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(event_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": "Event ID must be a 32-character hex string.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(pool_round_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": "Pool Round ID must be a 32-character hex string.", "values": values},
+        )
+
+    # Perform search
+    try:
+        results = _do_fencer_search(event_id, pool_round_id, name, force_refresh=False)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "values": values, "results": results},
+        )
+    except FTLHTTPError as e:
+        error_msg = str(e)
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            error = "The search timed out. Please try again."
+        else:
+            error = "Unable to reach the tournament server. Please try again later."
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": error, "values": values},
+        )
+    except FTLParseError:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": "Error parsing tournament data. The event may not exist.", "values": values},
+        )
+    except ValueError as e:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": str(e), "values": values},
+        )
+    except Exception:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "search.html",
+            {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
+        )
 
 
 @app.get("/api/pools/{event_id}/{pool_round_id}")
@@ -121,71 +285,7 @@ def search_fencer(
         dict with query and matches array
     """
     try:
-        # Fetch pools bundle (reuse to avoid double fetch)
-        bundle = fetch_pools_bundle(
-            event_id,
-            pool_round_id,
-            force_refresh=force_refresh,
-            timeout=TIMEOUT,
-            max_workers=MAX_WORKERS,
-        )
-
-        # Normalize search query
-        query_lower = name.lower().strip()
-
-        matches = []
-        seen = set()  # De-duplicate by (name, pool_number)
-
-        # Search in pool rosters
-        for pool in bundle.get("pools", []):
-            pool_number = pool.get("pool_number")
-            strip = pool.get("strip")
-
-            for fencer in pool.get("fencers", []):
-                fencer_name = fencer.get("name", "")
-                if query_lower in fencer_name.lower():
-                    match_key = (fencer_name.lower(), pool_number)
-                    if match_key not in seen:
-                        seen.add(match_key)
-                        matches.append({
-                            "name": fencer_name,
-                            "pool_number": pool_number,
-                            "strip": strip,
-                            "club": fencer.get("club"),
-                            "seed": fencer.get("seed"),
-                            "indicator": fencer.get("indicator"),
-                            "status": "unknown",  # Pool roster doesn't have advancement status
-                            "source": "pool",
-                        })
-
-        # Search in pool results
-        results = bundle.get("results", {})
-        for fencer_result in results.get("fencers", []):
-            fencer_name = fencer_result.get("name", "")
-            if query_lower in fencer_name.lower():
-                # Find which pool this fencer was in (not directly available from results)
-                # For now, include without pool_number from results
-                # Could enhance by cross-referencing with pools
-                match_key = (fencer_name.lower(), None)
-                if match_key not in seen:
-                    seen.add(match_key)
-                    matches.append({
-                        "name": fencer_name,
-                        "pool_number": None,
-                        "strip": None,
-                        "club": fencer_result.get("club_primary"),
-                        "place": fencer_result.get("place"),
-                        "victories": fencer_result.get("victories"),
-                        "matches": fencer_result.get("matches"),
-                        "status": fencer_result.get("status"),
-                        "source": "results",
-                    })
-
-        return {
-            "query": name,
-            "matches": matches,
-        }
-
+        return _do_fencer_search(event_id, pool_round_id, name, force_refresh)
     except FTLParseError as e:
         raise HTTPException(status_code=500, detail=f"Parse error: {str(e)}")
     except FTLHTTPError as e:

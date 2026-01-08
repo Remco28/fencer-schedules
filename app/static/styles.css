@@ -47,3 +47,32 @@ nav button {
 .stats article {
     text-align: center;
 }
+
+/* Error message box */
+.error-message {
+    background: #ffe8e8;
+    border-left: 4px solid #c0392b;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.error-message p {
+    margin: 0;
+    color: #c0392b;
+}
+
+/* Status badges */
+.status-advanced {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.status-eliminated {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.status-unknown {
+    color: #7f8c8d;
+    font-style: italic;
+}
