@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Sign in</h1>
+
+    {% if message %}
+    <div role="status" class="info">{{ message }}</div>
+    {% endif %}
+
+    {% if error %}
+    <div role="alert" class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/auth/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+            Username
+            <input type="text" name="username" required value="{{ values.username if values else '' }}" autocomplete="username">
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit">Log in</button>
+    </form>
+
+    <p>Need an account? <a href="/register">Create one</a>.</p>
+</section>
+{% endblock %}

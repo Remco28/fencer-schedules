@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Welcome, {{ user.username }}!</h1>
+    <p>Your account email: <strong>{{ user.email }}</strong></p>
+
+    <div class="grid stats">
+        <article>
+            <h2>Live Tracking</h2>
+            <p>Coming soon: Real-time pool and DE bracket tracking from FencingTimeLive.</p>
+        </article>
+        <article>
+            <h2>Tournament Schedule</h2>
+            <p>Coming soon: Personalized schedules for your club and tracked fencers.</p>
+        </article>
+    </div>
+
+    <h2>What's Next?</h2>
+    <p>This dashboard will soon provide real-time updates on fencer progress, pool assignments, and DE bracket advancement. Stay tuned!</p>
+</section>
+{% endblock %}

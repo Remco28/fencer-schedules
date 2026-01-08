@@ -1,8 +1,12 @@
 """FastAPI application for FTL data service."""
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
 import os
 
+from app.api import auth, dependencies
+from app.database import get_db
 from app.ftl.client import (
     fetch_pools_bundle,
     fetch_tableau_raw,
@@ -10,6 +14,7 @@ from app.ftl.client import (
     FTLParseError,
 )
 from app.ftl.parsers import parse_de_tableau
+from app.models import User
 
 
 # Configuration from environment variables with defaults
@@ -19,16 +24,35 @@ CACHE_TTL = int(os.getenv("FTL_CACHE_TTL", "180"))
 
 
 app = FastAPI(
-    title="FTL Data Service",
-    description="API for fetching and parsing FencingTimeLive tournament data",
+    title="Fencer Schedules",
+    description="Live tournament tracking and personalized schedules",
     version="1.0.0",
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Include auth router
+app.include_router(auth.router)
 
 
 @app.get("/")
 def root():
     """Health check endpoint."""
     return {"status": "ok", "service": "FTL Data Service"}
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Dashboard page for authenticated users."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {"user": user},
+    )
 
 
 @app.get("/api/pools/{event_id}/{pool_round_id}")
