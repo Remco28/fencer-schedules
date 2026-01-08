@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Fencer Schedules{% endblock %}</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>Fencer Schedules</strong></li>
+            </ul>
+            <ul>
+                {% if user %}
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li>
+                    <form method="post" action="/auth/logout">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="small outline">Log out</button>
+                    </form>
+                </li>
+                {% else %}
+                <li><a href="/login">Login</a></li>
+                <li><a href="/register">Register</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>Fencer Schedules - Live Tournament Tracking</small>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

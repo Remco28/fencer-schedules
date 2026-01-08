@@ -1,5 +1,5 @@
 """FTL database models for event linkage and caching."""
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlalchemy import Column, DateTime, Integer, String, Text, Index
 
 from app.database import Base
@@ -15,8 +15,8 @@ class FTLEventLink(Base):
     de_round_id = Column(String(32), nullable=True)
     source_url = Column(String, nullable=False)
     label = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=False)
 
 
 class FTLPoolsSnapshot(Base):
@@ -27,7 +27,7 @@ class FTLPoolsSnapshot(Base):
     event_id = Column(String(32), nullable=False, index=True)
     pool_round_id = Column(String(32), nullable=False, index=True)
     pool_ids = Column(Text, nullable=False)  # JSON serialized list of pool IDs
-    fetched_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    fetched_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     __table_args__ = (
         Index('ix_ftl_pools_event_round', 'event_id', 'pool_round_id'),

@@ -21,6 +21,7 @@ def init_db() -> None:
     """Create tables for all registered models."""
     # Import models to register them with Base metadata
     import app.ftl.models  # noqa: F401
+    import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
