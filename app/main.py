@@ -195,6 +195,72 @@ def _do_pools_overview(
     }
 
 
+def _do_advancement_status(
+    event_id: str,
+    pool_round_id: str,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Internal helper for advancement status data.
+
+    Fetches pools bundle and groups fencers by advancement status.
+    Returns dict with grouped fencers and counts.
+    """
+    bundle = fetch_pools_bundle(
+        event_id,
+        pool_round_id,
+        force_refresh=force_refresh,
+        timeout=TIMEOUT,
+        max_workers=MAX_WORKERS,
+    )
+
+    results = bundle.get("results", {})
+    fencers = results.get("fencers", [])
+
+    groups = {"advanced": [], "eliminated": [], "unknown": []}
+    for fencer in fencers:
+        status = fencer.get("status") or "unknown"
+        if status not in groups:
+            status = "unknown"
+        groups[status].append({
+            "name": fencer.get("name", ""),
+            "club": fencer.get("club_primary"),
+            "place": fencer.get("place"),
+            "status": status,
+        })
+
+    def sort_key(item: Dict[str, Any]) -> tuple:
+        place = item.get("place")
+        place_value = None
+        if isinstance(place, int):
+            place_value = place
+        elif isinstance(place, str):
+            stripped = place.strip()
+            if stripped.isdigit():
+                place_value = int(stripped)
+        if place_value is None:
+            place_value = 10**9
+        name = (item.get("name") or "").lower()
+        return (place_value == 10**9, place_value, name)
+
+    for status, items in groups.items():
+        items.sort(key=sort_key)
+
+    counts = {
+        "advanced": len(groups["advanced"]),
+        "eliminated": len(groups["eliminated"]),
+        "unknown": len(groups["unknown"]),
+    }
+    counts["total"] = sum(counts.values())
+
+    return {
+        "event_id": event_id,
+        "pool_round_id": pool_round_id,
+        "groups": groups,
+        "counts": counts,
+    }
+
+
 @app.get("/search", response_class=HTMLResponse)
 def search_page(
     request: Request,
@@ -217,6 +283,19 @@ def pools_page(
     return dependencies.templates.TemplateResponse(
         request,
         "pools.html",
+        {"user": user, "values": {}},
+    )
+
+
+@app.get("/advancement", response_class=HTMLResponse)
+def advancement_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render advancement status form."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "advancement.html",
         {"user": user, "values": {}},
     )
 
@@ -370,6 +449,85 @@ async def pools_submit(
         return dependencies.templates.TemplateResponse(
             request,
             "pools.html",
+            {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
+        )
+
+
+@app.post("/advancement", response_class=HTMLResponse)
+async def advancement_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle advancement status form submission."""
+    form = await request.form()
+    event_id = (form.get("event_id") or "").strip()
+    pool_round_id = (form.get("pool_round_id") or "").strip()
+
+    values = {"event_id": event_id, "pool_round_id": pool_round_id}
+
+    if not event_id or not pool_round_id:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": "Both fields are required.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(event_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": "Event ID must be a 32-character hex string.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(pool_round_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": "Pool Round ID must be a 32-character hex string.", "values": values},
+        )
+
+    try:
+        results = _do_advancement_status(event_id, pool_round_id, force_refresh=False)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {
+                "user": user,
+                "values": values,
+                "event_id": results["event_id"],
+                "pool_round_id": results["pool_round_id"],
+                "groups": results["groups"],
+                "counts": results["counts"],
+            },
+        )
+    except FTLHTTPError as e:
+        error_msg = str(e)
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            error = "The request timed out. Please try again."
+        else:
+            error = "Unable to reach the tournament server. Please try again later."
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": error, "values": values},
+        )
+    except FTLParseError:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": "Error parsing tournament data. The event may not exist.", "values": values},
+        )
+    except ValueError as e:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
+            {"user": user, "error": str(e), "values": values},
+        )
+    except Exception:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "advancement.html",
             {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
         )
 

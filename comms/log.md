@@ -64,3 +64,9 @@
 
 [2026-01-13 16:54] [CLAUDE]: IMPL DONE: Added /pools server-rendered pool overview page, template, styles, and tests. Attempted `.venv/bin/pytest tests/web/test_pools.py` but it timed out in this environment.
 [2026-01-13 17:10] [ARCHITECT]: REVIEW PASS: Day 9 pool overview UI approved; spec archived to `comms/tasks/archive/2026-01-09-day9-pool-overview-ui.md`. Web tests reported green by user; could not reproduce locally due to test timeout.
+[2026-01-14 09:15] [ARCHITECT]: SPEC READY: Authored Day 10 spec for advancement status UI at `comms/tasks/2026-01-14-day10-advancement-status-ui.md`.
+[2026-01-14 10:05] [ARCHITECT]: REVIEW PASS: Day 10 advancement status UI approved; spec archived to `comms/tasks/archive/2026-01-14-day10-advancement-status-ui.md`. Web test reported green by user.
+
+[2026-01-13 17:22] [CLAUDE]: IMPL IN_PROGRESS: Starting Day 10 advancement status UI implementation (comms/tasks/2026-01-14-day10-advancement-status-ui.md).
+
+[2026-01-13 17:26] [CLAUDE]: IMPL DONE: Added /advancement server-rendered page with grouped advancement status lists, template, nav link, styles, and tests. Attempted `.venv/bin/pytest tests/web/test_advancement.py` but it timed out in this environment.
