@@ -131,6 +131,70 @@ def _do_fencer_search(
     return {"query": name, "matches": matches}
 
 
+def _do_pools_overview(
+    event_id: str,
+    pool_round_id: str,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Internal helper for pool overview data.
+
+    Fetches pools bundle and merges fencer statuses from pool results.
+    Returns dict with event_id, pool_round_id, and normalized pools list.
+    """
+    bundle = fetch_pools_bundle(
+        event_id,
+        pool_round_id,
+        force_refresh=force_refresh,
+        timeout=TIMEOUT,
+        max_workers=MAX_WORKERS,
+    )
+
+    pools = bundle.get("pools", [])
+    results = bundle.get("results", {})
+    results_fencers = results.get("fencers", [])
+
+    exact_map = {}
+    lower_map = {}
+    for fencer_result in results_fencers:
+        name = fencer_result.get("name")
+        if not name:
+            continue
+        exact_map[name] = fencer_result
+        lower_map.setdefault(name.lower(), []).append(fencer_result)
+
+    normalized_pools = []
+    for pool in pools:
+        normalized_fencers = []
+        for fencer in pool.get("fencers", []):
+            name = fencer.get("name", "")
+            status = "unknown"
+            if name in exact_map:
+                status = exact_map[name].get("status") or "unknown"
+            else:
+                candidates = lower_map.get(name.lower(), [])
+                if candidates:
+                    status = candidates[0].get("status") or "unknown"
+
+            normalized_fencers.append({
+                "name": name,
+                "club": fencer.get("club"),
+                "status": status,
+            })
+
+        normalized_pools.append({
+            "pool_number": pool.get("pool_number"),
+            "strip": pool.get("strip"),
+            "fencers": normalized_fencers,
+        })
+
+    return {
+        "event_id": event_id,
+        "pool_round_id": pool_round_id,
+        "pools": normalized_pools,
+    }
+
+
 @app.get("/search", response_class=HTMLResponse)
 def search_page(
     request: Request,
@@ -140,6 +204,19 @@ def search_page(
     return dependencies.templates.TemplateResponse(
         request,
         "search.html",
+        {"user": user, "values": {}},
+    )
+
+
+@app.get("/pools", response_class=HTMLResponse)
+def pools_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render pool overview form."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "pools.html",
         {"user": user, "values": {}},
     )
 
@@ -215,6 +292,84 @@ async def search_submit(
         return dependencies.templates.TemplateResponse(
             request,
             "search.html",
+            {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
+        )
+
+
+@app.post("/pools", response_class=HTMLResponse)
+async def pools_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle pool overview form submission."""
+    form = await request.form()
+    event_id = (form.get("event_id") or "").strip()
+    pool_round_id = (form.get("pool_round_id") or "").strip()
+
+    values = {"event_id": event_id, "pool_round_id": pool_round_id}
+
+    if not event_id or not pool_round_id:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": "Both fields are required.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(event_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": "Event ID must be a 32-character hex string.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(pool_round_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": "Pool Round ID must be a 32-character hex string.", "values": values},
+        )
+
+    try:
+        results = _do_pools_overview(event_id, pool_round_id, force_refresh=False)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {
+                "user": user,
+                "values": values,
+                "event_id": results["event_id"],
+                "pool_round_id": results["pool_round_id"],
+                "pools": results["pools"],
+            },
+        )
+    except FTLHTTPError as e:
+        error_msg = str(e)
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            error = "The request timed out. Please try again."
+        else:
+            error = "Unable to reach the tournament server. Please try again later."
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": error, "values": values},
+        )
+    except FTLParseError:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": "Error parsing tournament data. The event may not exist.", "values": values},
+        )
+    except ValueError as e:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "error": str(e), "values": values},
+        )
+    except Exception:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
             {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
         )
 

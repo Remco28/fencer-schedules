@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Pool Overview{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Pool Overview</h1>
+    <p>View pool assignments and rosters for a pool round.</p>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% endif %}
+
+    <form method="post" action="/pools">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="grid">
+            <label>
+                Event ID
+                <input type="text" name="event_id" value="{{ values.event_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+            <label>
+                Pool Round ID
+                <input type="text" name="pool_round_id" value="{{ values.pool_round_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+        </div>
+
+        <button type="submit">View Pools</button>
+    </form>
+</section>
+
+{% if pools is defined %}
+<section>
+    <h2>Pools</h2>
+
+    {% if pools %}
+    <div class="pool-grid">
+        {% for pool in pools %}
+        <article class="pool-card">
+            <div class="pool-header">
+                <h3>Pool {{ pool.pool_number if pool.pool_number else '—' }}</h3>
+                <span class="pool-strip">Strip {{ pool.strip if pool.strip else '—' }}</span>
+            </div>
+            <ul class="pool-roster">
+                {% for fencer in pool.fencers %}
+                <li class="pool-fencer">
+                    <div class="pool-fencer-info">
+                        <span class="pool-fencer-name">{{ fencer.name }}</span>
+                        <span class="pool-fencer-club">{{ fencer.club if fencer.club else '—' }}</span>
+                    </div>
+                    <div class="pool-fencer-status">
+                        {% if fencer.status == 'advanced' %}
+                        <span class="status-advanced">Advanced</span>
+                        {% elif fencer.status == 'eliminated' %}
+                        <span class="status-eliminated">Eliminated</span>
+                        {% elif fencer.status == 'unknown' %}
+                        <span class="status-unknown">Unknown</span>
+                        {% else %}
+                        {{ fencer.status or '—' }}
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <article>
+        <p>No pools found for this event and pool round.</p>
+    </article>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

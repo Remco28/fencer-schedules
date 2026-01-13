@@ -19,6 +19,7 @@
                 {% if user %}
                 <li><a href="/dashboard">Dashboard</a></li>
                 <li><a href="/search">Search</a></li>
+                <li><a href="/pools">Pools</a></li>
                 <li>
                     <form method="post" action="/auth/logout">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
