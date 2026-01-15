@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}DE Tableau{% endblock %}
+
+{% block content %}
+<section>
+    <h1>DE Tableau</h1>
+    <p>View direct elimination matchups and results for a round.</p>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% endif %}
+
+    <form method="post" action="/de">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="grid">
+            <label>
+                Event ID
+                <input type="text" name="event_id" value="{{ values.event_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+            <label>
+                DE Round ID
+                <input type="text" name="round_id" value="{{ values.round_id or '' }}"
+                       placeholder="32-character hex ID" maxlength="32" required>
+            </label>
+        </div>
+
+        <button type="submit">View Tableau</button>
+    </form>
+</section>
+
+{% if groups is defined %}
+<section>
+    <h2>Matches</h2>
+
+    {% if groups|length == 0 %}
+    <article>
+        <p>No matches found for this event and round.</p>
+    </article>
+    {% else %}
+        {% for group in groups %}
+        <article class="de-round">
+            <h3>{{ group.label }}</h3>
+            <div class="de-matches">
+                {% for match in group.matches %}
+                <div class="de-match">
+                    <div class="de-competitor {% if match.winner == 'A' %}winner{% endif %}">
+                        <span class="de-seed">{{ match.seed_a if match.seed_a is not none else '—' }}</span>
+                        <span class="de-name">{{ match.name_a or '—' }}</span>
+                        <span class="de-club">{{ match.club_a if match.club_a else '—' }}</span>
+                        <span class="de-score">{{ match.score_a if match.score_a is not none else '—' }}</span>
+                    </div>
+                    <div class="de-competitor {% if match.winner == 'B' %}winner{% endif %}">
+                        <span class="de-seed">{{ match.seed_b if match.seed_b is not none else '—' }}</span>
+                        <span class="de-name">{{ match.name_b or '—' }}</span>
+                        <span class="de-club">{{ match.club_b if match.club_b else '—' }}</span>
+                        <span class="de-score">{{ match.score_b if match.score_b is not none else '—' }}</span>
+                    </div>
+                    <div class="de-meta">
+                        <span>Strip {{ match.strip if match.strip else '—' }}</span>
+                        <span>{{ match.time if match.time else '—' }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </article>
+        {% endfor %}
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

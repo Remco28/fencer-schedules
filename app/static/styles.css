@@ -186,3 +186,56 @@ nav button {
     color: #6b6b6b;
     font-style: italic;
 }
+
+/* DE tableau layout */
+.de-round {
+    margin-bottom: 1.5rem;
+}
+
+.de-matches {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.de-match {
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.de-competitor {
+    display: grid;
+    grid-template-columns: 50px minmax(140px, 2fr) minmax(120px, 2fr) 60px;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.de-competitor.winner .de-name {
+    font-weight: 700;
+    color: #1d6f42;
+}
+
+.de-seed {
+    font-size: 0.85rem;
+    color: #6b6b6b;
+}
+
+.de-club {
+    font-size: 0.85rem;
+    color: #6b6b6b;
+}
+
+.de-score {
+    text-align: right;
+    font-weight: 600;
+}
+
+.de-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #6b6b6b;
+}

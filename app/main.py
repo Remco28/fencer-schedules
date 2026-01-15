@@ -261,6 +261,62 @@ def _do_advancement_status(
     }
 
 
+def _do_de_tableau(
+    event_id: str,
+    round_id: str,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Internal helper for DE tableau data.
+
+    Fetches tableau HTML and parses matches, grouped by round label.
+    """
+    html = fetch_tableau_raw(
+        event_id,
+        round_id,
+        timeout=TIMEOUT,
+        force_refresh=force_refresh,
+    )
+
+    tableau = parse_de_tableau(html, event_id=event_id, round_id=round_id)
+    matches = tableau.get("matches", [])
+
+    label_map = {
+        "64": "Table of 64",
+        "32": "Table of 32",
+        "16": "Table of 16",
+        "8": "Table of 8",
+        "QF": "Quarterfinal",
+        "SF": "Semifinal",
+        "F": "Final",
+    }
+
+    grouped: Dict[str, list] = {}
+    for match in matches:
+        round_key = match.get("round") or "Other"
+        label = label_map.get(round_key, round_key if round_key != "Other" else "Other")
+        grouped.setdefault(label, []).append(match)
+
+    def match_sort_key(item: Dict[str, Any]) -> tuple:
+        path = item.get("path") or ""
+        seed_a = item.get("seed_a") or 10**9
+        seed_b = item.get("seed_b") or 10**9
+        name_a = (item.get("name_a") or "").lower()
+        name_b = (item.get("name_b") or "").lower()
+        return (path == "", path, seed_a, seed_b, name_a, name_b)
+
+    groups = []
+    for label, items in grouped.items():
+        items.sort(key=match_sort_key)
+        groups.append({"label": label, "matches": items})
+
+    return {
+        "event_id": event_id,
+        "round_id": round_id,
+        "groups": groups,
+    }
+
+
 @app.get("/search", response_class=HTMLResponse)
 def search_page(
     request: Request,
@@ -296,6 +352,19 @@ def advancement_page(
     return dependencies.templates.TemplateResponse(
         request,
         "advancement.html",
+        {"user": user, "values": {}},
+    )
+
+
+@app.get("/de", response_class=HTMLResponse)
+def de_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render DE tableau form."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "de_tableau.html",
         {"user": user, "values": {}},
     )
 
@@ -528,6 +597,84 @@ async def advancement_submit(
         return dependencies.templates.TemplateResponse(
             request,
             "advancement.html",
+            {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
+        )
+
+
+@app.post("/de", response_class=HTMLResponse)
+async def de_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle DE tableau form submission."""
+    form = await request.form()
+    event_id = (form.get("event_id") or "").strip()
+    round_id = (form.get("round_id") or "").strip()
+
+    values = {"event_id": event_id, "round_id": round_id}
+
+    if not event_id or not round_id:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": "Both fields are required.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(event_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": "Event ID must be a 32-character hex string.", "values": values},
+        )
+
+    if not HEX_ID_PATTERN.match(round_id):
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": "DE Round ID must be a 32-character hex string.", "values": values},
+        )
+
+    try:
+        results = _do_de_tableau(event_id, round_id, force_refresh=False)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {
+                "user": user,
+                "values": values,
+                "event_id": results["event_id"],
+                "round_id": results["round_id"],
+                "groups": results["groups"],
+            },
+        )
+    except FTLHTTPError as e:
+        error_msg = str(e)
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            error = "The request timed out. Please try again."
+        else:
+            error = "Unable to reach the tournament server. Please try again later."
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": error, "values": values},
+        )
+    except FTLParseError:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": "Error parsing tableau data. The event may not exist.", "values": values},
+        )
+    except ValueError as e:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
+            {"user": user, "error": str(e), "values": values},
+        )
+    except Exception:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de_tableau.html",
             {"user": user, "error": "An unexpected error occurred. Please try again.", "values": values},
         )
 
