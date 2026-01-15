@@ -1,90 +1,272 @@
-# Fencer Scheduling App - Development Plan
+# Fencer Schedules App - Development Plan
 
-## 1. Objective
+## 1. Vision
 
-Build a **mobile-first**, read-only web app for coaches, parents, and clubmates to quickly answer:
-- Where is each fencer right now? (pool/strip or DE tableau location)
-- What is their status? (active, bout in progress, advanced, eliminated)
-- What’s next? (upcoming bout/tableau position)
+A **mobile-first web app** for coaches, parents, and clubmates to track fencers at live tournaments. The app answers:
 
-Scope clarifications:
-- No email notifications or digests.
-- Live data comes from FencingTimeLive scraping; registration notifications from the legacy kickstart are out-of-scope.
-- The `project_kickstart/` reference scaffold has been retired and removed.
+- **Where is my fencer?** (strip assignment, pool number)
+- **What's their status?** (active bout, waiting, advanced, eliminated)
+- **How are they doing?** (pool results, DE progress, final placement)
 
-## 2. Phased Rollout Plan
+### Core Concept
 
-The new live-tracking requirement adds complexity. We will approach this in phases to deliver value incrementally and manage risk.
+Users enter a **tournament URL** from FencingTimeLive, set their **club**, and the app automatically tracks all club members across all events. Additional fencers can be tracked manually.
 
-### Phase 1: Core Personalized Schedule (MVP)
+### Key User Journey
 
-Goal: Deliver the core, non-live schedule viewing experience.
-
-- [ ] **User Authentication:**
-    - [x] User registration and login.
-    - [ ] Ability for a user to set their home club.
-- [ ] **Fencer Tracking:**
-    - [ ] A page to search for fencers by name and club.
-    - [ ] A mechanism to "track" or "untrack" individual fencers.
-- [ ] **Static Schedule View:**
-    - [ ] A page listing available tournaments (from `fencingtracker.com`).
-    - [ ] On selecting a tournament, display a personalized schedule showing only club members and tracked fencers, with event times.
-
-### Phase 2: Live Tracking via Manual Linking
-
-Goal: Integrate live data from `fencingtimelive.com` using a user-provided URL (no email or push).
-
-- [ ] **Event Linking:**
-    - [ ] In the schedule view, add an input field for each event where a user can paste the corresponding `fencingtimelive.com` URL.
-    - [ ] Store this URL in the database.
-- [ ] **Live Data Scraper Service:**
-    - [ ] Build or extend a scraper to parse a `fencingtimelive.com` event page.
-    - [ ] Extract and serve:
-        - [ ] Pool strip assignments and bout state.
-        - [ ] Pool completion status and promotions.
-        - [ ] DE tableau positions, match results, and strip assignments.
-        - [ ] Fencer elimination/advancement status.
-- [ ] **Dynamic "Live" Views:**
-    - [ ] Mobile-first views for: fencer search, “where is my fencer?” (current strip/bout), and advancement status.
-    - [ ] Indicators: `On Strip: A5`, `Waiting`, `Advanced`, `Eliminated`.
-    - [ ] Manual refresh acceptable for MVP; auto-refresh optional.
-
-## 3. Future Goals (Post-MVP)
-
-- **Automatic Event Matching:** Investigate methods to automatically find the `fencingtimelive.com` URL for an event, removing the need for manual user input.
-
-## 4. Technical Approach & Considerations
-
-- **Frontend:** Continue with a mobile-first, server-rendered HTML approach using a responsive framework. A full-page reload will be the mechanism for refreshing live data, simplifying the initial frontend implementation.
-- **Backend:**
-    - The `scraper_service` will need significant updates to support `fencingtimelive.com`. This is a high-risk area; we must investigate the target site's structure carefully.
-    - New API endpoints will be needed (e.g., `POST /api/events/{id}/set-live-url`, `GET /api/events/{id}/live-data`).
-- **Database:**
-    - The `events` table (or equivalent) will likely need a new column: `live_event_url` (nullable text).
-    - Consider caching live data results to avoid excessive scraping.
-
-## 5. Action Plan (Revised)
-
-1.  **Task 1: Build Phase 1 (Core Schedule).**
-    - Focus exclusively on implementing the non-live features from Phase 1. This provides a stable base.
-2.  **Task 2: Investigate `fencingtimelive.com` Scraper.** ✅ **COMPLETE (2025-11-20)**
-    - ✅ Analyzed structure of live event pages
-    - ✅ Identified all required data sources (pool IDs, pool data, pool results, DE tableau)
-    - ✅ Tested extraction methods with real tournament data
-    - ✅ Documented complete API specification in `docs/ftl-api-specification.md`
-    - ✅ **Verdict: FEASIBLE - Phase 2 is GO!**
-3.  **Task 3: Build Phase 2 (Live Tracking).**
-    - Implement the backend scraper service
-    - Build parsers for pool and DE data
-    - Add caching layer
-    - Create API endpoints for frontend
-    - Build frontend UI for live tracking
-
-**Research Documentation:**
-- **Technical Spec:** `docs/ftl-api-specification.md` - Complete implementation guide
-- **Research Summary:** `comms/ftl_research_summary.md` - Executive summary of findings
-- **Sample Data:** `comms/ftl_research_human*.md` - Real tournament data samples
+```
+1. User logs in
+2. User pastes a FencingTimeLive tournament URL
+3. User sets club filter (e.g., "Elite Fencers Club") and optional weapon filter
+4. App discovers all events and finds club fencers automatically
+5. User sees a consolidated dashboard:
+   - All tracked fencers across all events
+   - Current location (strip, pool) and status
+   - Grouped by activity (active now, waiting, finished)
+6. User can manually add non-club fencers to track
+7. Dashboard updates on refresh
+```
 
 ---
-*This is an iterative plan. We will update it as we go.*
-*Last updated: 2026-01-08*
+
+## 2. Architecture Overview
+
+### Data Hierarchy (FencingTimeLive)
+
+```
+Tournament (e.g., "Capital Clash 2026")
+  └── Event (e.g., "Senior Women's Epee")
+        ├── Pool Round (pool_round_id)
+        │     └── Pools 1-N (fencers, strips, bouts)
+        └── DE Round (de_round_id)
+              └── Tableau (matches, scores, brackets)
+```
+
+### System Layers
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  NEW: Orchestration Layer                                       │
+│  - Tournament schedule parser                                   │
+│  - Event round discovery                                        │
+│  - Club-based fencer aggregation                                │
+│  - Consolidated dashboard                                       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  EXISTING: FTL Data Layer (fully built)                         │
+│  - Pool parser (fencers, strips, bouts)                         │
+│  - Pool results parser (advancement status)                     │
+│  - DE tableau parser (matches, scores)                          │
+│  - HTTP client with retry/cache                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  EXISTING: Foundation Layer (fully built)                       │
+│  - User authentication (register, login, sessions)              │
+│  - Database (SQLAlchemy + SQLite)                               │
+│  - Base UI templates and styling                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Data Model
+
+### User
+
+```
+User
+  - id, username, email, password_hash
+  - club (string, nullable) ← NEW: user's home club for auto-tracking
+  - created_at, updated_at
+```
+
+### Tournament Tracking (NEW)
+
+```
+TrackedTournament
+  - id
+  - user_id (FK → User)
+  - tournament_id (32-char hex from FTL URL)
+  - tournament_name (scraped or user-provided)
+  - tournament_url (original FTL URL)
+  - club_filter (string, nullable) - defaults to user's club
+  - weapon_filter (string, nullable) - e.g., "Epee" or null for all
+  - created_at
+  - expires_at (auto-delete after 48 hours)
+
+TrackedFencer
+  - id
+  - tracked_tournament_id (FK → TrackedTournament)
+  - fencer_name (string)
+  - source ("club" = auto-discovered, "manual" = user-added)
+  - created_at
+```
+
+### Event Cache (NEW)
+
+```
+CachedEvent
+  - id
+  - tournament_id
+  - event_id (32-char hex)
+  - event_name (e.g., "Senior Women's Epee")
+  - weapon (e.g., "Epee", "Foil", "Saber")
+  - start_time (datetime, nullable)
+  - pool_round_id (32-char hex, nullable)
+  - de_round_id (32-char hex, nullable)
+  - phase (not_started, pools, de, complete)
+  - last_fetched_at
+```
+
+---
+
+## 4. Implementation Phases
+
+### Phase A: Research & Preparation
+- [ ] Research tournament schedule page HTML structure
+- [ ] Research event page structure (how to find pool/DE round IDs)
+- [ ] Document URL patterns and parsing strategies
+- [ ] Create sample data artifacts
+
+### Phase B: User Profile Enhancement
+- [ ] Add `club` field to User model
+- [ ] Create profile edit page
+- [ ] Migration for existing users
+
+### Phase C: Tournament Setup
+- [ ] Tournament schedule parser (extract events from tournament page)
+- [ ] Event round discovery (find pool_round_id, de_round_id per event)
+- [ ] TrackedTournament and CachedEvent models
+- [ ] Tournament setup page (enter URL, set filters)
+- [ ] Auto-discover club fencers across events
+
+### Phase D: Consolidated Dashboard
+- [ ] Orchestration layer (aggregate fencer status across events)
+- [ ] Dashboard UI with groupings (active, waiting, finished)
+- [ ] Fencer status computation (location, phase, result)
+- [ ] Manual refresh functionality
+
+### Phase E: Manual Fencer Tracking
+- [ ] Cross-event fencer search
+- [ ] TrackedFencer model and add/remove UI
+- [ ] Distinguish club vs manual fencers in dashboard
+
+### Phase F: Polish & Cleanup
+- [ ] Auto-cleanup expired tournaments (48-hour TTL)
+- [ ] Error handling and edge cases
+- [ ] Mobile responsiveness testing
+- [ ] Performance optimization
+
+---
+
+## 5. Existing Assets (Completed)
+
+### FTL Parsers (94 tests passing)
+| Parser | File | Purpose |
+|--------|------|---------|
+| Pool IDs | `app/ftl/parsers/pool_ids.py` | Extract pool IDs from event page |
+| Pool HTML | `app/ftl/parsers/pools.py` | Parse fencers, strips, bouts |
+| Pool Results | `app/ftl/parsers/pool_results.py` | Parse advancement status |
+| DE Tableau | `app/ftl/parsers/de_tableau.py` | Parse elimination bracket |
+
+### HTTP Client
+| Component | File | Purpose |
+|-----------|------|---------|
+| Client | `app/ftl/client.py` | Retry, timeout, TTL cache |
+| Bulk Fetch | `app/ftl/client.py` | Parallel pool fetching |
+
+### Auth System
+| Component | File | Purpose |
+|-----------|------|---------|
+| Auth Routes | `app/api/auth.py` | Register, login, logout |
+| Services | `app/services/` | Password hashing, CSRF, rate limits |
+
+### UI Pages (may become detail views)
+| Page | Route | Purpose |
+|------|-------|---------|
+| Search | `/search` | Find fencer by name |
+| Pools | `/pools` | View pool rosters |
+| Advancement | `/advancement` | View advancement status |
+| DE Tableau | `/de` | View elimination bracket |
+
+---
+
+## 6. UI Mockup: Consolidated Dashboard
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  Capital Clash 2026                                  [Refresh]   ║
+║  Elite Fencers Club · Epee events                                ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  ACTIVE NOW (2)                                                  ║
+║  ┌────────────────────────────────────────────────────────────┐  ║
+║  │ Jane Smith      │ W. Epee  │ Strip A5 │ DE Table of 16    │  ║
+║  │ Mike Chen       │ M. Epee  │ Pool 7   │ Bout 3 of 6       │  ║
+║  └────────────────────────────────────────────────────────────┘  ║
+║                                                                  ║
+║  WAITING (1)                                                     ║
+║  ┌────────────────────────────────────────────────────────────┐  ║
+║  │ Bob Johnson     │ M. Epee  │ —        │ Starts 2:00 PM    │  ║
+║  └────────────────────────────────────────────────────────────┘  ║
+║                                                                  ║
+║  FINISHED (2)                                                    ║
+║  ┌────────────────────────────────────────────────────────────┐  ║
+║  │ Alice Wong      │ W. Epee  │ —        │ Eliminated (Pools)│  ║
+║  │ Tom Davis       │ W. Epee  │ —        │ 3rd Place         │  ║
+║  └────────────────────────────────────────────────────────────┘  ║
+║                                                                  ║
+║  [+ Add fencer manually]                                         ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 7. Technical Decisions
+
+### Club Matching Strategy
+- Primary: exact match on club name
+- Fallback: case-insensitive substring match
+- User can confirm/reject matches during setup
+
+### Data Freshness
+- Manual refresh (button click)
+- Cache TTL: 3 minutes for active events
+- Future: auto-refresh every 60 seconds (optional)
+
+### Data Retention
+- Tournament data auto-expires 48 hours after creation
+- Background job cleans up expired records
+- No long-term historical storage (live tracking focus)
+
+### Existing Pages
+- Keep as "detail views" accessible from dashboard
+- Click fencer → see full pool roster or DE bracket
+- May hide from main nav (dashboard is primary entry)
+
+---
+
+## 8. Open Questions
+
+1. **Tournament schedule parsing**: Need to research FTL's `/tournaments/eventSchedule/{id}` page structure
+2. **Event round discovery**: How to programmatically find pool_round_id and de_round_id for each event
+3. **Club name variations**: How strict should matching be? User confirmation step?
+4. **Event phases**: How to detect if an event is in pools vs DE vs complete
+
+---
+
+## 9. Success Criteria
+
+- [ ] User can paste tournament URL and see all club fencers automatically
+- [ ] Dashboard shows real-time status across multiple events
+- [ ] Manual fencer add works for tracking non-club members
+- [ ] Data is cleaned up automatically after 48 hours
+- [ ] Mobile-friendly and fast to use at a tournament
+
+---
+
+*Last updated: 2026-01-15*

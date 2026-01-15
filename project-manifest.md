@@ -2,16 +2,16 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2026-01-08
+**Last Updated:** 2026-01-15
 
 ---
 
 ## 1. Core Identity (Stable)
 *These files define the project's high-level architecture, goals, and the roles of the participants. They should change infrequently.*
 
-- **Architecture:** `docs/ARCHITECTURE.md`
-- **Development Plan:** `comms/plan.md` - Phased rollout plan with Phase 1 (MVP) and Phase 2 (Live Tracking)
-- **FTL API Specification:** `docs/ftl-api-specification.md` - Complete technical specification for FencingTimeLive scraper (15,000+ words)
+- **Development Plan:** `comms/plan.md` - Vision, user journey, implementation phases, data model
+- **Architecture:** `docs/ARCHITECTURE.md` - System components, data flows, file structure
+- **FTL API Specification:** `docs/ftl-api-specification.md` - Complete technical specification for FencingTimeLive parsing
 - **Agent Roles:** `comms/roles/ARCHITECT.md`, `comms/roles/TECHADVISOR.md`
 
 ## 2. Dynamic State (Volatile)
@@ -19,56 +19,85 @@
 
 - **Activity Log:** `comms/log.md` - Chronological record of major development activities
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
-- **Session Summaries:** `comms/SESSION_SUMMARY_*.md` - Detailed session notes (e.g., `SESSION_SUMMARY_2025-11-20.md`)
-- **Active Research:** `comms/ftl_research_summary.md` - Executive summary of FTL scraping research
-- **Code Location (active):** `app/` at repo root (new FTL parsers and database)
-- **Current Task Spec:** _None active_ (Day 6 complete; awaiting next spec)
-- **Archived Task Specs:** `comms/tasks/archive/2025-11-25-ftl-day1-structure-and-pool-id-extractor.md`; `comms/tasks/archive/2025-11-25-ftl-day2-pool-html-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day3-pool-results-json-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day4-http-client-and-bulk-pool-fetch.md`; `comms/tasks/archive/2025-11-26-ftl-day5-de-tableau-parser.md`; `comms/tasks/archive/2025-11-26-ftl-day6-api-endpoints-and-integration.md`
+- **Current Phase:** Phase A - Research (tournament schedule page structure)
+- **Active Task Spec:** None (research phase - no implementation spec yet)
+- **Archived Task Specs:** `comms/tasks/archive/` (Days 1-11 complete)
 
-## 3. Research & Documentation (Reference)
-*Background research and detailed findings that inform implementation decisions.*
+## 3. Project Vision (Updated 2026-01-15)
 
-- **FTL Research Summary:** `comms/ftl_research_summary.md` - Quick reference for FencingTimeLive findings
-- **FTL API Specification:** `docs/ftl-api-specification.md` - Complete scraper implementation guide
-- **FTL Sample Data:**
-  - `comms/ftl_research_human.md` - DE tableau HTML sample
-  - `comms/ftl_research_human_pools.md` - Individual pool HTML sample
-  - `comms/ftl_research_human_pools_results.md` - Pool results JSON sample
-  - `comms/ftl_research_human_pool_ids.md` - Pool IDs JavaScript array sample
+**Core Concept:** Tournament-centric, club-based fencer tracking
+
+**User Journey:**
+1. User logs in
+2. User pastes FencingTimeLive tournament URL
+3. User sets club filter and optional weapon filter
+4. App discovers all club fencers across all events
+5. Consolidated dashboard shows all tracked fencers grouped by activity
+6. Manual add for non-club fencers
+
+**Key Deliverable:** A single dashboard showing "where is everyone from my club right now?"
 
 ## 4. Code & Config (Entrypoints)
 *Primary technical entrypoints for understanding the application's structure, dependencies, and configuration.*
 
-- **Main Application:** `app/` (root) — Python backend; mobile-first frontend to be added in later phases.
-- **FTL Module:** `app/ftl/` with parsers (`parsers/pool_ids.py`, `parsers/pools.py`, `parsers/pool_results.py`, `parsers/de_tableau.py`), schemas (`schemas.py`), models (`models.py`), and HTTP client (`client.py`).
-- **Database Schema:** `app/database.py` (SQLite dev default at `./fencer_schedules.db`; imports SQLAlchemy `Base` and FTL models).
-- **Tests:** `tests/ftl/` (94 passing tests: pool IDs, pool HTML, pool results, HTTP client, DE tableau); `tests/conftest.py` ensures repo root on `sys.path`.
-- **Dependencies:** Use `.venv`; install `requests`, `beautifulsoup4`, `pydantic`, `pytest`, `sqlalchemy`.
+- **Main Application:** `app/main.py` - FastAPI app with routes and handlers
+- **Database:** `app/database.py` - SQLAlchemy setup (SQLite at `./fencer_schedules.db`)
+- **Models:** `app/models.py` - User, UserSession (more to come)
+- **FTL Module:** `app/ftl/` - Parsers, schemas, HTTP client
+  - `parsers/pool_ids.py` - Extract pool IDs from event page
+  - `parsers/pools.py` - Parse pool HTML
+  - `parsers/pool_results.py` - Parse results JSON
+  - `parsers/de_tableau.py` - Parse DE bracket HTML
+  - `client.py` - HTTP client with retry/cache
+  - `schemas.py` - Pydantic models
+- **Auth:** `app/api/auth.py`, `app/services/` - Authentication system
+- **Templates:** `app/templates/` - Jinja2 templates
+- **Static:** `app/static/` - CSS styles
 
 ## 5. Testing & Development
 *Resources for testing and local development.*
 
-- **Active Tests:** Run `.venv/bin/pytest tests/ftl` (parsers + HTTP client) and `.venv/bin/pytest tests/api/test_api.py` (API handlers, patched fetches).
-- **Test Event Data:** See FTL sample files in `comms/ftl_research_human*.md`
-- **Test URLs:** November NAC 2025 - Div I Men's Épée
-  - Event ID: `54B9EF9A9707492E93F1D1F46CF715A2`
-  - Pool Round ID: `D6890CA440324D9E8D594D5682CC33B7`
-  - DE Round ID: `08DE5802C0F34ABEBBB468A9681713E7`
+- **Run All Tests:** `.venv/bin/pytest tests/`
+- **FTL Parser Tests:** `.venv/bin/pytest tests/ftl/` (94 tests)
+- **API Tests:** `.venv/bin/pytest tests/api/`
+- **Web Tests:** `.venv/bin/pytest tests/web/`
+- **Test Event Data:** Sample artifacts in `comms/ftl_research_human*.md`
+- **Test Tournament:** Capital Clash - `https://www.fencingtimelive.com/tournaments/eventSchedule/BBA4B7FACC464C93BA534ACE381A6C46`
+
+## 6. Existing Assets (Reusable)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| FTL Parsers | ✅ Complete | Pool IDs, pools, results, DE tableau |
+| HTTP Client | ✅ Complete | Retry, cache, bulk fetch |
+| Auth System | ✅ Complete | Register, login, sessions, CSRF |
+| Base Templates | ✅ Complete | Jinja2, Pico CSS |
+| Detail Pages | ✅ Complete | /search, /pools, /advancement, /de |
+
+## 7. New Work Required
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Tournament Parser | ❌ Not started | Parse schedule page |
+| Event Round Discovery | ❌ Not started | Find pool/DE round IDs |
+| User Profile (club) | ❌ Not started | Add club field |
+| TrackedTournament model | ❌ Not started | Store user's tournaments |
+| Dashboard UI | ❌ Not started | Consolidated fencer view |
+| Manual Fencer Add | ❌ Not started | Cross-event search |
 
 ---
 
 ## Quick Start for AI Agents
 
 **On session start:**
-1. Read `comms/log.md` for recent activity.
-2. Read `comms/NEXT_STEPS.md` for current priorities (Phase 2 implementation).
-3. Review `comms/plan.md` for overall project status.
-4. If implementing FTL scraper: read `docs/ftl-api-specification.md`.
-5. Run `.venv/bin/pytest tests/ftl` to verify parsers before/after changes.
+1. Read `comms/log.md` for recent activity
+2. Read `comms/NEXT_STEPS.md` for current priorities
+3. Read `comms/plan.md` for project vision and phases
+4. Check `comms/tasks/` for any active spec
 
-**Current Phase:** Phase 2 Implementation (Week 1 complete: all core parsers + HTTP client done)
+**Current Priority:** Phase A Research - Investigate FTL tournament schedule page structure
 
-**Current Priority:** Day 5 complete. Next: Integration tests or API endpoints (Week 2).
+**Key Question to Answer:** How do we parse `/tournaments/eventSchedule/{id}` to get the list of events?
 
 ---
 
@@ -76,30 +105,30 @@
 
 ### `/comms/` - Communication & Planning
 - `log.md` - Activity log
-- `plan.md` - Overall development plan
+- `plan.md` - Development plan
 - `NEXT_STEPS.md` - Immediate action items
 - `roles/` - AI agent role definitions
-- `tasks/` - Task specifications (future use)
-- `SESSION_SUMMARY_*.md` - Session notes
-- `ftl_research*.md` - FencingTimeLive research artifacts
+- `tasks/` - Task specifications
+- `tasks/archive/` - Completed specs
+- `ftl_research*.md` - FTL sample data artifacts
 
 ### `/docs/` - Documentation
-- `ARCHITECTURE.md` - System architecture (future)
-- `ftl-api-specification.md` - Complete FTL scraper spec
-- `project-manifest.template.md` - Template for this file
+- `ARCHITECTURE.md` - System architecture
+- `ftl-api-specification.md` - FTL parsing guide
 
-### `/app/` - Source Code (Active)
-Python application code (FTL parsers under `app/ftl/`, database at `app/database.py`)
+### `/app/` - Source Code
+- `main.py` - FastAPI application
+- `database.py`, `models.py`, `crud.py` - Data layer
+- `api/` - Route handlers
+- `services/` - Business logic
+- `ftl/` - FencingTimeLive integration
+- `templates/`, `static/` - UI assets
 
-### `/tests/` - Test Suite (Active)
-Current tests for FTL parsers (`tests/ftl/`)
+### `/tests/` - Test Suite
+- `ftl/` - Parser and client tests
+- `api/` - API tests
+- `web/` - Web UI tests
 
 ---
 
-## Notes for Future Sessions
-
-- **Phase 1 Status:** Not started (Core Schedule MVP without live tracking)
-- **Phase 2 Status:** Week 1 complete (all parsers + HTTP client implemented; 94 tests passing)
-- **Key Decision:** Use Python for scraper (BeautifulSoup for HTML parsing, requests for HTTP)
-- **Architecture Decision:** Parallel fetching (ThreadPoolExecutor) + aggressive caching (180s TTL)
-- **Risk Level:** LOW-MEDIUM (acceptable for MVP)
+*This manifest is the single source of truth for project orientation. Keep it current.*

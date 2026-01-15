@@ -1,175 +1,206 @@
 # Next Steps for Fencer Schedules
 
-**Last Updated:** 2025-11-26
-**Current Phase:** Phase 2 Implementation (in progress)
+**Last Updated:** 2026-01-15
+**Current Phase:** New Primary Flow Implementation
 
 ---
 
-## Immediate Tasks (Week 1)
+## Project Direction (Updated 2026-01-15)
 
-### Done
-- ✅ Day 1: FTL scaffold + pool ID extractor (`app/ftl/parsers/pool_ids.py`, tests in `tests/ftl/test_pool_ids.py`)
-- ✅ Day 2: Pool HTML parser (strip/fencers/bouts) (`app/ftl/parsers/pools.py`, tests in `tests/ftl/test_pools_parser.py`)
-- ✅ Day 3: Pool results JSON parser (advancement status) (`app/ftl/parsers/pool_results.py`, tests in `tests/ftl/test_pool_results_parser.py`)
-- ✅ Day 4: HTTP client + bulk fetch + in-memory cache (`app/ftl/client.py`, tests in `tests/ftl/test_client_bulk_fetch.py`)
-- ✅ Day 5: DE tableau parser (elimination bracket) (`app/ftl/parsers/de_tableau.py`, tests in `tests/ftl/test_de_tableau_parser.py`)
-- ✅ Sample artifacts saved: `comms/ftl_research_human_pool_ids.md`, `comms/ftl_research_human_pools.md`, `comms/ftl_research_human_pools_results.md`
-- ✅ Dependencies installed: `requests`, `pydantic`, `beautifulsoup4`, `pytest`
-- ✅ All 94 tests passing (8 + 28 + 16 + 24 + 18)
+The app is pivoting to a **tournament-centric, club-based tracking** model:
 
----
+1. User enters a FencingTimeLive tournament URL
+2. User sets their club (e.g., "Elite Fencers Club") and optional weapon filter
+3. App automatically discovers all club fencers across all events
+4. Consolidated dashboard shows all tracked fencers grouped by activity
+5. Manual fencer add for non-club members
 
-### Day 1: Setup & Pool ID Extraction
-- [x] Read `docs/ftl-api-specification.md` (complete technical spec)
-- [x] Set up Python project structure (`app/ftl/`, `app/database.py` at repo root)
-- [x] Install scraper dependencies: `requests`, `beautifulsoup4`, `pytest`
-- [x] Implement pool ID extractor (parse JavaScript array from HTML)
-- [x] Write unit tests using saved HTML samples in `comms/ftl_research_human_pool_ids.md`
-- [ ] Test against live FTL data (November NAC event) — **TO DO** (manual)
-
-### Day 2: Pool HTML Parser
-- [x] Implement pool HTML parser (extract strip, fencers, bout results)
-- [x] Handle edge cases (missing strip assignment, incomplete pools)
-- [x] Write unit tests using `comms/ftl_research_human_pools.md`
-- [ ] Test with all 45 pools from test event — **TO DO** (after bulk fetching)
-
-### Day 3: Pool Results JSON Parser
-- [x] Implement pool results JSON parser (advancement status)
-- [x] Extract fencer data, club, place, advanced/eliminated status
-- [x] Write unit tests using `comms/ftl_research_human_pools_results.md`
-- [x] Verify advancement indicator logic (Advanced→advanced, others→eliminated, empty→unknown)
-- [x] Create fixture with real FTL data including edge cases
-
-### Day 4: HTTP Client + Bulk Pool Fetch
-- [x] Build HTTP client with timeout/retry and concurrency cap
-- [x] Implement bulk fetch orchestration for pool IDs, pool HTML, pool results
-- [x] Add in-memory TTL cache with force-refresh flag
-- [x] Tests with mocked HTTP responses (no real network)
-- [x] All 76 tests passing (8 + 28 + 16 + 24)
-
-### Day 5-7: DE Tableau Parser (Spec: `comms/tasks/2025-11-26-ftl-day5-de-tableau-parser.md`)
-- [x] Implement tableau parser to extract matches (round, seeds, names, clubs, scores, strip/time, status, winner)
-- [x] Add schemas (`TableauMatch`, `Tableau`) and wire parser
-- [x] Write unit tests using inline fixture based on FTL API spec (includes in-progress/byes/priority scenarios)
-- [ ] Integration test: Full event data extraction (pools + DEs)
-
-### Day 6: API Endpoints & Integration (Spec: `comms/tasks/2025-11-26-ftl-day6-api-endpoints-and-integration.md`)
-- [x] Build FastAPI app with endpoints:
-  - [x] `GET /api/pools/{event_id}/{pool_round_id}` (bundle: pool IDs, pools, results)
-  - [x] `GET /api/pools/{event_id}/{pool_round_id}/fencer?name=...` (fencer search across pools/results)
-  - [x] `GET /api/de/{event_id}/{de_round_id}` (DE tableau)
-- [x] Reuse `fetch_pools_bundle` and add tableau fetch helper with retry/cache
-- [x] Add response schemas, error mapping, and config defaults
-- [x] Tests via direct handler unit tests with patched fetch functions (no real network)
-- [x] All 105 tests passing (94 FTL parsers + 11 API unit tests)
-
-## Week 2 Tasks
-
-### HTTP Client & Parallel Fetching
-- [ ] Build HTTP client with rate limiting (max 10 concurrent) — reuse `requests`; consider `httpx` if async later
-- [ ] Implement parallel pool fetching (ThreadPoolExecutor)
-- [ ] Add timeout handling (10 sec per request)
-- [ ] Add retry logic (3 attempts with exponential backoff)
-- [ ] Test performance (should be ~2 seconds for 45 pools)
-
-### Caching Layer
-- [ ] Implement in-memory cache (development)
-- [ ] Add cache invalidation logic (3-min TTL for active pools)
-- [ ] Test cache hit/miss behavior
-- [ ] Plan Redis integration (production - future)
-
-### Basic API Endpoints
-- [x] Set up FastAPI
-- [ ] Create endpoint: `GET /api/pools/{eventId}/{roundId}` (returns all pools)
-- [ ] Create endpoint: `GET /api/pools/{eventId}/{roundId}/fencer/{name}` (find specific fencer)
-- [ ] Create endpoint: `GET /api/de/{eventId}/{roundId}` (DE bracket)
-- [ ] Add request validation and error handling
-- [ ] Write API documentation (OpenAPI/Swagger)
-
-## Week 3 Tasks (Frontend - Phase 1 Integration)
-
-### Mobile-First UI
-- [x] Decide on frontend framework (server-rendered HTML + Jinja2)
-- [ ] Create fencer search page
-- [ ] Create pool strip display page ("Where is my fencer?")
-- [ ] Create advancement status page ("Who made the cut?")
-- [ ] Add loading states and error handling
-- [ ] Implement auto-refresh during active competition (optional)
-
-## Week 4 Tasks (Testing & Polish)
-
-### Live Tournament Testing
-- [ ] Identify upcoming tournament for testing
-- [ ] Deploy to staging environment
-- [ ] Test with real coaches during live event
-- [ ] Gather feedback on UX and performance
-- [ ] Fix critical bugs discovered in production
-- [ ] Iterate on UI based on feedback
-
-### Documentation & Deployment
-- [ ] Write deployment guide
-- [ ] Set up production environment (Heroku, Railway, or DigitalOcean)
-- [ ] Configure monitoring and alerting
-- [ ] Add user-facing documentation
-- [ ] Plan Phase 1 integration (user auth, fencer tracking)
-
-## Phase 1 Tasks (Parallel or Sequential)
-
-### Core Schedule MVP (Non-Live Features)
-- [x] User authentication (registration, login)
-- [ ] User profile (set home club)
-- [ ] Fencer search and tracking (add/remove fencers to watchlist)
-- [ ] Tournament listing (from `fencingtracker.com`)
-- [ ] Static schedule view (show tracked fencers in tournament)
-
-**Note:** Phase 1 can be developed in parallel with Phase 2, or Phase 2 can be completed first as a standalone tool.
-
-## Future Enhancements (Post-MVP)
-
-### Advanced Features
-- [ ] Automatic event matching (find FTL URLs automatically)
-- [ ] WebSocket real-time updates (instead of polling)
-- [ ] Push notifications for strip assignments
-- [ ] Historical data tracking (save tournament results)
-- [ ] Coach dashboard (multiple fencers at once)
-- [ ] Club leaderboard (how did our club do overall?)
-
-### Infrastructure Improvements
-- [ ] Redis caching (production)
-- [ ] Rate limiting middleware
-- [ ] Comprehensive monitoring (Sentry, DataDog)
-- [ ] Automated testing pipeline (CI/CD)
-- [ ] Performance profiling and optimization
+See `comms/plan.md` for full details.
 
 ---
 
-## Completed Tasks
+## Completed Work (Foundation)
 
-- [x] Define the project (see `comms/plan.md`)
-- [x] Create an implementation roadmap (see `comms/plan.md`)
-- [x] Research FencingTimeLive scraping feasibility ✅ **2025-11-20**
-- [x] Document FTL API endpoints and data structures ✅ **2025-11-20**
-- [x] Create technical specification (`docs/ftl-api-specification.md`) ✅ **2025-11-20**
-- [x] Assess risks and mitigation strategies ✅ **2025-11-20**
-- [x] Collect sample data for testing ✅ **2025-11-20**
+### FTL Parsers (94 tests)
+- [x] Pool IDs extractor (`app/ftl/parsers/pool_ids.py`)
+- [x] Pool HTML parser (`app/ftl/parsers/pools.py`)
+- [x] Pool results JSON parser (`app/ftl/parsers/pool_results.py`)
+- [x] DE tableau parser (`app/ftl/parsers/de_tableau.py`)
+
+### HTTP Client
+- [x] Retry/timeout logic (`app/ftl/client.py`)
+- [x] TTL cache with force-refresh
+- [x] Bulk parallel fetching
+
+### Auth System
+- [x] User registration and login
+- [x] Session management
+- [x] CSRF protection
+- [x] Rate limiting
+
+### UI Pages (Detail Views)
+- [x] `/search` - Fencer search
+- [x] `/pools` - Pool overview
+- [x] `/advancement` - Advancement status
+- [x] `/de` - DE tableau
 
 ---
 
-## Priority Legend
+## Next: Phase A - Research & Preparation
 
-🔥 **Critical** - Blocks other work
-⚡ **High** - Needed for MVP
-📊 **Medium** - Important but not blocking
-💡 **Low** - Nice to have
+Before building the new flow, we need to research FTL's tournament-level pages.
 
-**Current Priority:** 🔥 Week 1 tasks (scraper parsers)
+### A1: Tournament Schedule Page Research
+- [ ] Fetch sample HTML from `/tournaments/eventSchedule/{tournament_id}`
+- [ ] Document HTML structure (event list, times, event IDs)
+- [ ] Identify parsing strategy
+- [ ] Save sample artifact to `comms/ftl_research_tournament_schedule.md`
+
+### A2: Event Round Discovery Research
+- [ ] For a sample event, find how pool_round_id is exposed
+- [ ] For a sample event, find how de_round_id is exposed
+- [ ] Document the discovery process
+- [ ] Test with multiple events in different phases
+
+### A3: Create Research Summary
+- [ ] Document URL patterns
+- [ ] Document parsing strategies
+- [ ] Identify edge cases and risks
 
 ---
 
-Notes:
-- This file tracks the technical implementation roadmap
-- See `comms/plan.md` for overall project phases
-- See `docs/ftl-api-specification.md` for detailed implementation guide
-- Update checkboxes as tasks are completed
-- Active code lives under `app/` (FTL parsers). Legacy `project_kickstart/` has been removed.
-- Run `.venv/bin/pytest tests/ftl` before/after changes (legacy tests are not required).
+## Phase B - User Profile Enhancement
+
+### B1: Add Club Field to User
+- [ ] Add `club` column to User model
+- [ ] Create database migration
+- [ ] Update registration form (optional club input)
+
+### B2: Profile Edit Page
+- [ ] Create `/profile` page
+- [ ] Allow editing username, email, club
+- [ ] Add navigation link
+
+---
+
+## Phase C - Tournament Setup
+
+### C1: Tournament Schedule Parser
+- [ ] Implement parser for tournament schedule HTML
+- [ ] Extract: event name, weapon, start time, event_id
+- [ ] Add tests with sample artifact
+
+### C2: Event Round Discovery
+- [ ] Implement method to find pool_round_id for an event
+- [ ] Implement method to find de_round_id for an event
+- [ ] Handle events in different phases
+
+### C3: Database Models
+- [ ] Add TrackedTournament model
+- [ ] Add CachedEvent model
+- [ ] Add TrackedFencer model
+- [ ] Create migrations
+
+### C4: Tournament Setup Page
+- [ ] Create `/tournament/new` page
+- [ ] URL input and validation
+- [ ] Club and weapon filter inputs
+- [ ] Discover and display events
+
+### C5: Club Fencer Discovery
+- [ ] Fetch pool data for all matching events
+- [ ] Filter fencers by club name
+- [ ] Store discovered fencers
+
+---
+
+## Phase D - Consolidated Dashboard
+
+### D1: Orchestration Layer
+- [ ] Aggregate fencer status across all events
+- [ ] Compute current location (strip, pool)
+- [ ] Compute phase (pools, DE, complete)
+- [ ] Compute result (advanced, eliminated, place)
+
+### D2: Dashboard UI
+- [ ] Create `/tournament/{id}` dashboard page
+- [ ] Group fencers: Active Now, Waiting, Finished
+- [ ] Show: name, event, location, status
+- [ ] Add refresh button
+
+### D3: Dashboard Navigation
+- [ ] List user's tracked tournaments on `/dashboard`
+- [ ] Link to individual tournament dashboards
+
+---
+
+## Phase E - Manual Fencer Tracking
+
+### E1: Cross-Event Fencer Search
+- [ ] Search by name across all events in tournament
+- [ ] Display matching fencers with event info
+
+### E2: Add/Remove Fencers
+- [ ] Add fencer to TrackedFencer
+- [ ] Remove fencer from tracking
+- [ ] Distinguish club vs manual in UI
+
+---
+
+## Phase F - Polish & Cleanup
+
+### F1: Auto-Cleanup
+- [ ] Background job to delete expired tournaments (48h TTL)
+- [ ] Clean up associated events and fencers
+
+### F2: Error Handling
+- [ ] Handle FTL unavailable gracefully
+- [ ] Handle partial event data
+- [ ] User-friendly error messages
+
+### F3: Mobile Testing
+- [ ] Test on mobile devices
+- [ ] Fix responsive issues
+
+### F4: Performance
+- [ ] Profile dashboard load time
+- [ ] Optimize queries and caching
+
+---
+
+## Existing Pages (Detail Views)
+
+These pages will become drill-down views from the dashboard:
+
+| Page | Route | Access |
+|------|-------|--------|
+| Pool Overview | `/pools` | Click fencer → see full pool |
+| DE Tableau | `/de` | Click fencer → see full bracket |
+| Search | `/search` | May deprecate or repurpose |
+| Advancement | `/advancement` | May deprecate or integrate |
+
+---
+
+## Priority
+
+🔥 **Phase A** (Research) - Must complete before building
+⚡ **Phase B-D** - Core new functionality
+📊 **Phase E** - Enhancement
+💡 **Phase F** - Polish
+
+**Current Priority:** 🔥 Phase A - Research tournament schedule page structure
+
+---
+
+## Quick Reference
+
+| Doc | Purpose |
+|-----|---------|
+| `comms/plan.md` | Full development plan |
+| `docs/ARCHITECTURE.md` | System architecture |
+| `docs/ftl-api-specification.md` | FTL parsing guide |
+| `comms/log.md` | Activity log |
+
+---
+
+*This file tracks immediate next steps. See `comms/plan.md` for overall direction.*
