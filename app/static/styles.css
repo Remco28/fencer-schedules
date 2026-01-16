@@ -61,6 +61,12 @@ nav button {
     color: #c0392b;
 }
 
+.error-text {
+    color: #c0392b;
+    display: block;
+    margin-top: 0.25rem;
+}
+
 /* Status badges */
 .status-advanced {
     color: #27ae60;

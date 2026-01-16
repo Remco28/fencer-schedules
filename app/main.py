@@ -6,8 +6,10 @@ from typing import Any, Dict
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from app.api import auth, dependencies
+from app import crud
 from app.database import get_db
 from app.ftl.client import (
     fetch_pools_bundle,
@@ -57,8 +59,94 @@ def dashboard(
     )
 
 
+@app.get("/profile", response_class=HTMLResponse)
+def profile_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render the user profile page."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "profile.html",
+        {"user": user},
+    )
+
+
+@app.post("/profile", response_class=HTMLResponse)
+async def profile_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle user profile updates."""
+    form = await request.form()
+    username = (form.get("username") or "").strip()
+    email = (form.get("email") or "").strip()
+    club_raw = (form.get("club") or "").strip()
+    club = club_raw or None
+
+    values = {"username": username, "email": email, "club": club_raw}
+    errors: Dict[str, str] = {}
+
+    if not username:
+        errors["username"] = "Username is required."
+    elif len(username) < 3:
+        errors["username"] = "Username must be at least 3 characters long."
+    elif len(username) > 50:
+        errors["username"] = "Username must be 50 characters or fewer."
+
+    if not email:
+        errors["email"] = "Email is required."
+    elif not EMAIL_PATTERN.match(email):
+        errors["email"] = "Email must be a valid address."
+
+    if club_raw and len(club_raw) > 200:
+        errors["club"] = "Club must be 200 characters or fewer."
+
+    if username and username != user.username:
+        existing = crud.get_user_by_username(db, username)
+        if existing and existing.id != user.id:
+            errors["username"] = "Username already exists."
+
+    if email and email != user.email:
+        existing = crud.get_user_by_email(db, email)
+        if existing and existing.id != user.id:
+            errors["email"] = "Email already exists."
+
+    if errors:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "profile.html",
+            {"user": user, "values": values, "errors": errors},
+        )
+
+    try:
+        updated_user = crud.update_user_profile(db, user.id, username, email, club)
+        db.commit()
+        db.refresh(updated_user)
+    except Exception:
+        db.rollback()
+        return dependencies.templates.TemplateResponse(
+            request,
+            "profile.html",
+            {
+                "user": user,
+                "values": values,
+                "errors": {"form": "Unable to update profile. Please try again."},
+            },
+        )
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "profile.html",
+        {"user": updated_user, "success": True},
+    )
+
+
 # Regex for 32-char hex IDs
 HEX_ID_PATTERN = re.compile(r"^[A-Fa-f0-9]{32}$")
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _do_fencer_search(

@@ -40,6 +40,14 @@ def get_user_by_id(db: Session, user_id: int) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.id == user_id).one_or_none()
 
 
+def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
+    return (
+        db.query(models.User)
+        .filter(models.User.email == email)
+        .one_or_none()
+    )
+
+
 def get_active_users(db: Session) -> List[models.User]:
     return (
         db.query(models.User)
@@ -56,6 +64,26 @@ def update_user(db: Session, user_id: int, **kwargs) -> models.User:
     for field, value in kwargs.items():
         if hasattr(user, field) and value is not None:
             setattr(user, field, value)
+
+    db.flush()
+    return user
+
+
+def update_user_profile(
+    db: Session,
+    user_id: int,
+    username: str,
+    email: str,
+    club: Optional[str],
+) -> models.User:
+    """Update user profile fields."""
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("User not found")
+
+    user.username = username
+    user.email = email
+    user.club = club
 
     db.flush()
     return user

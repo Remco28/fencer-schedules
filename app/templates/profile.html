@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Your Profile</h1>
+
+    {% if success %}
+    <article class="info">
+        <p>Profile updated successfully.</p>
+    </article>
+    {% endif %}
+
+    {% if errors and errors.form %}
+    <article class="error-message">
+        <p>{{ errors.form }}</p>
+    </article>
+    {% endif %}
+
+    <form method="post" action="/profile">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <label>
+            Username
+            <input type="text" name="username"
+                   value="{{ values.username if values else user.username }}"
+                   required minlength="3" maxlength="50">
+            {% if errors and errors.username %}
+            <small class="error-text">{{ errors.username }}</small>
+            {% endif %}
+        </label>
+
+        <label>
+            Email
+            <input type="email" name="email"
+                   value="{{ values.email if values else user.email }}" required>
+            {% if errors and errors.email %}
+            <small class="error-text">{{ errors.email }}</small>
+            {% endif %}
+        </label>
+
+        <label>
+            Home Club
+            <input type="text" name="club"
+                   value="{{ values.club if values else (user.club or '') }}"
+                   placeholder="e.g., Elite Fencers Club" maxlength="200">
+            <small>Used for automatic fencer tracking at tournaments</small>
+            {% if errors and errors.club %}
+            <small class="error-text">{{ errors.club }}</small>
+            {% endif %}
+        </label>
+
+        <button type="submit">Save Changes</button>
+    </form>
+</section>
+{% endblock %}
