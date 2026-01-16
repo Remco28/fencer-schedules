@@ -2,7 +2,7 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-16
 
 ---
 
@@ -19,9 +19,10 @@
 
 - **Activity Log:** `comms/log.md` - Chronological record of major development activities
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
-- **Current Phase:** Phase A - Research (tournament schedule page structure)
-- **Active Task Spec:** None (research phase - no implementation spec yet)
-- **Archived Task Specs:** `comms/tasks/archive/` (Days 1-11 complete)
+- **Current Phase:** Phase D complete ✅ - Next up: Phase E (Manual Fencer Tracking)
+- **Current Branch:** `feature/tournament-dashboard`
+- **Active Task Spec:** None (awaiting Phase E spec)
+- **Archived Task Specs:** `comms/tasks/archive/` (Phases A-D complete)
 
 ## 3. Project Vision (Updated 2026-01-15)
 
@@ -42,8 +43,15 @@
 
 - **Main Application:** `app/main.py` - FastAPI app with routes and handlers
 - **Database:** `app/database.py` - SQLAlchemy setup (SQLite at `./fencer_schedules.db`)
-- **Models:** `app/models.py` - User, UserSession (more to come)
+- **Models:** `app/models.py` - User, UserSession, TrackedTournament, CachedEvent
+- **Services:** `app/services/` - Business logic layer
+  - `tournament_service.py` - Fencer status orchestration
+  - `club_matcher.py` - Club matching logic
+  - `auth_service.py` - Authentication
+  - `rate_limit_service.py` - Rate limiting
 - **FTL Module:** `app/ftl/` - Parsers, schemas, HTTP client
+  - `parsers/tournament_schedule.py` - Extract events from tournament page
+  - `parsers/event_rounds.py` - Extract pool/DE round IDs from event page
   - `parsers/pool_ids.py` - Extract pool IDs from event page
   - `parsers/pools.py` - Parse pool HTML
   - `parsers/pool_results.py` - Parse results JSON
