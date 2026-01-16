@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -12,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import auth, dependencies
 from app import crud
+from app.services.club_matcher import match_club
 from app.database import get_db
 from app.ftl.client import (
     fetch_pools_bundle,
@@ -173,21 +175,7 @@ def extract_tournament_id(url: str) -> str | None:
     return match.group(1) if match else None
 
 
-def match_club(fencer: dict, club_filter: str) -> bool:
-    """Check if fencer matches club filter (case-insensitive substring)."""
-    if not club_filter:
-        return False
-    filter_lower = club_filter.lower().strip()
 
-    club1 = (fencer.get("club1") or "").lower()
-    club2 = (fencer.get("club2") or "").lower()
-    club_names = (fencer.get("clubNames") or "").lower()
-
-    return (
-        filter_lower in club1
-        or filter_lower in club2
-        or filter_lower in club_names
-    )
 
 
 @app.get("/tournament/new", response_class=HTMLResponse)
@@ -326,6 +314,62 @@ def tournament_detail(
         request,
         "tournament_detail.html",
         {"user": user, "tournament": tournament},
+    )
+
+
+@app.get("/tournament/{tournament_id}/dashboard", response_class=HTMLResponse)
+def tournament_dashboard(
+    tournament_id: int,
+    request: Request,
+    force_refresh: bool = False,
+    db: Session = Depends(get_db),
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Consolidated dashboard showing all club fencers across events."""
+    tournament = (
+        db.query(TrackedTournament)
+        .options(selectinload(TrackedTournament.events))
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    from app.services.tournament_service import get_tournament_fencer_status
+
+    try:
+        grouped_fencers = get_tournament_fencer_status(
+            tournament_id=tournament.id,
+            club_filter=tournament.club_filter or "",
+            cached_events=tournament.events,
+            force_refresh=force_refresh,
+        )
+    except Exception as exc:
+        logger.warning("Failed to fetch tournament dashboard %s: %s", tournament.id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_dashboard.html",
+            {
+                "user": user,
+                "tournament": tournament,
+                "error": f"Failed to fetch fencer data: {exc}",
+                "grouped_fencers": {"active": [], "waiting": [], "finished": []},
+            },
+        )
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "tournament_dashboard.html",
+        {
+            "user": user,
+            "tournament": tournament,
+            "grouped_fencers": grouped_fencers,
+            "last_updated": datetime.now(UTC).strftime("%I:%M %p"),
+        },
     )
 
 

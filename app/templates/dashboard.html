@@ -13,7 +13,7 @@
         <ul class="tournament-list">
             {% for t in tournaments %}
             <li>
-                <a href="/tournament/{{ t.id }}">{{ t.tournament_name }}</a>
+                <a href="/tournament/{{ t.id }}/dashboard">{{ t.tournament_name }}</a>
                 <small>{{ t.events|length }} events · {{ t.club_filter or 'No club filter' }}</small>
             </li>
             {% endfor %}

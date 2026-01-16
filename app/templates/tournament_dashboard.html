@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tournament.tournament_name }} - Dashboard{% endblock %}
+
+{% block content %}
+<section>
+    <header class="dashboard-header">
+        <div>
+            <h1>{{ tournament.tournament_name }}</h1>
+            <p>
+                {% if tournament.club_filter %}{{ tournament.club_filter }}{% endif %}
+                {% if tournament.weapon_filter %} · {{ tournament.weapon_filter }} events{% endif %}
+            </p>
+        </div>
+        <div>
+            <form method="get" action="/tournament/{{ tournament.id }}/dashboard" class="inline-form">
+                <button type="submit" name="force_refresh" value="true">Refresh</button>
+            </form>
+        </div>
+    </header>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% endif %}
+
+    {% if last_updated %}
+    <p><small>Last updated: {{ last_updated }}</small></p>
+    {% endif %}
+
+    <section class="fencer-group">
+        <h2>Active Now <span class="badge">{{ grouped_fencers.active|length }}</span></h2>
+        {% if grouped_fencers.active %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Fencer</th>
+                    <th>Event</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fencer in grouped_fencers.active %}
+                <tr class="fencer-active">
+                    <td><strong>{{ fencer.name }}</strong></td>
+                    <td>{{ fencer.event_name }}</td>
+                    <td>
+                        {% if fencer.strip %}Strip {{ fencer.strip }}{% endif %}
+                        {% if fencer.pool_number %}Pool {{ fencer.pool_number }}{% endif %}
+                        {% if fencer.de_round %}Table of {{ fencer.de_round }}{% endif %}
+                    </td>
+                    <td>
+                        {% if fencer.phase == "pools" %}Fencing pools{% endif %}
+                        {% if fencer.phase == "de" %}DE in progress{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No fencers currently active.</p>
+        {% endif %}
+    </section>
+
+    <section class="fencer-group">
+        <h2>Waiting <span class="badge">{{ grouped_fencers.waiting|length }}</span></h2>
+        {% if grouped_fencers.waiting %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Fencer</th>
+                    <th>Event</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fencer in grouped_fencers.waiting %}
+                <tr>
+                    <td>{{ fencer.name }}</td>
+                    <td>{{ fencer.event_name }}</td>
+                    <td>
+                        {% if fencer.result %}{{ fencer.result }}{% else %}Waiting to fence{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No fencers waiting.</p>
+        {% endif %}
+    </section>
+
+    <section class="fencer-group">
+        <h2>Finished <span class="badge">{{ grouped_fencers.finished|length }}</span></h2>
+        {% if grouped_fencers.finished %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Fencer</th>
+                    <th>Event</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fencer in grouped_fencers.finished %}
+                <tr>
+                    <td>{{ fencer.name }}</td>
+                    <td>{{ fencer.event_name }}</td>
+                    <td>
+                        <span class="result-badge">
+                            {{ fencer.result or "Complete" }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No fencers finished yet.</p>
+        {% endif %}
+    </section>
+
+    <footer class="dashboard-footer">
+        <a href="/tournament/{{ tournament.id }}">View Events</a>
+        <a href="/dashboard">All Tournaments</a>
+    </footer>
+</section>
+{% endblock %}

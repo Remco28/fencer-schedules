@@ -144,11 +144,11 @@ CachedEvent
 - [x] Tournament setup page (enter URL, set filters)
 - [x] Auto-discover club fencers across events
 
-### Phase D: Consolidated Dashboard
-- [ ] Orchestration layer (aggregate fencer status across events)
-- [ ] Dashboard UI with groupings (active, waiting, finished)
-- [ ] Fencer status computation (location, phase, result)
-- [ ] Manual refresh functionality
+### Phase D: Consolidated Dashboard ✅ COMPLETE
+- [x] Orchestration layer (aggregate fencer status across events)
+- [x] Dashboard UI with groupings (active, waiting, finished)
+- [x] Fencer status computation (location, phase, result)
+- [x] Manual refresh functionality
 
 ### Phase E: Manual Fencer Tracking
 - [ ] Cross-event fencer search

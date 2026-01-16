@@ -10,6 +10,12 @@
         {% if tournament.weapon_filter %} · {{ tournament.weapon_filter }} only{% endif %}
     </p>
 
+    <div style="margin-bottom: 1rem;">
+        <a href="/tournament/{{ tournament.id }}/dashboard" role="button">
+            View Live Dashboard
+        </a>
+    </div>
+
     <h2>Events ({{ tournament.events|length }})</h2>
 
     {% if tournament.events %}

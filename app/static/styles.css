@@ -79,6 +79,66 @@ nav button {
     margin-bottom: 2rem;
 }
 
+/* Tournament dashboard */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.dashboard-footer {
+    margin-top: 2rem;
+    border-top: 1px solid #e6e6e6;
+    padding-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Fencer group sections */
+.fencer-group {
+    margin-bottom: 2rem;
+}
+
+.fencer-group h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #0d6efd;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: normal;
+}
+
+/* Active fencer row highlighting */
+.fencer-active {
+    background: rgba(13, 110, 253, 0.12);
+    font-weight: 600;
+}
+
+/* Result badges */
+.result-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #6c757d;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
 /* Error message box */
 .error-message {
     background: #ffe8e8;
