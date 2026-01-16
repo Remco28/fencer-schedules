@@ -7,6 +7,23 @@
     <h1>Welcome, {{ user.username }}!</h1>
     <p>Your account email: <strong>{{ user.email }}</strong></p>
 
+    <section class="dashboard-section">
+        <h2>Your Tournaments</h2>
+        {% if tournaments %}
+        <ul class="tournament-list">
+            {% for t in tournaments %}
+            <li>
+                <a href="/tournament/{{ t.id }}">{{ t.tournament_name }}</a>
+                <small>{{ t.events|length }} events · {{ t.club_filter or 'No club filter' }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No tournaments tracked yet.</p>
+        {% endif %}
+        <a href="/tournament/new" class="btn">Track a Tournament</a>
+    </section>
+
     <div class="grid stats">
         <article>
             <h2>Live Tracking</h2>

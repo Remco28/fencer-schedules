@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tournament.tournament_name }}{% endblock %}
+
+{% block content %}
+<section>
+    <h1>{{ tournament.tournament_name }}</h1>
+    <p>
+        {% if tournament.club_filter %}Club: {{ tournament.club_filter }}{% endif %}
+        {% if tournament.weapon_filter %} · {{ tournament.weapon_filter }} only{% endif %}
+    </p>
+
+    <h2>Events ({{ tournament.events|length }})</h2>
+
+    {% if tournament.events %}
+    <table>
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>Date/Time</th>
+                <th>Club Fencers</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in tournament.events %}
+            <tr>
+                <td>{{ event.event_name }}</td>
+                <td>{{ event.start_date or '' }} {{ event.start_time or '' }}</td>
+                <td>{{ event.fencer_count }}</td>
+                <td>
+                    {% if event.pool_round_id %}
+                    <a href="/pools?event_id={{ event.event_id }}&pool_round_id={{ event.pool_round_id }}">Pools</a>
+                    {% endif %}
+                    {% if event.de_round_id %}
+                    <a href="/de?event_id={{ event.event_id }}&round_id={{ event.de_round_id }}">DE</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No events found matching your filters.</p>
+    {% endif %}
+
+    <form method="post" action="/tournament/{{ tournament.id }}/delete" style="margin-top: 2rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="outline" onclick="return confirm('Delete this tournament?')">
+            Delete Tournament
+        </button>
+    </form>
+</section>
+{% endblock %}

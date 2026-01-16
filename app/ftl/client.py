@@ -1,4 +1,5 @@
 """HTTP client for fetching FTL data with retry, caching, and bulk fetch orchestration."""
+import json
 import time
 import requests
 from typing import Optional, Any
@@ -102,7 +103,8 @@ def _fetch_with_retry(
     *,
     timeout: int = 10,
     max_retries: int = 3,
-    backoff_base: float = 0.5
+    backoff_base: float = 0.5,
+    allow_redirects: bool = True,
 ) -> str:
     """
     Fetch URL with exponential backoff retry logic.
@@ -123,7 +125,12 @@ def _fetch_with_retry(
 
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout)
+            response = requests.get(
+                url,
+                headers=DEFAULT_HEADERS,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+            )
 
             # Don't retry on 4xx errors (client errors)
             if 400 <= response.status_code < 500:
@@ -330,6 +337,40 @@ def fetch_tableau_raw(
     html = _fetch_with_retry(url, timeout=timeout)
     _cache.set(cache_key, html)
     return html
+
+
+def fetch_tournament_schedule(
+    tournament_id: str,
+    *,
+    timeout: int = 10,
+) -> str:
+    """Fetch tournament schedule page HTML."""
+    path = f"/tournaments/eventSchedule/{tournament_id}"
+    url = _build_url(path)
+    return _fetch_with_retry(url, timeout=timeout)
+
+
+def fetch_event_page(
+    event_id: str,
+    *,
+    timeout: int = 10,
+) -> str:
+    """Fetch event page HTML (follows redirects)."""
+    path = f"/events/view/{event_id}"
+    url = _build_url(path)
+    return _fetch_with_retry(url, timeout=timeout, allow_redirects=True)
+
+
+def fetch_competitors_json(
+    event_id: str,
+    *,
+    timeout: int = 10,
+) -> list[dict]:
+    """Fetch competitors JSON for an event."""
+    path = f"/events/competitors/data/{event_id}"
+    url = _build_url(path)
+    response = _fetch_with_retry(url, timeout=timeout)
+    return json.loads(response)
 
 
 def fetch_pools_bundle(

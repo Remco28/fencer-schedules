@@ -1,12 +1,14 @@
 """FastAPI application for FTL data service."""
+import logging
 import os
 import re
 from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 from app.api import auth, dependencies
 from app import crud
@@ -14,11 +16,14 @@ from app.database import get_db
 from app.ftl.client import (
     fetch_pools_bundle,
     fetch_tableau_raw,
+    fetch_tournament_schedule,
+    fetch_event_page,
+    fetch_competitors_json,
     FTLHTTPError,
     FTLParseError,
 )
-from app.ftl.parsers import parse_de_tableau
-from app.models import User
+from app.ftl.parsers import parse_de_tableau, parse_event_rounds, parse_tournament_schedule
+from app.models import CachedEvent, TrackedTournament, User
 
 
 # Configuration from environment variables with defaults
@@ -39,6 +44,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Include auth router
 app.include_router(auth.router)
 
+logger = logging.getLogger(__name__)
+
 
 @app.get("/")
 def root():
@@ -50,12 +57,20 @@ def root():
 def dashboard(
     request: Request,
     user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Dashboard page for authenticated users."""
+    tournaments = (
+        db.query(TrackedTournament)
+        .filter(TrackedTournament.user_id == user.id)
+        .options(selectinload(TrackedTournament.events))
+        .order_by(TrackedTournament.created_at.desc())
+        .all()
+    )
     return dependencies.templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"user": user},
+        {"user": user, "tournaments": tournaments},
     )
 
 
@@ -147,6 +162,192 @@ async def profile_submit(
 # Regex for 32-char hex IDs
 HEX_ID_PATTERN = re.compile(r"^[A-Fa-f0-9]{32}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+TOURNAMENT_URL_PATTERN = re.compile(
+    r"fencingtimelive\.com/tournaments/(?:eventSchedule|scores)/([A-Fa-f0-9]{32})"
+)
+
+
+def extract_tournament_id(url: str) -> str | None:
+    """Extract tournament ID from FTL URL."""
+    match = TOURNAMENT_URL_PATTERN.search(url)
+    return match.group(1) if match else None
+
+
+def match_club(fencer: dict, club_filter: str) -> bool:
+    """Check if fencer matches club filter (case-insensitive substring)."""
+    if not club_filter:
+        return False
+    filter_lower = club_filter.lower().strip()
+
+    club1 = (fencer.get("club1") or "").lower()
+    club2 = (fencer.get("club2") or "").lower()
+    club_names = (fencer.get("clubNames") or "").lower()
+
+    return (
+        filter_lower in club1
+        or filter_lower in club2
+        or filter_lower in club_names
+    )
+
+
+@app.get("/tournament/new", response_class=HTMLResponse)
+def tournament_new_page(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+):
+    """Render tournament tracking form."""
+    return dependencies.templates.TemplateResponse(
+        request,
+        "tournament_new.html",
+        {"user": user, "values": {}},
+    )
+
+
+@app.post("/tournament/new", response_class=HTMLResponse)
+async def tournament_new_submit(
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle tournament tracking setup."""
+    form = await request.form()
+    url = (form.get("url") or "").strip()
+    club_raw = (form.get("club") or "").strip()
+    club_filter = club_raw or None
+    weapon_filter = (form.get("weapon") or "").strip() or None
+
+    values = {"url": url, "club": club_raw, "weapon": weapon_filter or ""}
+
+    tournament_id = extract_tournament_id(url)
+    if not tournament_id:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_new.html",
+            {"user": user, "error": "Enter a valid FencingTimeLive tournament URL.", "values": values},
+        )
+
+    if weapon_filter not in {None, "Epee", "Foil", "Saber"}:
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_new.html",
+            {"user": user, "error": "Select a valid weapon filter.", "values": values},
+        )
+
+    try:
+        schedule_html = fetch_tournament_schedule(tournament_id, timeout=TIMEOUT)
+        schedule = parse_tournament_schedule(schedule_html)
+    except Exception as exc:
+        logger.warning("Failed to fetch tournament schedule %s: %s", tournament_id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_new.html",
+            {"user": user, "error": "Unable to fetch tournament schedule.", "values": values},
+        )
+
+    tournament_name = schedule.get("tournament_name") or f"Tournament {tournament_id}"
+    events = schedule.get("events", [])
+    if weapon_filter:
+        events = [event for event in events if event.get("weapon") == weapon_filter]
+
+    tracked = TrackedTournament(
+        user_id=user.id,
+        tournament_id=tournament_id,
+        tournament_name=tournament_name,
+        tournament_url=url,
+        club_filter=club_filter,
+        weapon_filter=weapon_filter,
+    )
+    db.add(tracked)
+    db.flush()
+
+    for event in events:
+        event_id = event.get("event_id")
+        if not event_id:
+            continue
+
+        try:
+            event_html = fetch_event_page(event_id, timeout=TIMEOUT)
+            rounds = parse_event_rounds(event_html)
+            pool_round_id = rounds.get("pool_round_id")
+            de_round_id = rounds.get("de_round_id")
+        except Exception as exc:
+            logger.warning("Failed to discover rounds for event %s: %s", event_id, exc)
+            continue
+
+        fencer_count = 0
+        if club_filter:
+            try:
+                competitors = fetch_competitors_json(event_id, timeout=TIMEOUT)
+                fencer_count = sum(1 for fencer in competitors if match_club(fencer, club_filter))
+            except Exception as exc:
+                logger.warning("Failed to fetch competitors for event %s: %s", event_id, exc)
+                fencer_count = 0
+
+        cached_event = CachedEvent(
+            tracked_tournament_id=tracked.id,
+            event_id=event_id,
+            event_name=event.get("name") or "Unknown Event",
+            weapon=event.get("weapon"),
+            start_date=event.get("date"),
+            start_time=event.get("start_time"),
+            pool_round_id=pool_round_id,
+            de_round_id=de_round_id,
+            fencer_count=fencer_count,
+        )
+        db.add(cached_event)
+
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/tournament/{tracked.id}",
+        status_code=303,
+    )
+
+
+@app.get("/tournament/{tournament_id}", response_class=HTMLResponse)
+def tournament_detail(
+    tournament_id: int,
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Show tracked tournament details."""
+    tournament = (
+        db.query(TrackedTournament)
+        .options(selectinload(TrackedTournament.events))
+        .filter(TrackedTournament.id == tournament_id)
+        .first()
+    )
+    if not tournament or tournament.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "tournament_detail.html",
+        {"user": user, "tournament": tournament},
+    )
+
+
+@app.post("/tournament/{tournament_id}/delete")
+def tournament_delete(
+    tournament_id: int,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Delete a tracked tournament."""
+    tournament = (
+        db.query(TrackedTournament)
+        .filter(TrackedTournament.id == tournament_id)
+        .first()
+    )
+    if not tournament or tournament.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    db.delete(tournament)
+    db.commit()
+    return RedirectResponse(url="/dashboard", status_code=303)
 
 
 def _do_fencer_search(
@@ -424,10 +625,13 @@ def pools_page(
     user: User = Depends(dependencies.get_current_user),
 ):
     """Render pool overview form."""
+    event_id = (request.query_params.get("event_id") or "").strip()
+    pool_round_id = (request.query_params.get("pool_round_id") or "").strip()
+    values = {"event_id": event_id, "pool_round_id": pool_round_id}
     return dependencies.templates.TemplateResponse(
         request,
         "pools.html",
-        {"user": user, "values": {}},
+        {"user": user, "values": values},
     )
 
 
@@ -450,10 +654,15 @@ def de_page(
     user: User = Depends(dependencies.get_current_user),
 ):
     """Render DE tableau form."""
+    event_id = (request.query_params.get("event_id") or "").strip()
+    round_id = (request.query_params.get("round_id") or "").strip()
+    if not round_id:
+        round_id = (request.query_params.get("de_round_id") or "").strip()
+    values = {"event_id": event_id, "round_id": round_id}
     return dependencies.templates.TemplateResponse(
         request,
         "de_tableau.html",
-        {"user": user, "values": {}},
+        {"user": user, "values": values},
     )
 
 

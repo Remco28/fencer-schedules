@@ -126,23 +126,23 @@ CachedEvent
 
 ## 4. Implementation Phases
 
-### Phase A: Research & Preparation
-- [ ] Research tournament schedule page HTML structure
-- [ ] Research event page structure (how to find pool/DE round IDs)
-- [ ] Document URL patterns and parsing strategies
-- [ ] Create sample data artifacts
+### Phase A: Research & Preparation ✅ COMPLETE
+- [x] Research tournament schedule page HTML structure
+- [x] Research event page structure (how to find pool/DE round IDs)
+- [x] Document URL patterns and parsing strategies
+- [x] Create sample data artifacts
 
-### Phase B: User Profile Enhancement
-- [ ] Add `club` field to User model
-- [ ] Create profile edit page
-- [ ] Migration for existing users
+### Phase B: User Profile Enhancement ✅ COMPLETE
+- [x] Add `club` field to User model
+- [x] Create profile edit page
+- [x] Migration for existing users
 
-### Phase C: Tournament Setup
-- [ ] Tournament schedule parser (extract events from tournament page)
-- [ ] Event round discovery (find pool_round_id, de_round_id per event)
-- [ ] TrackedTournament and CachedEvent models
-- [ ] Tournament setup page (enter URL, set filters)
-- [ ] Auto-discover club fencers across events
+### Phase C: Tournament Setup ✅ COMPLETE
+- [x] Tournament schedule parser (extract events from tournament page)
+- [x] Event round discovery (find pool_round_id, de_round_id per event)
+- [x] TrackedTournament and CachedEvent models
+- [x] Tournament setup page (enter URL, set filters)
+- [x] Auto-discover club fencers across events
 
 ### Phase D: Consolidated Dashboard
 - [ ] Orchestration layer (aggregate fencer status across events)

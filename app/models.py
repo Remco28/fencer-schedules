@@ -30,6 +30,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    tracked_tournaments = relationship(
+        "TrackedTournament",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserSession(Base):
@@ -43,3 +48,40 @@ class UserSession(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
     user = relationship("User", back_populates="sessions")
+
+
+class TrackedTournament(Base):
+    __tablename__ = "tracked_tournaments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    tournament_id = Column(String(32), nullable=False)
+    tournament_name = Column(String(300), nullable=False)
+    tournament_url = Column(String(500), nullable=False)
+    club_filter = Column(String(200), nullable=True)
+    weapon_filter = Column(String(20), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+
+    user = relationship("User", back_populates="tracked_tournaments")
+    events = relationship(
+        "CachedEvent",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
+
+
+class CachedEvent(Base):
+    __tablename__ = "cached_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tracked_tournament_id = Column(Integer, ForeignKey("tracked_tournaments.id"), nullable=False, index=True)
+    event_id = Column(String(32), nullable=False)
+    event_name = Column(String(300), nullable=False)
+    weapon = Column(String(20), nullable=True)
+    start_date = Column(String(50), nullable=True)
+    start_time = Column(String(20), nullable=True)
+    pool_round_id = Column(String(32), nullable=True)
+    de_round_id = Column(String(32), nullable=True)
+    fencer_count = Column(Integer, default=0)
+
+    tournament = relationship("TrackedTournament", back_populates="events")
