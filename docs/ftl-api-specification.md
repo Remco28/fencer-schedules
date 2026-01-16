@@ -49,14 +49,15 @@ https://www.fencingtimelive.com/{resource}/{action}/{eventID}/{roundID}/{itemID}
 - `roundID`: 32-character hex (e.g., `D6890CA440324D9E8D594D5682CC33B7`)
 - `poolID`: 32-character hex (e.g., `130C4C6606F342AFBD607A193F05FAB1`)
 
-### Four Core Data Sources
+### Five Core Data Sources
 
-| Data Source | Use Case | Format | Real-time? |
-|------------|----------|---------|------------|
-| Pool IDs List | Discover all pools in event | HTML (embedded JS) | No |
-| Individual Pool Data | Strip assignments during pools | HTML | Yes |
-| Pool Results Summary | Who advanced after pools | JSON | No |
-| DE Tableau | Elimination bracket tracking | HTML | Yes |
+| Data Source | Use Case | Format | Real-time? | Notes |
+|------------|----------|---------|------------|-------|
+| Pool IDs List | Discover all pools in event | HTML (embedded JS) | No | |
+| Individual Pool Data | Strip assignments during pools | HTML | Yes | |
+| Pool Results Summary | Who advanced after pools | JSON | No | |
+| DE Tableau | Elimination bracket tracking | HTML | Yes | **JS-rendered** (see limitations) |
+| Event Results | Final placements | JSON | No | Fallback for completed events |
 
 ---
 
@@ -269,6 +270,78 @@ GET /tableaus/scores/{eventID}/{roundID}
 URL: https://www.fencingtimelive.com/tableaus/scores/54B9EF9A9707492E93F1D1F46CF715A2/08DE5802C0F34ABEBBB468A9681713E7
 Returns: HTML showing DE bracket with all matches
 ```
+
+**IMPORTANT: JavaScript Rendering Limitation**
+
+The DE tableau page loads match data dynamically via JavaScript. The raw HTML response contains only an empty container:
+```html
+<div id="tableauPanel"></div>
+<script src="/js/tableau.7aa60c14235c5b105c00.js"></script>
+```
+
+The actual `<table class='elimTableau'>` structure is rendered client-side by JavaScript after the page loads. This means:
+- Simple HTTP requests cannot retrieve the tableau data
+- The HTML samples in this document represent the *rendered* structure (visible in browser)
+- For completed events, use the Event Results endpoint (below) as a fallback
+
+---
+
+### 5. Event Results (Final Placements)
+
+**Endpoint:**
+```
+GET /events/results/data/{eventID}
+```
+
+**Response Type:** JSON
+
+**Purpose:** Get final placements for completed events. This endpoint returns data even when the DE tableau cannot be parsed via HTTP.
+
+**Response Structure:**
+```json
+[
+  {
+    "id": "873BE1282BF74D05B4C86C403A4683B6",
+    "place": "1",
+    "excluded": false,
+    "name": "DAVOODIAN Christopher",
+    "clubs": "Swords Fencing Studio",
+    "club1": "Swords Fencing Studio",
+    "div": "Southern California",
+    "country": "USA",
+    "oldRating": "A25",
+    "newRating": "A26",
+    "search": "davoodian christopher|swords fencing studio|southern california|usa"
+  },
+  {
+    "id": "3FF6D70F3D5E4C42BBBA886C3D2F669B",
+    "place": "2",
+    "excluded": false,
+    "name": "ZHENG Andy",
+    "clubs": "Guanyi Fencing Academy / Twin Cities Fencing Club",
+    "club1": "Guanyi Fencing Academy",
+    "club2": "Twin Cities Fencing Club",
+    "div": "Minnesota",
+    "country": "USA"
+  }
+]
+```
+
+**Key Fields:**
+- `place`: Final placement (string, can include "T" for ties like "3T")
+- `name`: Fencer full name
+- `clubs`: Combined club string (may include multiple clubs)
+- `club1`, `club2`: Individual club names
+- `div`: Geographic division
+- `country`: Country code
+
+**Example:**
+```
+URL: https://www.fencingtimelive.com/events/results/data/EF26973FED524797B71ADA0F7966AA84
+Returns: JSON array with all fencers and final placements
+```
+
+**Use Case:** When DE tableau parsing fails (due to JavaScript rendering), fall back to this endpoint for completed events to show final placements.
 
 ---
 
