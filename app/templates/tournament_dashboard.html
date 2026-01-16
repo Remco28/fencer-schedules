@@ -125,6 +125,12 @@
     <footer class="dashboard-footer">
         <a href="/tournament/{{ tournament.id }}">View Events</a>
         <a href="/dashboard">All Tournaments</a>
+        <form method="post" action="/tournament/{{ tournament.id }}/delete" style="display: inline; margin-left: auto;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="outline secondary" onclick="return confirm('Delete this tournament and all tracking data?')">
+                Delete Tournament
+            </button>
+        </form>
     </footer>
 </section>
 {% endblock %}

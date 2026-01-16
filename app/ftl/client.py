@@ -373,6 +373,43 @@ def fetch_competitors_json(
     return json.loads(response)
 
 
+def fetch_event_results_json(
+    event_id: str,
+    *,
+    timeout: int = 10,
+    force_refresh: bool = False
+) -> list[dict]:
+    """
+    Fetch event final results JSON.
+
+    This endpoint returns final placements for completed events.
+
+    Args:
+        event_id: Event UUID
+        timeout: Request timeout
+        force_refresh: Bypass cache and force fresh fetch
+
+    Returns:
+        List of result dicts with keys: id, place, name, clubs, club1, div, country, etc.
+
+    Raises:
+        FTLHTTPError: If fetch fails
+    """
+    path = f"/events/results/data/{event_id}"
+    url = _build_url(path)
+    cache_key = f"event_results:{event_id}"
+
+    if not force_refresh:
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    response = _fetch_with_retry(url, timeout=timeout)
+    results = json.loads(response)
+    _cache.set(cache_key, results)
+    return results
+
+
 def fetch_pools_bundle(
     event_id: str,
     pool_round_id: str,

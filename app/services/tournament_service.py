@@ -4,7 +4,13 @@ from datetime import UTC, datetime
 import logging
 from typing import Optional, Iterable
 
-from app.ftl.client import fetch_pools_bundle, fetch_tableau_raw, FTLHTTPError, FTLParseError
+from app.ftl.client import (
+    fetch_pools_bundle,
+    fetch_tableau_raw,
+    fetch_event_results_json,
+    FTLHTTPError,
+    FTLParseError,
+)
 from app.ftl.parsers.de_tableau import parse_de_tableau
 from app.services.club_matcher import match_club
 
@@ -141,6 +147,52 @@ def _pool_statuses(bundle: dict, club_filter: str, event) -> list[FencerStatus]:
     return statuses
 
 
+def _results_statuses(results: list[dict], club_filter: str, event) -> list[FencerStatus]:
+    """
+    Convert event results JSON to FencerStatus objects.
+
+    This is used for completed events where the DE tableau is no longer available
+    via simple HTTP fetch (FTL loads tableau data via JavaScript).
+
+    Args:
+        results: List of result dicts from /events/results/data endpoint
+        club_filter: Club name to filter by
+        event: Event object with event_id, event_name, weapon
+
+    Returns:
+        List of FencerStatus objects for fencers matching the club filter
+    """
+    statuses = []
+
+    for result in results:
+        # Check if fencer matches club filter
+        # Results have: clubs, club1, club2 fields
+        fencer_data = {
+            "club": result.get("clubs") or result.get("club1") or ""
+        }
+        if not match_club(fencer_data, club_filter):
+            continue
+
+        name = result.get("name", "")
+        place = result.get("place", "")
+
+        # Determine result text based on placement
+        result_text = f"Place: {place}" if place else "Complete"
+
+        statuses.append(FencerStatus(
+            name=name,
+            event_id=event.event_id,
+            event_name=event.event_name,
+            weapon=event.weapon,
+            activity="finished",
+            phase="complete",
+            result=result_text,
+            last_updated=datetime.now(UTC).isoformat(),
+        ))
+
+    return statuses
+
+
 def _de_statuses(matches: list[dict], club_filter: str, event) -> list[FencerStatus]:
     statuses = []
     fencer_matches: dict[str, list[dict]] = {}
@@ -264,19 +316,31 @@ def get_tournament_fencer_status(
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
-                logger.warning("DE fetch failed for event %s: %s", event.event_id, exc)
-                error_status = FencerStatus(
-                    name=f"{club_filter} fencers",
-                    event_id=event.event_id,
-                    event_name=event.event_name,
-                    weapon=event.weapon,
-                    activity="waiting",
-                    phase="de",
-                    error="Unable to fetch DE data",
-                    last_updated=datetime.now(UTC).isoformat(),
-                )
-                key = _status_key(error_status)
-                statuses[key] = _merge_status(statuses.get(key), error_status)
+                # DE tableau page uses JavaScript rendering, so parsing fails.
+                # Fall back to event results endpoint which works for completed events.
+                logger.info("DE tableau parse failed for event %s, trying results endpoint: %s", event.event_id, exc)
+                try:
+                    results = fetch_event_results_json(
+                        event.event_id,
+                        force_refresh=force_refresh,
+                    )
+                    for status in _results_statuses(results, club_filter, event):
+                        key = _status_key(status)
+                        statuses[key] = _merge_status(statuses.get(key), status)
+                except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
+                    logger.warning("Results fetch also failed for event %s: %s", event.event_id, results_exc)
+                    error_status = FencerStatus(
+                        name=f"{club_filter} fencers",
+                        event_id=event.event_id,
+                        event_name=event.event_name,
+                        weapon=event.weapon,
+                        activity="waiting",
+                        phase="de",
+                        error="Unable to fetch DE or results data",
+                        last_updated=datetime.now(UTC).isoformat(),
+                    )
+                    key = _status_key(error_status)
+                    statuses[key] = _merge_status(statuses.get(key), error_status)
 
     for status in statuses.values():
         if status.activity not in grouped:
