@@ -18,7 +18,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     club = Column(String(200), nullable=True)
     is_admin = Column(Boolean, default=False, nullable=False)

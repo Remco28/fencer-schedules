@@ -26,6 +26,7 @@ from app.ftl.client import (
 )
 from app.ftl.parsers import parse_de_tableau, parse_event_rounds, parse_tournament_schedule
 from app.models import CachedEvent, TrackedTournament, User
+from app.services.tournament_service import get_tournament_fencer_status
 
 
 # Configuration from environment variables with defaults
@@ -173,9 +174,6 @@ def extract_tournament_id(url: str) -> str | None:
     """Extract tournament ID from FTL URL."""
     match = TOURNAMENT_URL_PATTERN.search(url)
     return match.group(1) if match else None
-
-
-
 
 
 @app.get("/tournament/new", response_class=HTMLResponse)
@@ -338,8 +336,6 @@ def tournament_dashboard(
 
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
-
-    from app.services.tournament_service import get_tournament_fencer_status
 
     try:
         grouped_fencers = get_tournament_fencer_status(

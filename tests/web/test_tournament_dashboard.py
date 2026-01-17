@@ -47,7 +47,7 @@ def test_dashboard_renders(authenticated_client, test_db):
     _, SessionLocal = test_db
     tournament_id = _create_tournament(SessionLocal)
 
-    with patch("app.services.tournament_service.get_tournament_fencer_status", return_value={
+    with patch("app.main.get_tournament_fencer_status", return_value={
         "active": [],
         "waiting": [],
         "finished": [],
@@ -77,7 +77,7 @@ def test_dashboard_shows_active_fencers(authenticated_client, test_db):
         phase="pools",
     )
 
-    with patch("app.services.tournament_service.get_tournament_fencer_status", return_value={
+    with patch("app.main.get_tournament_fencer_status", return_value={
         "active": [active_fencer],
         "waiting": [],
         "finished": [],
@@ -106,7 +106,7 @@ def test_dashboard_shows_finished_fencers(authenticated_client, test_db):
         result="Eliminated (Table of 32)",
     )
 
-    with patch("app.services.tournament_service.get_tournament_fencer_status", return_value={
+    with patch("app.main.get_tournament_fencer_status", return_value={
         "active": [],
         "waiting": [],
         "finished": [finished_fencer],
@@ -123,7 +123,7 @@ def test_dashboard_force_refresh(authenticated_client, test_db):
     _, SessionLocal = test_db
     tournament_id = _create_tournament(SessionLocal)
 
-    with patch("app.services.tournament_service.get_tournament_fencer_status", return_value={
+    with patch("app.main.get_tournament_fencer_status", return_value={
         "active": [],
         "waiting": [],
         "finished": [],
@@ -141,7 +141,7 @@ def test_dashboard_handles_errors(authenticated_client, test_db):
     tournament_id = _create_tournament(SessionLocal)
 
     with patch(
-        "app.services.tournament_service.get_tournament_fencer_status",
+        "app.main.get_tournament_fencer_status",
         side_effect=Exception("Network error"),
     ):
         response = authenticated_client.get(f"/tournament/{tournament_id}/dashboard")
