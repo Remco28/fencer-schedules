@@ -2,6 +2,7 @@
 from datetime import UTC, datetime
 from typing import List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models
@@ -135,11 +136,12 @@ def get_tracked_fencers(db: Session, tournament_id: int) -> List[models.TrackedF
 
 def is_fencer_tracked(db: Session, tournament_id: int, fencer_name: str) -> bool:
     """Check if a fencer is already tracked."""
+    normalized = fencer_name.strip().lower()
     return (
         db.query(models.TrackedFencer)
         .filter(
             models.TrackedFencer.tracked_tournament_id == tournament_id,
-            models.TrackedFencer.fencer_name == fencer_name.strip(),
+            func.lower(models.TrackedFencer.fencer_name) == normalized,
         )
         .first()
     ) is not None

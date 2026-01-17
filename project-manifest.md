@@ -19,10 +19,10 @@
 
 - **Activity Log:** `comms/log.md` - Chronological record of major development activities
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
-- **Current Phase:** Phase D complete ✅ - Next up: Phase E (Manual Fencer Tracking)
+- **Current Phase:** Phase E complete ✅ - Next up: Phase F (Polish & Cleanup)
 - **Current Branch:** `feature/tournament-dashboard`
-- **Active Task Spec:** None (awaiting Phase E spec)
-- **Archived Task Specs:** `comms/tasks/archive/` (Phases A-D complete)
+- **Active Task Spec:** None (awaiting Phase F spec)
+- **Archived Task Specs:** `comms/tasks/archive/` (Phases A-E complete)
 
 ## 3. Project Vision (Updated 2026-01-15)
 
@@ -43,7 +43,7 @@
 
 - **Main Application:** `app/main.py` - FastAPI app with routes and handlers
 - **Database:** `app/database.py` - SQLAlchemy setup (SQLite at `./fencer_schedules.db`)
-- **Models:** `app/models.py` - User, UserSession, TrackedTournament, CachedEvent
+- **Models:** `app/models.py` - User, UserSession, TrackedTournament, CachedEvent, TrackedFencer
 - **Services:** `app/services/` - Business logic layer
   - `tournament_service.py` - Fencer status orchestration
   - `club_matcher.py` - Club matching logic
@@ -86,12 +86,13 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Tournament Parser | ❌ Not started | Parse schedule page |
-| Event Round Discovery | ❌ Not started | Find pool/DE round IDs |
-| User Profile (club) | ❌ Not started | Add club field |
-| TrackedTournament model | ❌ Not started | Store user's tournaments |
-| Dashboard UI | ❌ Not started | Consolidated fencer view |
-| Manual Fencer Add | ❌ Not started | Cross-event search |
+| Tournament Parser | ✅ Complete | Parse schedule page |
+| Event Round Discovery | ✅ Complete | Find pool/DE round IDs |
+| User Profile (club) | ✅ Complete | Add club field |
+| TrackedTournament model | ✅ Complete | Store user's tournaments |
+| Dashboard UI | ✅ Complete | Consolidated fencer view |
+| Manual Fencer Add | ✅ Complete | Cross-event search |
+| Phase F Polish & Cleanup | ⏳ Next | Auto-cleanup, UX polish, performance, docs |
 
 ---
 
@@ -103,9 +104,9 @@
 3. Read `comms/plan.md` for project vision and phases
 4. Check `comms/tasks/` for any active spec
 
-**Current Priority:** Phase A Research - Investigate FTL tournament schedule page structure
+**Current Priority:** Phase F - Polish & Cleanup
 
-**Key Question to Answer:** How do we parse `/tournaments/eventSchedule/{id}` to get the list of events?
+**Key Question to Answer:** What are the highest-impact polish, UX, and maintenance tasks to ship next?
 
 ---
 

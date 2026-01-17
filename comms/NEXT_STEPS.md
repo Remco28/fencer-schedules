@@ -1,7 +1,7 @@
 # Next Steps
 
 **Last Updated:** 2026-01-16
-**Current Status:** Phase D (Consolidated Dashboard) complete and approved ✅
+**Current Status:** Phase E (Manual Fencer Tracking) complete and approved ✅
 **Branch:** `feature/tournament-dashboard`
 
 ---
@@ -40,37 +40,19 @@
 - Force refresh functionality
 - 11 tests passing (5 service + 6 web)
 
-**Test Status:** 140/140 tests passing (zero regressions)
+**Phase E: Manual Fencer Tracking**
+- Tracked fencer model and CRUD
+- Tournament fencer search UI and add/remove tracking
+- Manual source badges on dashboard
+- Web tests for tracked fencers
+
+**Test Status:** Not re-verified in this review
 
 ---
 
-## What's Next: Phase E
+## What's Next: Phase F
 
-### Phase E: Manual Fencer Tracking
-
-**Goal:** Allow users to manually add fencers to track (beyond auto-discovered club members)
-
-**Key Features:**
-- Search for any fencer across all events in a tournament
-- Add/remove fencers to tracking list
-- Distinguish club-discovered vs manually-added fencers in dashboard
-- TrackedFencer model to persist manual selections
-
-**Why This Matters:**
-- Users may want to track friends/rivals from other clubs
-- Coaches may want to track specific competitors in their fencer's pools
-- Flexibility beyond just club-based tracking
-
-**Estimated Scope:**
-- New `TrackedFencer` model (fencer_name, source="manual", tracked_tournament_id)
-- Fencer search UI (search across all events for a name)
-- Add/Remove buttons in dashboard or search results
-- Dashboard UI updates to show source indicator
-- ~15-20 tests (model + search + add/remove flows)
-
----
-
-## Phase F: Polish & Cleanup (After Phase E)
+### Phase F: Polish & Cleanup
 
 **Remaining Tasks:**
 - Auto-cleanup expired tournaments (48-hour TTL background job)
@@ -85,24 +67,18 @@
 
 ### For the Architect:
 
-1. **Write Phase E Spec:**
+1. **Write Phase F Spec:**
    ```bash
    # Create spec file
-   comms/tasks/2026-01-XX-phase-e-manual-fencer-tracking.md
+   comms/tasks/2026-01-XX-phase-f-polish-and-cleanup.md
    ```
 
 2. **Spec Should Include:**
-   - TrackedFencer model schema
-   - Fencer search endpoint/UI mockup
-   - Add/Remove fencer flow (UX wireframes)
-   - Dashboard UI changes (visual indicators for manual vs club)
-   - Acceptance criteria
+   - Auto-cleanup strategy (TTL, job schedule, delete rules)
+   - UX polish checklist and mobile breakpoints
+   - Error copy refinements and fallback states
+   - Performance targets (cache hits, fetch limits)
    - Test requirements
-
-3. **Review Current Dashboard:**
-   - Look at `/tournament/{id}/dashboard` template
-   - Consider where "Add Fencer" button should go
-   - Design how to distinguish club vs manual fencers (icon, badge, color?)
 
 ### For the Developer:
 
@@ -124,14 +100,14 @@
    - View the consolidated dashboard at `/tournament/{id}/dashboard`
    - Test refresh functionality
 
-3. **Read Phase E Spec** (once written)
+3. **Read Phase F Spec** (once written)
 
 ---
 
 ## Key Files to Know
 
 ### Models
-- `app/models.py` - User, TrackedTournament, CachedEvent
+- `app/models.py` - User, TrackedTournament, CachedEvent, TrackedFencer
 
 ### Services
 - `app/services/tournament_service.py` - Fencer status orchestration
@@ -150,17 +126,20 @@
 - `/tournament/new` - Tournament setup form
 - `/tournament/{id}` - Event list view
 - `/tournament/{id}/dashboard` - Consolidated fencer dashboard (PHASE D)
+- `/tournament/{id}/search` - Tournament-wide fencer search (PHASE E)
 - `/profile` - User profile with club setting
 
 ### Templates
 - `app/templates/tournament_dashboard.html` - Consolidated dashboard UI
 - `app/templates/tournament_new.html` - Tournament setup form
 - `app/templates/tournament_detail.html` - Event list
+- `app/templates/tournament_search.html` - Manual fencer search
 
 ### Tests
 - `tests/services/test_tournament_service.py` - Service orchestration tests
 - `tests/web/test_tournament_dashboard.py` - Dashboard web tests
 - `tests/web/test_tournament.py` - Tournament setup tests
+- `tests/web/test_tracked_fencers.py` - Manual fencer tracking tests
 - `tests/ftl/` - Parser tests (94 tests)
 - `tests/api/` - API tests (11 tests)
 
@@ -176,80 +155,22 @@
 | User Profile | ✅ Complete | 8 tests passing |
 | Tournament Setup | ✅ Complete | 16 tests passing |
 | Consolidated Dashboard | ✅ Complete | 11 tests passing |
-| Manual Fencer Tracking | ⏳ Next Up | Not started |
+| Manual Fencer Tracking | ✅ Complete | Search/add/remove + dashboard badges |
 | Auto-Cleanup | ⏳ Phase F | Not started |
 
-**Total Tests:** 140 passing
+**Total Tests:** Not re-verified in this review
 **Total Lines:** ~7,500+ lines of code
 
 ---
 
-## Architecture Notes for Phase E
+## Phase F Focus Areas
 
-### Current Flow:
-```
-User → Tournament URL → Auto-discover club fencers → Dashboard
-```
-
-### Phase E Will Add:
-```
-User → Tournament URL → Auto-discover club fencers → Dashboard
-                                                          ↓
-                                            [+ Add Fencer Button]
-                                                          ↓
-                                            Search all events
-                                                          ↓
-                                            Select fencer → Add to tracking
-                                                          ↓
-                                            Dashboard (club + manual fencers)
-```
-
-### Data Model Addition:
-```python
-class TrackedFencer(Base):
-    __tablename__ = "tracked_fencers"
-
-    id = Column(Integer, primary_key=True)
-    tracked_tournament_id = Column(Integer, ForeignKey("tracked_tournaments.id"))
-    fencer_name = Column(String(200), nullable=False)
-    source = Column(String(20), default="manual")  # "club" or "manual"
-    event_id = Column(String(32), nullable=True)  # Optional: specific event
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
-```
-
-### Dashboard Service Change:
-```python
-def get_tournament_fencer_status(...):
-    # Current: Only fetch club-matched fencers
-    # Phase E: ALSO fetch manually tracked fencers
-    # Mark each FencerStatus with .source = "club" or "manual"
-```
+1. **Auto-cleanup:** Define TTL rules and data pruning strategy.
+2. **UX polish:** Mobile responsiveness and layout refinements.
+3. **Error handling:** Human-friendly messaging and retry guidance.
+4. **Performance:** Cache tuning and fetch limits.
+5. **Documentation:** User-facing guide for setup and tracking.
 
 ---
 
-## Questions to Consider for Phase E
-
-1. **UX:** Where should "Add Fencer" button be?
-   - In dashboard header?
-   - Next to each event in `/tournament/{id}` page?
-   - Both?
-
-2. **Search Scope:**
-   - Search across all events in tournament?
-   - Or let user pick specific event first?
-
-3. **Visual Distinction:**
-   - How to show club vs manual fencers?
-   - Icon? Badge? Different color?
-
-4. **Remove Flow:**
-   - X button next to each manual fencer?
-   - Confirmation dialog?
-
-5. **Edge Cases:**
-   - What if manually added fencer is also club member?
-   - What if fencer name has typo? (fuzzy search?)
-
----
-
-*Ready to start Phase E when you return!* 🚀
+*Ready to start Phase F when you return!* 🚀

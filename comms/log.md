@@ -96,3 +96,4 @@
 [2026-01-16 15:30] [ARCHITECT]: SPEC READY: Authored Phase E spec for manual fencer tracking at `comms/tasks/2026-01-16-phase-e-manual-fencer-tracking.md`. Scope: TrackedFencer model, tournament fencer search, add/remove tracking UI, source badges on dashboard, CRUD operations, tests.
 [2026-01-16 20:22] [CLAUDE]: IMPL IN_PROGRESS: Starting Phase E manual fencer tracking implementation (comms/tasks/2026-01-16-phase-e-manual-fencer-tracking.md).
 [2026-01-16 20:22] [CLAUDE]: IMPL DONE: Implemented Phase E manual fencer tracking with tracked fencer model/CRUD, tournament search UI, add/remove flows, dashboard source badges, and tests.
+[2026-01-16 20:48] [ARCHITECT]: REVIEW PASS: Phase E manual fencer tracking approved; spec archived to `comms/tasks/archive/2026-01-16-phase-e-manual-fencer-tracking.md`.
