@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Search Fencers - {{ tournament.tournament_name }}{% endblock %}
+
+{% block content %}
+<section>
+    <header class="dashboard-header">
+        <div>
+            <h1>Search Fencers</h1>
+            <p>{{ tournament.tournament_name }}</p>
+        </div>
+        <a href="/tournament/{{ tournament.id }}/dashboard">Back to Dashboard</a>
+    </header>
+
+    {% if error %}
+    <article class="error-message"><p>{{ error }}</p></article>
+    {% endif %}
+
+    <form method="get" action="/tournament/{{ tournament.id }}/search" class="search-form">
+        <label>
+            Fencer Name
+            <input type="text" name="q" value="{{ query or '' }}"
+                   placeholder="Enter at least 2 characters"
+                   minlength="2" autofocus>
+        </label>
+        <button type="submit">Search</button>
+    </form>
+
+    {% if query and results %}
+    <h2>Results ({{ results|length }})</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Event</th>
+                <th>Club</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fencer in results %}
+            <tr>
+                <td>{{ fencer.name }}</td>
+                <td>{{ fencer.event_name }}</td>
+                <td>{{ fencer.club or '—' }}</td>
+                <td>
+                    {% if fencer.is_tracked %}
+                    <span class="tracked-badge">Tracking</span>
+                    {% else %}
+                    <form method="post" action="/tournament/{{ tournament.id }}/track" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="fencer_name" value="{{ fencer.name }}">
+                        <input type="hidden" name="redirect_url" value="/tournament/{{ tournament.id }}/search?q={{ query }}">
+                        <button type="submit" class="small">+ Track</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif query %}
+    <p>No fencers found matching "{{ query }}".</p>
+    {% endif %}
+</section>
+{% endblock %}

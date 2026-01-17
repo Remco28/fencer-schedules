@@ -5,6 +5,7 @@ import logging
 from typing import Optional, Iterable
 
 from app.ftl.client import (
+    fetch_competitors_json,
     fetch_pools_bundle,
     fetch_tableau_raw,
     fetch_event_results_json,
@@ -38,6 +39,8 @@ class FencerStatus:
     # Metadata
     last_updated: str = ""
     error: Optional[str] = None
+    source: str = "club"
+    fencer_db_id: Optional[int] = None
 
 
 _ROUND_ORDER = ["128", "64", "32", "16", "8", "QF", "SF", "F"]
@@ -71,6 +74,11 @@ def _merge_status(existing: Optional[FencerStatus], candidate: FencerStatus) -> 
     existing_rank = (_phase_rank(existing.phase), _activity_rank(existing.activity))
     candidate_rank = (_phase_rank(candidate.phase), _activity_rank(candidate.activity))
 
+    if existing.source == "club" and candidate.source == "manual":
+        return existing
+    if existing.source == "manual" and candidate.source == "club":
+        return candidate
+
     if candidate.error and not existing.error:
         return existing
 
@@ -100,7 +108,12 @@ def _choose_latest_match(matches: Iterable[dict]) -> Optional[dict]:
     return latest
 
 
-def _pool_statuses(bundle: dict, club_filter: str, event) -> list[FencerStatus]:
+def _pool_statuses(
+    bundle: dict,
+    club_filter: str,
+    event,
+    manual_fencers: dict[str, int],
+) -> list[FencerStatus]:
     statuses = []
     results = bundle.get("results", {})
     result_map = {
@@ -113,11 +126,14 @@ def _pool_statuses(bundle: dict, club_filter: str, event) -> list[FencerStatus]:
         strip = pool.get("strip")
 
         for fencer in pool.get("fencers", []):
-            if not match_club({"club": fencer.get("club")}, club_filter):
+            name = fencer.get("name") or ""
+            name_lower = name.lower()
+            is_manual = name_lower in manual_fencers
+            is_club = match_club({"club": fencer.get("club")}, club_filter)
+            if not is_manual and not is_club:
                 continue
 
-            name = fencer.get("name") or ""
-            result = result_map.get(name.lower(), {})
+            result = result_map.get(name_lower, {})
             status = result.get("status") or "unknown"
 
             activity = "waiting"
@@ -142,12 +158,19 @@ def _pool_statuses(bundle: dict, club_filter: str, event) -> list[FencerStatus]:
                 phase="pools",
                 result=result_text,
                 last_updated=datetime.now(UTC).isoformat(),
+                source="club" if is_club else "manual",
+                fencer_db_id=manual_fencers.get(name_lower),
             ))
 
     return statuses
 
 
-def _results_statuses(results: list[dict], club_filter: str, event) -> list[FencerStatus]:
+def _results_statuses(
+    results: list[dict],
+    club_filter: str,
+    event,
+    manual_fencers: dict[str, int],
+) -> list[FencerStatus]:
     """
     Convert event results JSON to FencerStatus objects.
 
@@ -170,10 +193,13 @@ def _results_statuses(results: list[dict], club_filter: str, event) -> list[Fenc
         fencer_data = {
             "club": result.get("clubs") or result.get("club1") or ""
         }
-        if not match_club(fencer_data, club_filter):
+        name = result.get("name", "")
+        name_lower = name.lower()
+        is_manual = name_lower in manual_fencers
+        is_club = match_club(fencer_data, club_filter)
+        if not is_manual and not is_club:
             continue
 
-        name = result.get("name", "")
         place = result.get("place", "")
 
         # Determine result text based on placement
@@ -188,12 +214,19 @@ def _results_statuses(results: list[dict], club_filter: str, event) -> list[Fenc
             phase="complete",
             result=result_text,
             last_updated=datetime.now(UTC).isoformat(),
+            source="club" if is_club else "manual",
+            fencer_db_id=manual_fencers.get(name_lower),
         ))
 
     return statuses
 
 
-def _de_statuses(matches: list[dict], club_filter: str, event) -> list[FencerStatus]:
+def _de_statuses(
+    matches: list[dict],
+    club_filter: str,
+    event,
+    manual_fencers: dict[str, int],
+) -> list[FencerStatus]:
     statuses = []
     fencer_matches: dict[str, list[dict]] = {}
 
@@ -204,7 +237,10 @@ def _de_statuses(matches: list[dict], club_filter: str, event) -> list[FencerSta
             fencer_name = match.get(name_key)
             if not fencer_name:
                 continue
-            if not match_club({"club": match.get(club_key)}, club_filter):
+            name_lower = fencer_name.lower()
+            is_manual = name_lower in manual_fencers
+            is_club = match_club({"club": match.get(club_key)}, club_filter)
+            if not is_manual and not is_club:
                 continue
             fencer_matches.setdefault(fencer_name, []).append(match)
 
@@ -240,6 +276,8 @@ def _de_statuses(matches: list[dict], club_filter: str, event) -> list[FencerSta
                 activity = "finished"
                 result_text = f"Eliminated (Table of {round_label})" if round_label else "Eliminated"
 
+        name_lower = fencer_name.lower()
+        is_club = match_club({"club": latest.get("club_a") if is_a else latest.get("club_b")}, club_filter)
         statuses.append(FencerStatus(
             name=fencer_name,
             event_id=event.event_id,
@@ -250,6 +288,8 @@ def _de_statuses(matches: list[dict], club_filter: str, event) -> list[FencerSta
             phase="de",
             result=result_text,
             last_updated=datetime.now(UTC).isoformat(),
+            source="club" if is_club else "manual",
+            fencer_db_id=manual_fencers.get(name_lower),
         ))
 
     return statuses
@@ -259,6 +299,7 @@ def get_tournament_fencer_status(
     tournament_id: int,
     club_filter: str,
     cached_events: list,
+    tracked_fencers: Optional[list] = None,
     *,
     force_refresh: bool = False,
 ) -> dict[str, list[FencerStatus]]:
@@ -273,7 +314,12 @@ def get_tournament_fencer_status(
         }
     """
     grouped = {"active": [], "waiting": [], "finished": []}
-    if not club_filter:
+    manual_fencers = {
+        fencer.fencer_name.lower(): fencer.id
+        for fencer in (tracked_fencers or [])
+        if fencer.source == "manual"
+    }
+    if not club_filter and not manual_fencers:
         return grouped
 
     statuses: dict[tuple, FencerStatus] = {}
@@ -286,23 +332,24 @@ def get_tournament_fencer_status(
                     event.pool_round_id,
                     force_refresh=force_refresh,
                 )
-                for status in _pool_statuses(bundle, club_filter, event):
+                for status in _pool_statuses(bundle, club_filter, event, manual_fencers):
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
                 logger.warning("Pools fetch failed for event %s: %s", event.event_id, exc)
-                error_status = FencerStatus(
-                    name=f"{club_filter} fencers",
-                    event_id=event.event_id,
-                    event_name=event.event_name,
-                    weapon=event.weapon,
-                    activity="waiting",
-                    phase="pools",
-                    error="Unable to fetch pool data",
-                    last_updated=datetime.now(UTC).isoformat(),
-                )
-                key = _status_key(error_status)
-                statuses[key] = _merge_status(statuses.get(key), error_status)
+                if club_filter or manual_fencers:
+                    error_status = FencerStatus(
+                        name=f"{club_filter or 'Tracked'} fencers",
+                        event_id=event.event_id,
+                        event_name=event.event_name,
+                        weapon=event.weapon,
+                        activity="waiting",
+                        phase="pools",
+                        error="Unable to fetch pool data",
+                        last_updated=datetime.now(UTC).isoformat(),
+                    )
+                    key = _status_key(error_status)
+                    statuses[key] = _merge_status(statuses.get(key), error_status)
 
         if event.de_round_id:
             try:
@@ -312,7 +359,7 @@ def get_tournament_fencer_status(
                     force_refresh=force_refresh,
                 )
                 tableau = parse_de_tableau(html, event_id=event.event_id, round_id=event.de_round_id)
-                for status in _de_statuses(tableau.get("matches", []), club_filter, event):
+                for status in _de_statuses(tableau.get("matches", []), club_filter, event, manual_fencers):
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
@@ -324,23 +371,24 @@ def get_tournament_fencer_status(
                         event.event_id,
                         force_refresh=force_refresh,
                     )
-                    for status in _results_statuses(results, club_filter, event):
+                    for status in _results_statuses(results, club_filter, event, manual_fencers):
                         key = _status_key(status)
                         statuses[key] = _merge_status(statuses.get(key), status)
                 except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
                     logger.warning("Results fetch also failed for event %s: %s", event.event_id, results_exc)
-                    error_status = FencerStatus(
-                        name=f"{club_filter} fencers",
-                        event_id=event.event_id,
-                        event_name=event.event_name,
-                        weapon=event.weapon,
-                        activity="waiting",
-                        phase="de",
-                        error="Unable to fetch DE or results data",
-                        last_updated=datetime.now(UTC).isoformat(),
-                    )
-                    key = _status_key(error_status)
-                    statuses[key] = _merge_status(statuses.get(key), error_status)
+                    if club_filter or manual_fencers:
+                        error_status = FencerStatus(
+                            name=f"{club_filter or 'Tracked'} fencers",
+                            event_id=event.event_id,
+                            event_name=event.event_name,
+                            weapon=event.weapon,
+                            activity="waiting",
+                            phase="de",
+                            error="Unable to fetch DE or results data",
+                            last_updated=datetime.now(UTC).isoformat(),
+                        )
+                        key = _status_key(error_status)
+                        statuses[key] = _merge_status(statuses.get(key), error_status)
 
     for status in statuses.values():
         if status.activity not in grouped:
@@ -352,3 +400,70 @@ def get_tournament_fencer_status(
         group.sort(key=lambda item: (item.event_name.lower(), item.name.lower()))
 
     return grouped
+
+
+def search_tournament_fencers(
+    tournament_id: int,
+    cached_events: list,
+    query: str,
+    force_refresh: bool = False,
+) -> list[dict]:
+    """
+    Search for fencers across all events in a tournament.
+
+    Returns:
+        List of fencer dicts with keys: name, event_id, event_name, club, status
+    """
+    if not query or len(query.strip()) < 2:
+        return []
+
+    query_lower = query.lower().strip()
+    results = []
+    seen = set()
+
+    for event in cached_events:
+        try:
+            competitors = fetch_competitors_json(
+                event.event_id,
+                force_refresh=force_refresh,
+            )
+            for comp in competitors:
+                name = comp.get("name", "")
+                if query_lower in name.lower():
+                    key = (name, event.event_id)
+                    if key not in seen:
+                        seen.add(key)
+                        results.append({
+                            "name": name,
+                            "event_id": event.event_id,
+                            "event_name": event.event_name,
+                            "club": comp.get("club1") or comp.get("clubs") or "",
+                            "status": "registered",
+                        })
+        except Exception:
+            if event.pool_round_id:
+                try:
+                    bundle = fetch_pools_bundle(
+                        event.event_id,
+                        event.pool_round_id,
+                        force_refresh=force_refresh,
+                    )
+                    for pool in bundle.get("pools", []):
+                        for fencer in pool.get("fencers", []):
+                            name = fencer.get("name", "")
+                            if query_lower in name.lower():
+                                key = (name, event.event_id)
+                                if key not in seen:
+                                    seen.add(key)
+                                    results.append({
+                                        "name": name,
+                                        "event_id": event.event_id,
+                                        "event_name": event.event_name,
+                                        "club": fencer.get("club") or "",
+                                        "status": "in_pools",
+                                    })
+                except Exception:
+                    pass
+
+    results.sort(key=lambda item: item["name"].lower())
+    return results

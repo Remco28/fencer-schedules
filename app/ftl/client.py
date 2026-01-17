@@ -365,12 +365,22 @@ def fetch_competitors_json(
     event_id: str,
     *,
     timeout: int = 10,
+    force_refresh: bool = False,
 ) -> list[dict]:
     """Fetch competitors JSON for an event."""
     path = f"/events/competitors/data/{event_id}"
     url = _build_url(path)
+    cache_key = f"competitors:{event_id}"
+
+    if not force_refresh:
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     response = _fetch_with_retry(url, timeout=timeout)
-    return json.loads(response)
+    results = json.loads(response)
+    _cache.set(cache_key, results)
+    return results
 
 
 def fetch_event_results_json(

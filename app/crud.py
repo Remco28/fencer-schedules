@@ -89,6 +89,62 @@ def update_user_profile(
     return user
 
 
+def add_tracked_fencer(
+    db: Session,
+    tournament_id: int,
+    fencer_name: str,
+    source: str = "manual",
+) -> models.TrackedFencer:
+    """Add a fencer to tracking list."""
+    fencer = models.TrackedFencer(
+        tracked_tournament_id=tournament_id,
+        fencer_name=fencer_name.strip(),
+        source=source,
+    )
+    db.add(fencer)
+    db.flush()
+    return fencer
+
+
+def remove_tracked_fencer(db: Session, fencer_id: int, tournament_id: int) -> bool:
+    """Remove a tracked fencer. Returns True if deleted."""
+    fencer = (
+        db.query(models.TrackedFencer)
+        .filter(
+            models.TrackedFencer.id == fencer_id,
+            models.TrackedFencer.tracked_tournament_id == tournament_id,
+        )
+        .first()
+    )
+    if fencer:
+        db.delete(fencer)
+        db.flush()
+        return True
+    return False
+
+
+def get_tracked_fencers(db: Session, tournament_id: int) -> List[models.TrackedFencer]:
+    """Get all tracked fencers for a tournament."""
+    return (
+        db.query(models.TrackedFencer)
+        .filter(models.TrackedFencer.tracked_tournament_id == tournament_id)
+        .order_by(models.TrackedFencer.fencer_name)
+        .all()
+    )
+
+
+def is_fencer_tracked(db: Session, tournament_id: int, fencer_name: str) -> bool:
+    """Check if a fencer is already tracked."""
+    return (
+        db.query(models.TrackedFencer)
+        .filter(
+            models.TrackedFencer.tracked_tournament_id == tournament_id,
+            models.TrackedFencer.fencer_name == fencer_name.strip(),
+        )
+        .first()
+    ) is not None
+
+
 # Session management
 
 

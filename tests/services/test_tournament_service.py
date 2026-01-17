@@ -2,7 +2,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.services.tournament_service import get_tournament_fencer_status
+from app.services.tournament_service import get_tournament_fencer_status, search_tournament_fencers
 from app.ftl.client import FTLHTTPError
 
 
@@ -82,3 +82,13 @@ def test_handles_fetch_errors():
 
     assert len(grouped["waiting"]) == 1
     assert grouped["waiting"][0].error
+
+
+def test_search_tournament_fencers_empty_query():
+    result = search_tournament_fencers(1, [], "", False)
+    assert result == []
+
+
+def test_search_tournament_fencers_short_query():
+    result = search_tournament_fencers(1, [], "A", False)
+    assert result == []

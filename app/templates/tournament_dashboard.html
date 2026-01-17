@@ -12,7 +12,8 @@
                 {% if tournament.weapon_filter %} · {{ tournament.weapon_filter }} events{% endif %}
             </p>
         </div>
-        <div>
+        <div class="dashboard-actions">
+            <a href="/tournament/{{ tournament.id }}/search" class="btn small outline">+ Add Fencer</a>
             <form method="get" action="/tournament/{{ tournament.id }}/dashboard" class="inline-form">
                 <button type="submit" name="force_refresh" value="true">Refresh</button>
             </form>
@@ -44,7 +45,12 @@
             <tbody>
                 {% for fencer in grouped_fencers.active %}
                 <tr class="fencer-active">
-                    <td><strong>{{ fencer.name }}</strong></td>
+                    <td>
+                        <strong>{{ fencer.name }}</strong>
+                        {% if fencer.source == 'manual' %}
+                        <span class="source-badge manual">manual</span>
+                        {% endif %}
+                    </td>
                     <td>{{ fencer.event_name }}</td>
                     <td>
                         {% if fencer.strip %}Strip {{ fencer.strip }}{% endif %}
@@ -78,7 +84,18 @@
             <tbody>
                 {% for fencer in grouped_fencers.waiting %}
                 <tr>
-                    <td>{{ fencer.name }}</td>
+                    <td>
+                        {{ fencer.name }}
+                        {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                        <span class="source-badge manual">manual</span>
+                        <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}"
+                              class="inline-form inline-delete">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="small outline danger"
+                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
+                        </form>
+                        {% endif %}
+                    </td>
                     <td>{{ fencer.event_name }}</td>
                     <td>
                         {% if fencer.result %}{{ fencer.result }}{% else %}Waiting to fence{% endif %}
@@ -106,7 +123,18 @@
             <tbody>
                 {% for fencer in grouped_fencers.finished %}
                 <tr>
-                    <td>{{ fencer.name }}</td>
+                    <td>
+                        {{ fencer.name }}
+                        {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                        <span class="source-badge manual">manual</span>
+                        <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}"
+                              class="inline-form inline-delete">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="small outline danger"
+                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
+                        </form>
+                        {% endif %}
+                    </td>
                     <td>{{ fencer.event_name }}</td>
                     <td>
                         <span class="result-badge">

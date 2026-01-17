@@ -68,6 +68,11 @@ class TrackedTournament(Base):
         back_populates="tournament",
         cascade="all, delete-orphan",
     )
+    tracked_fencers = relationship(
+        "TrackedFencer",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
 
 
 class CachedEvent(Base):
@@ -85,3 +90,17 @@ class CachedEvent(Base):
     fencer_count = Column(Integer, default=0)
 
     tournament = relationship("TrackedTournament", back_populates="events")
+
+
+class TrackedFencer(Base):
+    __tablename__ = "tracked_fencers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tracked_tournament_id = Column(
+        Integer, ForeignKey("tracked_tournaments.id"), nullable=False, index=True
+    )
+    fencer_name = Column(String(200), nullable=False)
+    source = Column(String(20), nullable=False, default="manual")
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+
+    tournament = relationship("TrackedTournament", back_populates="tracked_fencers")

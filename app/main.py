@@ -326,7 +326,10 @@ def tournament_dashboard(
     """Consolidated dashboard showing all club fencers across events."""
     tournament = (
         db.query(TrackedTournament)
-        .options(selectinload(TrackedTournament.events))
+        .options(
+            selectinload(TrackedTournament.events),
+            selectinload(TrackedTournament.tracked_fencers),
+        )
         .filter(
             TrackedTournament.id == tournament_id,
             TrackedTournament.user_id == user.id,
@@ -342,6 +345,7 @@ def tournament_dashboard(
             tournament_id=tournament.id,
             club_filter=tournament.club_filter or "",
             cached_events=tournament.events,
+            tracked_fencers=tournament.tracked_fencers,
             force_refresh=force_refresh,
         )
     except Exception as exc:
@@ -366,6 +370,130 @@ def tournament_dashboard(
             "grouped_fencers": grouped_fencers,
             "last_updated": datetime.now(UTC).strftime("%I:%M %p"),
         },
+    )
+
+
+@app.get("/tournament/{tournament_id}/search", response_class=HTMLResponse)
+def tournament_search_page(
+    tournament_id: int,
+    request: Request,
+    q: str = "",
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search for fencers within a tournament."""
+    tournament = (
+        db.query(TrackedTournament)
+        .options(selectinload(TrackedTournament.events))
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    results = []
+    error = None
+
+    if q and len(q) >= 2:
+        try:
+            from app.services.tournament_service import search_tournament_fencers
+
+            results = search_tournament_fencers(
+                tournament_id=tournament.id,
+                cached_events=tournament.events,
+                query=q,
+            )
+            tracked_names = {
+                fencer.fencer_name.lower()
+                for fencer in crud.get_tracked_fencers(db, tournament.id)
+            }
+            for result in results:
+                result["is_tracked"] = result["name"].lower() in tracked_names
+        except Exception as exc:
+            error = f"Search failed: {exc}"
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "tournament_search.html",
+        {
+            "user": user,
+            "tournament": tournament,
+            "query": q,
+            "results": results,
+            "error": error,
+        },
+    )
+
+
+@app.post("/tournament/{tournament_id}/track")
+async def add_tracked_fencer(
+    tournament_id: int,
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Add a fencer to tracking list."""
+    tournament = (
+        db.query(TrackedTournament)
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    form = await request.form()
+    fencer_name = (form.get("fencer_name") or "").strip()
+
+    if not fencer_name:
+        return RedirectResponse(
+            url=f"/tournament/{tournament_id}/search",
+            status_code=303,
+        )
+
+    if not crud.is_fencer_tracked(db, tournament.id, fencer_name):
+        crud.add_tracked_fencer(db, tournament.id, fencer_name, source="manual")
+        db.commit()
+
+    redirect_url = form.get("redirect_url") or f"/tournament/{tournament_id}/dashboard"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
+@app.post("/tournament/{tournament_id}/untrack/{fencer_id}")
+def remove_tracked_fencer(
+    tournament_id: int,
+    fencer_id: int,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Remove a fencer from tracking list."""
+    tournament = (
+        db.query(TrackedTournament)
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    crud.remove_tracked_fencer(db, fencer_id, tournament.id)
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/tournament/{tournament_id}/dashboard",
+        status_code=303,
     )
 
 
