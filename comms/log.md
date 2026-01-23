@@ -101,3 +101,6 @@
 [2026-01-16 21:45] [ARCHITECT]: SPEC READY: Authored Phase F spec for TTL archive on request at `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`.
 [2026-01-16 21:55] [CLAUDE]: IMPL IN_PROGRESS: Starting Phase F polish/cleanup (TTL archive + restore flow) implementation (comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md).
 [2026-01-16 21:55] [CLAUDE]: IMPL DONE: Added TTL cleanup service with archive/restore flow, archived UI banners/badges, access touching, and cleanup/restore tests.
+
+[2026-01-23 10:00] [CLAUDE]: UX CLEANUP: Removed legacy hex-ID pages from UI. These pages (/search, /pools, /advancement, /de) required users to manually enter 32-character hex IDs, which was impractical. The tournament dashboard now provides all functionality with proper UX. Removed 4 routes, 4 templates, and 53 tests. Simplified navigation to: Dashboard, Track Tournament, Profile. Kept API endpoints for internal use by tournament service. 163 tests passing.
+[2026-01-23 10:15] [CLAUDE]: DOCS UPDATE: Updated NEXT_STEPS.md to reflect current state (all phases complete, 163 tests, clean UI). Merged feature/event-selector-ux to main.

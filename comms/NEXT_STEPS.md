@@ -1,178 +1,130 @@
 # Next Steps
 
-**Last Updated:** 2026-01-16
-**Current Status:** Phase E (Manual Fencer Tracking) complete and approved ✅
-**Branch:** `feature/tournament-dashboard`
+**Last Updated:** 2026-01-23
+**Current Status:** All core phases complete, legacy UI removed
+**Branch:** `main`
 
 ---
 
 ## Where We Are Now
 
-### ✅ Completed Phases
+The fencer tracking application is feature-complete with a clean, focused UI.
+
+### Completed Phases
 
 **Phase A: Research & Preparation**
-- Researched FTL tournament schedule page structure
-- Researched event page structure for round ID discovery
-- Created research artifacts and parsing strategies
+- FTL tournament schedule page structure research
+- Event page structure for round ID discovery
+- Research artifacts and parsing strategies
 
 **Phase B: User Profile Enhancement**
-- Added `club` field to User model
-- Created profile edit page at `/profile`
-- Migration for existing users
-- 8 tests passing
+- `club` field on User model
+- Profile edit page at `/profile`
 
 **Phase C: Tournament Setup**
-- Tournament schedule parser (extracts events from tournament page)
-- Event rounds parser (discovers pool_round_id, de_round_id per event)
+- Tournament schedule parser
+- Event rounds parser (discovers pool_round_id, de_round_id)
 - TrackedTournament and CachedEvent models
 - `/tournament/new` setup page with URL, club, and weapon filters
 - `/tournament/{id}` detail page showing events
-- Auto-discovery of club fencers across events
-- 16 tests passing (7 parser + 9 web)
+- Auto-discovery of club fencers
 
 **Phase D: Consolidated Dashboard**
-- Tournament service orchestration (`app/services/tournament_service.py`)
+- Tournament service orchestration
 - Fencer status aggregation across all events
 - `/tournament/{id}/dashboard` with activity grouping (active/waiting/finished)
 - Location display (strip, pool number, DE round)
 - DE placement logic (medals, eliminations)
-- Centralized club matcher (`app/services/club_matcher.py`)
 - Force refresh functionality
-- 11 tests passing (5 service + 6 web)
 
 **Phase E: Manual Fencer Tracking**
-- Tracked fencer model and CRUD
-- Tournament fencer search UI and add/remove tracking
-- Manual source badges on dashboard
-- Web tests for tracked fencers
+- TrackedFencer model and CRUD
+- `/tournament/{id}/search` for finding fencers
+- Add/remove tracking with source badges on dashboard
 
-**Test Status:** Not re-verified in this review
+**Phase F: TTL Cleanup**
+- `last_accessed_at` and `archived_at` fields
+- On-request cleanup (48h TTL default)
+- Restore flow for archived tournaments
+- Archived badge and restore button in UI
 
----
-
-## What's Next: Phase F
-
-### Phase F: Polish & Cleanup
-
-**Remaining Tasks:**
-- Auto-cleanup expired tournaments (48-hour TTL background job)
-- Error handling edge cases and user-friendly messages
-- Mobile responsiveness testing and fixes
-- Performance optimization (if needed)
-- Documentation for end users
-
-**Spec:** `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`
+**UX Cleanup**
+- Removed legacy hex-ID pages (`/search`, `/pools`, `/advancement`, `/de`)
+- Simplified navigation: Dashboard, Track Tournament, Profile
 
 ---
 
-## How to Continue
+## Current Application Flow
 
-### For the Architect:
-
-1. **Write Phase F Spec:**
-   ```bash
-   # Create spec file
-   comms/tasks/2026-01-XX-phase-f-polish-and-cleanup.md
-   ```
-
-2. **Spec Should Include:**
-   - Auto-cleanup strategy (TTL, job schedule, delete rules)
-   - UX polish checklist and mobile breakpoints
-   - Error copy refinements and fallback states
-   - Performance targets (cache hits, fetch limits)
-   - Test requirements
-
-### For the Developer:
-
-1. **Review Completed Work:**
-   ```bash
-   # Check out the feature branch
-   git checkout feature/tournament-dashboard
-
-   # Run all tests
-   .venv/bin/pytest tests/ -v
-
-   # Start the app to see Phase D dashboard
-   .venv/bin/uvicorn app.main:app --reload
-   ```
-
-2. **Explore Dashboard:**
-   - Navigate to `/tournament/new`
-   - Enter a tournament URL (use test fixture data)
-   - View the consolidated dashboard at `/tournament/{id}/dashboard`
-   - Test refresh functionality
-
-3. **Read Phase F Spec** (once written)
+1. **Register/Login** → `/register`, `/login`
+2. **Dashboard** → `/dashboard` - list of tracked tournaments
+3. **Track Tournament** → `/tournament/new` - enter FTL URL, set filters
+4. **Tournament Dashboard** → `/tournament/{id}/dashboard` - live fencer status
+5. **Search Fencers** → `/tournament/{id}/search` - find and track individuals
+6. **Profile** → `/profile` - update club name
 
 ---
 
-## Key Files to Know
+## Test Status
+
+**163 tests passing** across:
+- FTL parsers (94 tests)
+- API endpoints (11 tests)
+- Web routes (58 tests)
+
+Run tests: `.venv/bin/pytest`
+
+---
+
+## Key Files
 
 ### Models
 - `app/models.py` - User, TrackedTournament, CachedEvent, TrackedFencer
 
 ### Services
 - `app/services/tournament_service.py` - Fencer status orchestration
+- `app/services/cleanup_service.py` - TTL archival
 - `app/services/club_matcher.py` - Club matching logic
-- `app/services/auth_service.py` - Authentication
-- `app/services/rate_limit_service.py` - Rate limiting
 
-### FTL Parsers (All Working)
-- `app/ftl/parsers/tournament_schedule.py` - Parse tournament schedule page
-- `app/ftl/parsers/event_rounds.py` - Extract pool/DE round IDs
-- `app/ftl/parsers/pools.py` - Parse pool rosters and bout data
-- `app/ftl/parsers/pool_results.py` - Parse advancement status
-- `app/ftl/parsers/de_tableau.py` - Parse DE bracket
+### FTL Parsers
+- `app/ftl/parsers/tournament_schedule.py`
+- `app/ftl/parsers/event_rounds.py`
+- `app/ftl/parsers/pools.py`
+- `app/ftl/parsers/pool_results.py`
+- `app/ftl/parsers/de_tableau.py`
 
 ### Key Routes
-- `/tournament/new` - Tournament setup form
-- `/tournament/{id}` - Event list view
-- `/tournament/{id}/dashboard` - Consolidated fencer dashboard (PHASE D)
-- `/tournament/{id}/search` - Tournament-wide fencer search (PHASE E)
-- `/profile` - User profile with club setting
-
-### Templates
-- `app/templates/tournament_dashboard.html` - Consolidated dashboard UI
-- `app/templates/tournament_new.html` - Tournament setup form
-- `app/templates/tournament_detail.html` - Event list
-- `app/templates/tournament_search.html` - Manual fencer search
-
-### Tests
-- `tests/services/test_tournament_service.py` - Service orchestration tests
-- `tests/web/test_tournament_dashboard.py` - Dashboard web tests
-- `tests/web/test_tournament.py` - Tournament setup tests
-- `tests/web/test_tracked_fencers.py` - Manual fencer tracking tests
-- `tests/ftl/` - Parser tests (94 tests)
-- `tests/api/` - API tests (11 tests)
+- `/dashboard` - User's tournament list
+- `/tournament/new` - Add tournament
+- `/tournament/{id}/dashboard` - Live fencer tracking
+- `/tournament/{id}/search` - Find fencers to track
+- `/profile` - User settings
 
 ---
 
-## Project Status Summary
+## Potential Future Work
 
-| Component | Status | Test Coverage |
-|-----------|--------|---------------|
-| FTL Parsers | ✅ Complete | 94 tests passing |
-| HTTP Client | ✅ Complete | Included in parser tests |
-| Auth System | ✅ Complete | 11 tests passing |
-| User Profile | ✅ Complete | 8 tests passing |
-| Tournament Setup | ✅ Complete | 16 tests passing |
-| Consolidated Dashboard | ✅ Complete | 11 tests passing |
-| Manual Fencer Tracking | ✅ Complete | Search/add/remove + dashboard badges |
-| Auto-Cleanup | ⏳ Phase F | Not started |
-
-**Total Tests:** Not re-verified in this review
-**Total Lines:** ~7,500+ lines of code
+- **Event drill-down**: Link from dashboard to detailed pool/DE views
+- **Mobile optimization**: Test and refine responsive layouts
+- **Notifications**: Alert when tracked fencer becomes active
+- **Multi-user sharing**: Share tournament tracking with others
+- **Performance**: Caching improvements if needed
 
 ---
 
-## Phase F Focus Areas
+## Quick Start
 
-1. **Auto-cleanup:** Define TTL rules and data pruning strategy.
-2. **UX polish:** Mobile responsiveness and layout refinements.
-3. **Error handling:** Human-friendly messaging and retry guidance.
-4. **Performance:** Cache tuning and fetch limits.
-5. **Documentation:** User-facing guide for setup and tracking.
+```bash
+# Start the app
+.venv/bin/uvicorn app.main:app --reload
+
+# Run tests
+.venv/bin/pytest
+
+# Check test coverage
+.venv/bin/pytest --cov=app
+```
 
 ---
 
-*Ready to start Phase F when you return!* 🚀
+*Application is ready for use!*
