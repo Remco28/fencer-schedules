@@ -15,6 +15,13 @@
             <li>
                 <a href="/tournament/{{ t.id }}/dashboard">{{ t.tournament_name }}</a>
                 <small>{{ t.events|length }} events · {{ t.club_filter or 'No club filter' }}</small>
+                {% if t.archived_at %}
+                <span class="archived-badge">Archived</span>
+                <form method="post" action="/tournament/{{ t.id }}/restore" class="inline-form inline-delete">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="small outline">Restore</button>
+                </form>
+                {% endif %}
             </li>
             {% endfor %}
         </ul>

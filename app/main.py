@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.api import auth, dependencies
 from app import crud
 from app.services.club_matcher import match_club
+from app.services.cleanup_service import cleanup_expired_tournaments, touch_tournament_access
 from app.database import get_db
 from app.ftl.client import (
     fetch_pools_bundle,
@@ -25,7 +26,7 @@ from app.ftl.client import (
     FTLParseError,
 )
 from app.ftl.parsers import parse_de_tableau, parse_event_rounds, parse_tournament_schedule
-from app.models import CachedEvent, TrackedTournament, User
+from app.models import CachedEvent, TrackedFencer, TrackedTournament, User
 from app.services.tournament_service import get_tournament_fencer_status
 
 
@@ -63,6 +64,11 @@ def dashboard(
     db: Session = Depends(get_db),
 ):
     """Dashboard page for authenticated users."""
+    now = datetime.now(UTC)
+    ttl_hours = int(os.getenv("TOURNAMENT_TTL_HOURS", "48"))
+    cleanup_expired_tournaments(db, now, ttl_hours)
+    db.commit()
+
     tournaments = (
         db.query(TrackedTournament)
         .filter(TrackedTournament.user_id == user.id)
@@ -70,6 +76,11 @@ def dashboard(
         .order_by(TrackedTournament.created_at.desc())
         .all()
     )
+
+    for tournament in tournaments:
+        touch_tournament_access(db, tournament, now)
+    db.commit()
+
     return dependencies.templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -176,6 +187,69 @@ def extract_tournament_id(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _build_tournament_events(
+    db: Session,
+    tracked: TrackedTournament,
+    *,
+    force_refresh: bool = False,
+) -> int:
+    """Fetch and cache tournament events for a tracked tournament."""
+    schedule_html = fetch_tournament_schedule(tracked.tournament_id, timeout=TIMEOUT)
+    schedule = parse_tournament_schedule(schedule_html)
+
+    tournament_name = schedule.get("tournament_name")
+    if tournament_name:
+        tracked.tournament_name = tournament_name
+
+    events = schedule.get("events", [])
+    if tracked.weapon_filter:
+        events = [event for event in events if event.get("weapon") == tracked.weapon_filter]
+
+    created = 0
+    for event in events:
+        event_id = event.get("event_id")
+        if not event_id:
+            continue
+
+        try:
+            event_html = fetch_event_page(event_id, timeout=TIMEOUT)
+            rounds = parse_event_rounds(event_html)
+            pool_round_id = rounds.get("pool_round_id")
+            de_round_id = rounds.get("de_round_id")
+        except Exception as exc:
+            logger.warning("Failed to discover rounds for event %s: %s", event_id, exc)
+            continue
+
+        fencer_count = 0
+        if tracked.club_filter:
+            try:
+                competitors = fetch_competitors_json(
+                    event_id,
+                    timeout=TIMEOUT,
+                    force_refresh=force_refresh,
+                )
+                fencer_count = sum(1 for fencer in competitors if match_club(fencer, tracked.club_filter))
+            except Exception as exc:
+                logger.warning("Failed to fetch competitors for event %s: %s", event_id, exc)
+                fencer_count = 0
+
+        cached_event = CachedEvent(
+            tracked_tournament_id=tracked.id,
+            event_id=event_id,
+            event_name=event.get("name") or "Unknown Event",
+            weapon=event.get("weapon"),
+            start_date=event.get("date"),
+            start_time=event.get("start_time"),
+            pool_round_id=pool_round_id,
+            de_round_id=de_round_id,
+            fencer_count=fencer_count,
+        )
+        db.add(cached_event)
+        created += 1
+
+    return created
+
+
 @app.get("/tournament/new", response_class=HTMLResponse)
 def tournament_new_page(
     request: Request,
@@ -220,26 +294,10 @@ async def tournament_new_submit(
             {"user": user, "error": "Select a valid weapon filter.", "values": values},
         )
 
-    try:
-        schedule_html = fetch_tournament_schedule(tournament_id, timeout=TIMEOUT)
-        schedule = parse_tournament_schedule(schedule_html)
-    except Exception as exc:
-        logger.warning("Failed to fetch tournament schedule %s: %s", tournament_id, exc)
-        return dependencies.templates.TemplateResponse(
-            request,
-            "tournament_new.html",
-            {"user": user, "error": "Unable to fetch tournament schedule.", "values": values},
-        )
-
-    tournament_name = schedule.get("tournament_name") or f"Tournament {tournament_id}"
-    events = schedule.get("events", [])
-    if weapon_filter:
-        events = [event for event in events if event.get("weapon") == weapon_filter]
-
     tracked = TrackedTournament(
         user_id=user.id,
         tournament_id=tournament_id,
-        tournament_name=tournament_name,
+        tournament_name=f"Tournament {tournament_id}",
         tournament_url=url,
         club_filter=club_filter,
         weapon_filter=weapon_filter,
@@ -247,43 +305,17 @@ async def tournament_new_submit(
     db.add(tracked)
     db.flush()
 
-    for event in events:
-        event_id = event.get("event_id")
-        if not event_id:
-            continue
-
-        try:
-            event_html = fetch_event_page(event_id, timeout=TIMEOUT)
-            rounds = parse_event_rounds(event_html)
-            pool_round_id = rounds.get("pool_round_id")
-            de_round_id = rounds.get("de_round_id")
-        except Exception as exc:
-            logger.warning("Failed to discover rounds for event %s: %s", event_id, exc)
-            continue
-
-        fencer_count = 0
-        if club_filter:
-            try:
-                competitors = fetch_competitors_json(event_id, timeout=TIMEOUT)
-                fencer_count = sum(1 for fencer in competitors if match_club(fencer, club_filter))
-            except Exception as exc:
-                logger.warning("Failed to fetch competitors for event %s: %s", event_id, exc)
-                fencer_count = 0
-
-        cached_event = CachedEvent(
-            tracked_tournament_id=tracked.id,
-            event_id=event_id,
-            event_name=event.get("name") or "Unknown Event",
-            weapon=event.get("weapon"),
-            start_date=event.get("date"),
-            start_time=event.get("start_time"),
-            pool_round_id=pool_round_id,
-            de_round_id=de_round_id,
-            fencer_count=fencer_count,
+    try:
+        _build_tournament_events(db, tracked)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.warning("Failed to fetch tournament schedule %s: %s", tournament_id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_new.html",
+            {"user": user, "error": "Unable to fetch tournament schedule.", "values": values},
         )
-        db.add(cached_event)
-
-    db.commit()
 
     return RedirectResponse(
         url=f"/tournament/{tracked.id}",
@@ -307,6 +339,10 @@ def tournament_detail(
     )
     if not tournament or tournament.user_id != user.id:
         raise HTTPException(status_code=404, detail="Tournament not found")
+
+    now = datetime.now(UTC)
+    touch_tournament_access(db, tournament, now)
+    db.commit()
 
     return dependencies.templates.TemplateResponse(
         request,
@@ -340,6 +376,10 @@ def tournament_dashboard(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
+    now = datetime.now(UTC)
+    touch_tournament_access(db, tournament, now)
+    db.commit()
+
     try:
         grouped_fencers = get_tournament_fencer_status(
             tournament_id=tournament.id,
@@ -368,7 +408,7 @@ def tournament_dashboard(
             "user": user,
             "tournament": tournament,
             "grouped_fencers": grouped_fencers,
-            "last_updated": datetime.now(UTC).strftime("%I:%M %p"),
+            "last_updated": now.strftime("%I:%M %p"),
         },
     )
 
@@ -394,6 +434,10 @@ def tournament_search_page(
 
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
+
+    now = datetime.now(UTC)
+    touch_tournament_access(db, tournament, now)
+    db.commit()
 
     results = []
     error = None
@@ -495,6 +539,59 @@ def remove_tracked_fencer(
         url=f"/tournament/{tournament_id}/dashboard",
         status_code=303,
     )
+
+
+@app.post("/tournament/{tournament_id}/restore")
+def restore_tournament(
+    tournament_id: int,
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Restore an archived tournament."""
+    tournament = (
+        db.query(TrackedTournament)
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    if not tournament.archived_at:
+        return RedirectResponse(url=f"/tournament/{tournament_id}/dashboard", status_code=303)
+
+    db.query(CachedEvent).filter(
+        CachedEvent.tracked_tournament_id == tournament.id
+    ).delete(synchronize_session=False)
+    db.query(TrackedFencer).filter(
+        TrackedFencer.tracked_tournament_id == tournament.id
+    ).delete(synchronize_session=False)
+
+    try:
+        _build_tournament_events(db, tournament, force_refresh=True)
+        tournament.archived_at = None
+        now = datetime.now(UTC)
+        touch_tournament_access(db, tournament, now)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.warning("Failed to restore tournament %s: %s", tournament.id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "tournament_detail.html",
+            {
+                "user": user,
+                "tournament": tournament,
+                "error": "Unable to restore tournament.",
+            },
+        )
+
+    return RedirectResponse(url=f"/tournament/{tournament_id}/dashboard", status_code=303)
 
 
 @app.post("/tournament/{tournament_id}/delete")

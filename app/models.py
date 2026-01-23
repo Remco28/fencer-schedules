@@ -61,6 +61,8 @@ class TrackedTournament(Base):
     club_filter = Column(String(200), nullable=True)
     weapon_filter = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    last_accessed_at = Column(DateTime, nullable=True)
+    archived_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="tracked_tournaments")
     events = relationship(

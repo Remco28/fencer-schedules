@@ -13,7 +13,9 @@
             </p>
         </div>
         <div class="dashboard-actions">
+            {% if not tournament.archived_at %}
             <a href="/tournament/{{ tournament.id }}/search" class="btn small outline">+ Add Fencer</a>
+            {% endif %}
             <form method="get" action="/tournament/{{ tournament.id }}/dashboard" class="inline-form">
                 <button type="submit" name="force_refresh" value="true">Refresh</button>
             </form>
@@ -26,10 +28,23 @@
     </article>
     {% endif %}
 
+    {% if tournament.archived_at %}
+    <article class="info">
+        <p>This tournament is archived. Restore it to reload events.</p>
+        <form method="post" action="/tournament/{{ tournament.id }}/restore" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="small outline">Restore Tournament</button>
+        </form>
+    </article>
+    {% endif %}
+
     {% if last_updated %}
     <p><small>Last updated: {{ last_updated }}</small></p>
     {% endif %}
 
+    {% if tournament.archived_at %}
+    <p>Dashboard data is archived. Restore this tournament to reload fencer status.</p>
+    {% else %}
     <section class="fencer-group">
         <h2>Active Now <span class="badge">{{ grouped_fencers.active|length }}</span></h2>
         {% if grouped_fencers.active %}
@@ -92,7 +107,7 @@
                               class="inline-form inline-delete">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="small outline danger"
-                                    onclick="return confirm('Stop tracking this fencer?')">×</button>
+                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
                         </form>
                         {% endif %}
                     </td>
@@ -131,7 +146,7 @@
                               class="inline-form inline-delete">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="small outline danger"
-                                    onclick="return confirm('Stop tracking this fencer?')">×</button>
+                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
                         </form>
                         {% endif %}
                     </td>
@@ -149,6 +164,7 @@
         <p>No fencers finished yet.</p>
         {% endif %}
     </section>
+    {% endif %}
 
     <footer class="dashboard-footer">
         <a href="/tournament/{{ tournament.id }}">View Events</a>

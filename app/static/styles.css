@@ -182,6 +182,17 @@ nav button {
     font-size: 0.75rem;
 }
 
+.archived-badge {
+    display: inline-block;
+    padding: 0.2rem 0.45rem;
+    background: #6c757d;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}
+
 /* Search form */
 .search-form {
     display: flex;
