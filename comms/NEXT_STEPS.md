@@ -61,6 +61,8 @@
 - Performance optimization (if needed)
 - Documentation for end users
 
+**Spec:** `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`
+
 ---
 
 ## How to Continue

@@ -97,3 +97,7 @@
 [2026-01-16 20:22] [CLAUDE]: IMPL IN_PROGRESS: Starting Phase E manual fencer tracking implementation (comms/tasks/2026-01-16-phase-e-manual-fencer-tracking.md).
 [2026-01-16 20:22] [CLAUDE]: IMPL DONE: Implemented Phase E manual fencer tracking with tracked fencer model/CRUD, tournament search UI, add/remove flows, dashboard source badges, and tests.
 [2026-01-16 20:48] [ARCHITECT]: REVIEW PASS: Phase E manual fencer tracking approved; spec archived to `comms/tasks/archive/2026-01-16-phase-e-manual-fencer-tracking.md`.
+
+[2026-01-16 21:45] [ARCHITECT]: SPEC READY: Authored Phase F spec for TTL archive on request at `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`.
+[2026-01-16 21:55] [CLAUDE]: IMPL IN_PROGRESS: Starting Phase F polish/cleanup (TTL archive + restore flow) implementation (comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md).
+[2026-01-16 21:55] [CLAUDE]: IMPL DONE: Added TTL cleanup service with archive/restore flow, archived UI banners/badges, access touching, and cleanup/restore tests.

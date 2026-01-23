@@ -21,7 +21,7 @@
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
 - **Current Phase:** Phase E complete ✅ - Next up: Phase F (Polish & Cleanup)
 - **Current Branch:** `feature/tournament-dashboard`
-- **Active Task Spec:** None (awaiting Phase F spec)
+- **Active Task Spec:** `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`
 - **Archived Task Specs:** `comms/tasks/archive/` (Phases A-E complete)
 
 ## 3. Project Vision (Updated 2026-01-15)
