@@ -87,8 +87,9 @@ def test_dashboard_shows_active_fencers(authenticated_client, test_db):
     assert response.status_code == 200
     assert "Jane Smith" in response.text
     assert "Women" in response.text and "Epee" in response.text
-    assert "Strip A5" in response.text
-    assert "Pool 3" in response.text
+    # Card layout uses separate label and value elements
+    assert "Strip" in response.text and "A5" in response.text
+    assert "Pool" in response.text and ">3<" in response.text
 
 
 def test_dashboard_shows_finished_fencers(authenticated_client, test_db):

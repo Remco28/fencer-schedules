@@ -60,7 +60,8 @@ def _activity_rank(activity: str) -> int:
 
 
 def _phase_rank(phase: str) -> int:
-    return {"de": 2, "pools": 1}.get(phase, 0)
+    # "complete" is final results, highest priority
+    return {"complete": 3, "de": 2, "pools": 1}.get(phase, 0)
 
 
 def _status_key(status: FencerStatus) -> tuple:
@@ -402,6 +403,44 @@ def get_tournament_fencer_status(
     return grouped
 
 
+def _generate_name_variants(query: str) -> list[str]:
+    """
+    Generate name search variants to handle "John Smith" vs "SMITH John" formats.
+
+    FTL stores names as "LASTNAME Firstname" but users often search "Firstname Lastname".
+    Returns list of search patterns to check.
+    """
+    query = query.strip()
+    if not query:
+        return []
+
+    variants = [query.lower()]
+
+    # If query has spaces, try permutations
+    parts = query.split()
+    if len(parts) >= 2:
+        # "John Smith" → also try "Smith John", "SMITH John", "Smith, John"
+        reversed_parts = parts[::-1]
+        variants.append(" ".join(reversed_parts).lower())
+        # Also try with comma: "Smith, John"
+        variants.append(f"{reversed_parts[0]}, {' '.join(reversed_parts[1:])}".lower())
+        # Try individual parts for partial matching
+        for part in parts:
+            if len(part) >= 2:
+                variants.append(part.lower())
+
+    return list(dict.fromkeys(variants))  # Remove duplicates, preserve order
+
+
+def _matches_name_query(name: str, query_variants: list[str]) -> bool:
+    """Check if a fencer name matches any of the query variants."""
+    name_lower = name.lower()
+    for variant in query_variants:
+        if variant in name_lower:
+            return True
+    return False
+
+
 def search_tournament_fencers(
     tournament_id: int,
     cached_events: list,
@@ -411,13 +450,15 @@ def search_tournament_fencers(
     """
     Search for fencers across all events in a tournament.
 
+    Handles name format differences (e.g., "John Smith" finds "SMITH John").
+
     Returns:
         List of fencer dicts with keys: name, event_id, event_name, club, status
     """
     if not query or len(query.strip()) < 2:
         return []
 
-    query_lower = query.lower().strip()
+    query_variants = _generate_name_variants(query)
     results = []
     seen = set()
 
@@ -429,7 +470,7 @@ def search_tournament_fencers(
             )
             for comp in competitors:
                 name = comp.get("name", "")
-                if query_lower in name.lower():
+                if _matches_name_query(name, query_variants):
                     key = (name, event.event_id)
                     if key not in seen:
                         seen.add(key)
@@ -451,7 +492,7 @@ def search_tournament_fencers(
                     for pool in bundle.get("pools", []):
                         for fencer in pool.get("fencers", []):
                             name = fencer.get("name", "")
-                            if query_lower in name.lower():
+                            if _matches_name_query(name, query_variants):
                                 key = (name, event.event_id)
                                 if key not in seen:
                                     seen.add(key)

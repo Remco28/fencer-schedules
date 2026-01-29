@@ -12,25 +12,21 @@
 <body>
     <header class="container">
         <nav>
-            <ul>
-                <li><strong>Fencer Schedules</strong></li>
-            </ul>
-            <ul>
+            <a href="/" class="brand">Fencer Schedules</a>
+            <div class="nav-links">
                 {% if user %}
-                <li><a href="/dashboard">Dashboard</a></li>
-                <li><a href="/tournament/new">Track Tournament</a></li>
-                <li><a href="/profile">Profile</a></li>
-                <li>
-                    <form method="post" action="/auth/logout">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="small outline">Log out</button>
-                    </form>
-                </li>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/tournament/new">Track</a>
+                <a href="/profile">Profile</a>
+                <form method="post" action="/auth/logout" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="link-button">Log out</button>
+                </form>
                 {% else %}
-                <li><a href="/login">Login</a></li>
-                <li><a href="/register">Register</a></li>
+                <a href="/login">Login</a>
+                <a href="/register">Register</a>
                 {% endif %}
-            </ul>
+            </div>
         </nav>
     </header>
 

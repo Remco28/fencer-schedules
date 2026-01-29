@@ -9,16 +9,13 @@
             <h1>{{ tournament.tournament_name }}</h1>
             <p>
                 {% if tournament.club_filter %}{{ tournament.club_filter }}{% endif %}
-                {% if tournament.weapon_filter %} · {{ tournament.weapon_filter }} events{% endif %}
+                {% if tournament.weapon_filter %} &middot; {{ tournament.weapon_filter }} events{% endif %}
             </p>
         </div>
         <div class="dashboard-actions">
             {% if not tournament.archived_at %}
             <a href="/tournament/{{ tournament.id }}/search" class="btn small outline">+ Add Fencer</a>
             {% endif %}
-            <form method="get" action="/tournament/{{ tournament.id }}/dashboard" class="inline-form">
-                <button type="submit" name="force_refresh" value="true">Refresh</button>
-            </form>
         </div>
     </header>
 
@@ -33,135 +30,138 @@
         <p>This tournament is archived. Restore it to reload events.</p>
         <form method="post" action="/tournament/{{ tournament.id }}/restore" class="inline-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="small outline">Restore Tournament</button>
+            <button type="submit" class="btn small outline">Restore Tournament</button>
         </form>
     </article>
     {% endif %}
 
     {% if last_updated %}
-    <p><small>Last updated: {{ last_updated }}</small></p>
+    <p class="last-updated">
+        Last updated: {{ last_updated }}
+        <a href="?force_refresh=true" class="refresh-btn" title="Refresh Dashboard">🔄</a>
+    </p>
     {% endif %}
 
     {% if tournament.archived_at %}
-    <p>Dashboard data is archived. Restore this tournament to reload fencer status.</p>
+    <div class="fencer-group-empty">Dashboard data is archived. Restore this tournament to reload fencer status.</div>
     {% else %}
+
+    {# Active Now Section #}
     <section class="fencer-group">
-        <h2>Active Now <span class="badge">{{ grouped_fencers.active|length }}</span></h2>
+        <h2>Active Now <span class="badge active">{{ grouped_fencers.active|length }}</span></h2>
         {% if grouped_fencers.active %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Fencer</th>
-                    <th>Event</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for fencer in grouped_fencers.active %}
-                <tr class="fencer-active">
-                    <td>
-                        <strong>{{ fencer.name }}</strong>
-                        {% if fencer.source == 'manual' %}
-                        <span class="source-badge manual">manual</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ fencer.event_name }}</td>
-                    <td>
-                        {% if fencer.strip %}Strip {{ fencer.strip }}{% endif %}
-                        {% if fencer.pool_number %}Pool {{ fencer.pool_number }}{% endif %}
-                        {% if fencer.de_round %}Table of {{ fencer.de_round }}{% endif %}
-                    </td>
-                    <td>
-                        {% if fencer.phase == "pools" %}Fencing pools{% endif %}
-                        {% if fencer.phase == "de" %}DE in progress{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="fencer-grid">
+            {% for fencer in grouped_fencers.active %}
+            <article class="fencer-card active">
+                <div class="card-header">
+                    <h3>{{ fencer.name }}</h3>
+                    {% if fencer.source == 'manual' %}
+                    <span class="source-badge">manual</span>
+                    {% endif %}
+                </div>
+                <div class="card-event">{{ fencer.event_name }}</div>
+                <div class="card-location">
+                    {% if fencer.strip %}
+                    <div class="location-badge strip">
+                        <span class="label">Strip</span>
+                        <span class="value">{{ fencer.strip }}</span>
+                    </div>
+                    {% endif %}
+                    {% if fencer.pool_number %}
+                    <div class="location-badge pool">
+                        <span class="label">Pool</span>
+                        <span class="value">{{ fencer.pool_number }}</span>
+                    </div>
+                    {% endif %}
+                    {% if fencer.de_round %}
+                    <div class="location-badge de">
+                        <span class="label">Table of</span>
+                        <span class="value">{{ fencer.de_round }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-status">
+                    {% if fencer.phase == "pools" %}Fencing Pools{% endif %}
+                    {% if fencer.phase == "de" %}DE In Progress{% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
         {% else %}
-        <p>No fencers currently active.</p>
+        <div class="fencer-group-empty">No fencers currently active.</div>
         {% endif %}
     </section>
 
+    {# Waiting Section - Compact Cards #}
     <section class="fencer-group">
-        <h2>Waiting <span class="badge">{{ grouped_fencers.waiting|length }}</span></h2>
+        <h2>Waiting <span class="badge waiting">{{ grouped_fencers.waiting|length }}</span></h2>
         {% if grouped_fencers.waiting %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Fencer</th>
-                    <th>Event</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for fencer in grouped_fencers.waiting %}
-                <tr>
-                    <td>
+        <div class="fencer-grid compact">
+            {% for fencer in grouped_fencers.waiting %}
+            <article class="fencer-card waiting compact">
+                <div class="fencer-info">
+                    <div class="fencer-name">
                         {{ fencer.name }}
-                        {% if fencer.source == 'manual' and fencer.fencer_db_id %}
-                        <span class="source-badge manual">manual</span>
-                        <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}"
-                              class="inline-form inline-delete">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="small outline danger"
-                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
-                        </form>
-                        {% endif %}
-                    </td>
-                    <td>{{ fencer.event_name }}</td>
-                    <td>
-                        {% if fencer.result %}{{ fencer.result }}{% else %}Waiting to fence{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        {% if fencer.source == 'manual' %}<span class="source-badge">manual</span>{% endif %}
+                    </div>
+                    <div class="fencer-detail">{{ fencer.event_name }}</div>
+                </div>
+                <div class="fencer-status">
+                    {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                    <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="untrack-btn" onclick="return confirm('Stop tracking {{ fencer.name }}?')" title="Stop tracking">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
         {% else %}
-        <p>No fencers waiting.</p>
+        <div class="fencer-group-empty">No fencers waiting.</div>
         {% endif %}
     </section>
 
+    {# Finished Section - Compact Cards #}
     <section class="fencer-group">
-        <h2>Finished <span class="badge">{{ grouped_fencers.finished|length }}</span></h2>
+        <h2>Finished <span class="badge finished">{{ grouped_fencers.finished|length }}</span></h2>
         {% if grouped_fencers.finished %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Fencer</th>
-                    <th>Event</th>
-                    <th>Result</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for fencer in grouped_fencers.finished %}
-                <tr>
-                    <td>
+        <div class="fencer-grid compact">
+            {% for fencer in grouped_fencers.finished %}
+            <article class="fencer-card finished compact">
+                <div class="fencer-info">
+                    <div class="fencer-name">
                         {{ fencer.name }}
-                        {% if fencer.source == 'manual' and fencer.fencer_db_id %}
-                        <span class="source-badge manual">manual</span>
-                        <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}"
-                              class="inline-form inline-delete">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="small outline danger"
-                                    onclick="return confirm('Stop tracking {{ fencer.name }}?')">×</button>
-                        </form>
-                        {% endif %}
-                    </td>
-                    <td>{{ fencer.event_name }}</td>
-                    <td>
-                        <span class="result-badge">
-                            {{ fencer.result or "Complete" }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        {% if fencer.source == 'manual' %}<span class="source-badge">manual</span>{% endif %}
+                    </div>
+                    <div class="fencer-detail">{{ fencer.event_name }}</div>
+                </div>
+                <div class="fencer-status">
+                    <span class="result-badge {% if 'Place' in (fencer.result or '') %}place{% endif %}">
+                        {{ fencer.result or "Done" }}
+                    </span>
+                    {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                    <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="untrack-btn" onclick="return confirm('Stop tracking {{ fencer.name }}?')" title="Stop tracking">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
         {% else %}
-        <p>No fencers finished yet.</p>
+        <div class="fencer-group-empty">No fencers finished yet.</div>
         {% endif %}
     </section>
     {% endif %}
@@ -169,9 +169,9 @@
     <footer class="dashboard-footer">
         <a href="/tournament/{{ tournament.id }}">View Events</a>
         <a href="/dashboard">All Tournaments</a>
-        <form method="post" action="/tournament/{{ tournament.id }}/delete" style="display: inline; margin-left: auto;">
+        <form method="post" action="/tournament/{{ tournament.id }}/delete" style="margin-left: auto;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="outline secondary" onclick="return confirm('Delete this tournament and all tracking data?')">
+            <button type="submit" class="outline danger" onclick="return confirm('Delete this tournament and all tracking data?')">
                 Delete Tournament
             </button>
         </form>

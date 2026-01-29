@@ -5,44 +5,41 @@
 {% block content %}
 <section>
     <h1>Welcome, {{ user.username }}!</h1>
-    <p>Your account email: <strong>{{ user.email }}</strong></p>
 
     <section class="dashboard-section">
         <h2>Your Tournaments</h2>
         {% if tournaments %}
-        <ul class="tournament-list">
+        <div class="tournament-grid">
             {% for t in tournaments %}
-            <li>
-                <a href="/tournament/{{ t.id }}/dashboard">{{ t.tournament_name }}</a>
-                <small>{{ t.events|length }} events · {{ t.club_filter or 'No club filter' }}</small>
-                {% if t.archived_at %}
-                <span class="archived-badge">Archived</span>
-                <form method="post" action="/tournament/{{ t.id }}/restore" class="inline-form inline-delete">
+            <a href="/tournament/{{ t.id }}/dashboard" class="tournament-card {% if t.archived_at %}archived{% endif %}">
+                <div class="tournament-card-content">
+                    <h3 class="tournament-card-title">{{ t.tournament_name }}</h3>
+                    <div class="tournament-card-meta">
+                        <span>{{ t.events|length }} events</span>
+                        {% if t.club_filter %}
+                        <span>{{ t.club_filter }}</span>
+                        {% endif %}
+                        {% if t.archived_at %}
+                        <span class="archived-badge">Archived</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <span class="tournament-card-chevron">›</span>
+            </a>
+            {% if t.archived_at %}
+            <div class="tournament-card-actions">
+                <form method="post" action="/tournament/{{ t.id }}/restore" class="inline-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="small outline">Restore</button>
+                    <button type="submit" class="btn small outline">Restore</button>
                 </form>
-                {% endif %}
-            </li>
+            </div>
+            {% endif %}
             {% endfor %}
-        </ul>
+        </div>
         {% else %}
-        <p>No tournaments tracked yet.</p>
+        <div class="fencer-group-empty">No tournaments tracked yet.</div>
         {% endif %}
         <a href="/tournament/new" class="btn">Track a Tournament</a>
     </section>
-
-    <div class="grid stats">
-        <article>
-            <h2>Live Tracking</h2>
-            <p>Coming soon: Real-time pool and DE bracket tracking from FencingTimeLive.</p>
-        </article>
-        <article>
-            <h2>Tournament Schedule</h2>
-            <p>Coming soon: Personalized schedules for your club and tracked fencers.</p>
-        </article>
-    </div>
-
-    <h2>What's Next?</h2>
-    <p>This dashboard will soon provide real-time updates on fencer progress, pool assignments, and DE bracket advancement. Stay tuned!</p>
 </section>
 {% endblock %}
