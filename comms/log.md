@@ -104,3 +104,9 @@
 
 [2026-01-23 10:00] [CLAUDE]: UX CLEANUP: Removed legacy hex-ID pages from UI. These pages (/search, /pools, /advancement, /de) required users to manually enter 32-character hex IDs, which was impractical. The tournament dashboard now provides all functionality with proper UX. Removed 4 routes, 4 templates, and 53 tests. Simplified navigation to: Dashboard, Track Tournament, Profile. Kept API endpoints for internal use by tournament service. 163 tests passing.
 [2026-01-23 10:15] [CLAUDE]: DOCS UPDATE: Updated NEXT_STEPS.md to reflect current state (all phases complete, 163 tests, clean UI). Merged feature/event-selector-ux to main.
+[2026-01-29 09:00] [TECHADVISOR]: ADVISORY NOTES (Project Completion Review):
+- Good: System is healthy. 163 tests passing (Green). Core features (Auth, Tournament Setup, Live Dashboard, Manual Tracking, TTL Cleanup) are implemented and verified.
+- Good: Legacy code removal (UX Cleanup) has left the codebase focused and clean.
+- Action (Housekeeping): Move `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md` to `archive/`.
+- Action (Docs): Update `project-manifest.md` to mark Phase F as "Complete" and set current status to "Maintenance / v1.0 Ready".
+- Recommendation: Consider creating a `RELEASE_NOTES.md` or a user-facing `README.md` update to document the v1.0 feature set.
