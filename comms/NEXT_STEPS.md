@@ -48,6 +48,14 @@ The fencer tracking application is feature-complete with a clean, focused UI.
 - Restore flow for archived tournaments
 - Archived badge and restore button in UI
 
+**Phase G-I: Visual Polish (In Progress)**
+- Phase G: Mobile-first card structure (Archived)
+- Phase H: High fidelity styling (Archived)
+- Phase I: Layout density & Nav polish (Active)
+    - Compact fencer cards for lists
+    - Cleaned up navbar
+    - Aligned buttons
+
 **UX Cleanup**
 - Removed legacy hex-ID pages (`/search`, `/pools`, `/advancement`, `/de`)
 - Simplified navigation: Dashboard, Track Tournament, Profile

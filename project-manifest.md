@@ -2,7 +2,7 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-29
 
 ---
 
@@ -19,10 +19,10 @@
 
 - **Activity Log:** `comms/log.md` - Chronological record of major development activities
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
-- **Current Phase:** Phase E complete ✅ - Next up: Phase F (Polish & Cleanup)
-- **Current Branch:** `feature/tournament-dashboard`
-- **Active Task Spec:** `comms/tasks/2026-01-16-phase-f-polish-and-cleanup.md`
-- **Archived Task Specs:** `comms/tasks/archive/` (Phases A-E complete)
+- **Current Phase:** Phase I (Layout Density & Nav Polish)
+- **Current Branch:** `feature/visual-polish`
+- **Active Task Spec:** `comms/tasks/2026-01-29-phase-i-layout-density.md`
+- **Archived Task Specs:** `comms/tasks/archive/` (Phases A-F complete, G/H archived)
 
 ## 3. Project Vision (Updated 2026-01-15)
 
@@ -92,7 +92,8 @@
 | TrackedTournament model | ✅ Complete | Store user's tournaments |
 | Dashboard UI | ✅ Complete | Consolidated fencer view |
 | Manual Fencer Add | ✅ Complete | Cross-event search |
-| Phase F Polish & Cleanup | ⏳ Next | Auto-cleanup, UX polish, performance, docs |
+| Phase F Polish & Cleanup | ✅ Complete | Auto-cleanup, legacy removal |
+| Phase I Visual Polish | ⏳ In Progress | High fidelity styling, mobile-first cards |
 
 ---
 
@@ -104,9 +105,9 @@
 3. Read `comms/plan.md` for project vision and phases
 4. Check `comms/tasks/` for any active spec
 
-**Current Priority:** Phase F - Polish & Cleanup
+**Current Priority:** Phase I - Visual Polish
 
-**Key Question to Answer:** What are the highest-impact polish, UX, and maintenance tasks to ship next?
+**Key Question to Answer:** How can we make the dashboard more dense and scan-friendly?
 
 ---
 
