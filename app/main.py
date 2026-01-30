@@ -910,12 +910,12 @@ def pools_view(
     """
     try:
         data = _do_pools_overview(event_id, pool_round_id, force_refresh)
-    except (FTLHTTPError, FTLParseError) as exc:
-        logger.warning("Pools view failed for %s/%s: %s", event_id, pool_round_id, exc)
+    except Exception as exc:
+        logger.error("Pools view failed for %s/%s: %s", event_id, pool_round_id, exc, exc_info=True)
         return dependencies.templates.TemplateResponse(
             request,
             "pools.html",
-            {"user": user, "data": None, "error": str(exc)},
+            {"user": user, "data": None, "error": f"Unable to load pools: {exc}"},
         )
 
     return dependencies.templates.TemplateResponse(
@@ -938,12 +938,12 @@ def de_view(
     """
     try:
         data = _do_de_tableau(event_id, round_id, force_refresh)
-    except (FTLHTTPError, FTLParseError) as exc:
-        logger.warning("DE view failed for %s/%s: %s", event_id, round_id, exc)
+    except Exception as exc:
+        logger.error("DE view failed for %s/%s: %s", event_id, round_id, exc, exc_info=True)
         return dependencies.templates.TemplateResponse(
             request,
             "de.html",
-            {"user": user, "data": None, "error": str(exc)},
+            {"user": user, "data": None, "error": f"Unable to load bracket: {exc}"},
         )
 
     return dependencies.templates.TemplateResponse(
