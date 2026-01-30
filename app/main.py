@@ -58,6 +58,12 @@ def on_startup():
     init_db()
 
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for orchestration."""
+    return {"status": "ok"}
+
+
 @app.get("/")
 def root(
     request: Request,
