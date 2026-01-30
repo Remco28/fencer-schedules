@@ -155,11 +155,23 @@ CachedEvent
 - [ ] TrackedFencer model and add/remove UI
 - [ ] Distinguish club vs manual fencers in dashboard
 
-### Phase F: Polish & Cleanup
-- [ ] Auto-cleanup expired tournaments (48-hour TTL)
-- [ ] Error handling and edge cases
-- [ ] Mobile responsiveness testing
-- [ ] Performance optimization
+### Phase I-K: Visual Polish & UX (Complete)
+- Mobile-first card design
+- Navbar and button alignment fixes
+- Search functionality improvements
+- "Infinite Waiting" status bugfix
+
+### Phase L: Smart Caching (Optimization)
+- **Goal:** drastically reduce dashboard load times.
+- **Strategy:**
+    - Add `is_completed` flag to `CachedEvent`.
+    - If event is finished, stop fetching it from FTL.
+    - Only fetch "Live" or "Future" events.
+    - Store full fencer status snapshots in DB for instant load (optional/future).
+
+### Phase M: Background Refresh (Future)
+- Decouple fetching from page load.
+- Use background workers to update data.
 
 ---
 

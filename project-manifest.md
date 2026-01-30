@@ -93,7 +93,9 @@
 | Dashboard UI | ✅ Complete | Consolidated fencer view |
 | Manual Fencer Add | ✅ Complete | Cross-event search |
 | Phase F Polish & Cleanup | ✅ Complete | Auto-cleanup, legacy removal |
-| Phase I Visual Polish | ⏳ In Progress | High fidelity styling, mobile-first cards |
+| Phase I-K Visual Polish | ✅ Complete | High fidelity styling, mobile-first cards |
+| Phase L Smart Caching | ✅ Complete | Optimization: skip fetching completed events |
+| Deployment Prep | ✅ Complete | Procfile, Requirements, DB config for Cloud |
 
 ---
 

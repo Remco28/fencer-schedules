@@ -51,6 +51,13 @@ app.include_router(auth.router)
 logger = logging.getLogger(__name__)
 
 
+@app.on_event("startup")
+def on_startup():
+    """Initialize database tables on startup."""
+    from app.database import init_db
+    init_db()
+
+
 @app.get("/")
 def root():
     """Health check endpoint."""
@@ -387,7 +394,10 @@ def tournament_dashboard(
             cached_events=tournament.events,
             tracked_fencers=tournament.tracked_fencers,
             force_refresh=force_refresh,
+            db=db,  # Pass db for smart caching (marks completed events)
         )
+        # Commit any event completion flags that were set
+        db.commit()
     except Exception as exc:
         logger.warning("Failed to fetch tournament dashboard %s: %s", tournament.id, exc)
         return dependencies.templates.TemplateResponse(

@@ -198,7 +198,8 @@ def fetch_pool_ids_raw(
     pool_round_id: str,
     *,
     timeout: int = 10,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> str:
     """
     Fetch pool IDs HTML page with caching.
@@ -208,6 +209,7 @@ def fetch_pool_ids_raw(
         pool_round_id: Pool round UUID
         timeout: Request timeout
         force_refresh: Bypass cache and force fresh fetch
+        ttl: Custom cache TTL in seconds (uses default if None)
 
     Returns:
         Raw HTML text
@@ -225,7 +227,7 @@ def fetch_pool_ids_raw(
             return cached
 
     html = _fetch_with_retry(url, timeout=timeout)
-    _cache.set(cache_key, html)
+    _cache.set(cache_key, html, ttl=ttl)
     return html
 
 
@@ -235,7 +237,8 @@ def fetch_pool_html_raw(
     pool_id: str,
     *,
     timeout: int = 10,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> str:
     """
     Fetch individual pool HTML page with caching.
@@ -246,6 +249,7 @@ def fetch_pool_html_raw(
         pool_id: Pool UUID
         timeout: Request timeout
         force_refresh: Bypass cache and force fresh fetch
+        ttl: Custom cache TTL in seconds (uses default if None)
 
     Returns:
         Raw HTML text
@@ -263,7 +267,7 @@ def fetch_pool_html_raw(
             return cached
 
     html = _fetch_with_retry(url, timeout=timeout)
-    _cache.set(cache_key, html)
+    _cache.set(cache_key, html, ttl=ttl)
     return html
 
 
@@ -272,7 +276,8 @@ def fetch_pool_results_raw(
     pool_round_id: str,
     *,
     timeout: int = 10,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> str:
     """
     Fetch pool results JSON with caching.
@@ -282,6 +287,7 @@ def fetch_pool_results_raw(
         pool_round_id: Pool round UUID
         timeout: Request timeout
         force_refresh: Bypass cache and force fresh fetch
+        ttl: Custom cache TTL in seconds (uses default if None)
 
     Returns:
         Raw JSON text
@@ -299,7 +305,7 @@ def fetch_pool_results_raw(
             return cached
 
     json_text = _fetch_with_retry(url, timeout=timeout)
-    _cache.set(cache_key, json_text)
+    _cache.set(cache_key, json_text, ttl=ttl)
     return json_text
 
 
@@ -308,7 +314,8 @@ def fetch_tableau_raw(
     round_id: str,
     *,
     timeout: int = 10,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> str:
     """
     Fetch DE tableau HTML with caching.
@@ -318,6 +325,7 @@ def fetch_tableau_raw(
         round_id: DE round UUID
         timeout: Request timeout
         force_refresh: Bypass cache and force fresh fetch
+        ttl: Custom cache TTL in seconds (uses default if None)
 
     Returns:
         Raw HTML text
@@ -335,7 +343,7 @@ def fetch_tableau_raw(
             return cached
 
     html = _fetch_with_retry(url, timeout=timeout)
-    _cache.set(cache_key, html)
+    _cache.set(cache_key, html, ttl=ttl)
     return html
 
 
@@ -366,6 +374,7 @@ def fetch_competitors_json(
     *,
     timeout: int = 10,
     force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> list[dict]:
     """Fetch competitors JSON for an event."""
     path = f"/events/competitors/data/{event_id}"
@@ -379,7 +388,7 @@ def fetch_competitors_json(
 
     response = _fetch_with_retry(url, timeout=timeout)
     results = json.loads(response)
-    _cache.set(cache_key, results)
+    _cache.set(cache_key, results, ttl=ttl)
     return results
 
 
@@ -387,7 +396,8 @@ def fetch_event_results_json(
     event_id: str,
     *,
     timeout: int = 10,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    ttl: Optional[int] = None,
 ) -> list[dict]:
     """
     Fetch event final results JSON.
@@ -398,6 +408,7 @@ def fetch_event_results_json(
         event_id: Event UUID
         timeout: Request timeout
         force_refresh: Bypass cache and force fresh fetch
+        ttl: Custom cache TTL in seconds (uses default if None)
 
     Returns:
         List of result dicts with keys: id, place, name, clubs, club1, div, country, etc.
@@ -416,7 +427,7 @@ def fetch_event_results_json(
 
     response = _fetch_with_retry(url, timeout=timeout)
     results = json.loads(response)
-    _cache.set(cache_key, results)
+    _cache.set(cache_key, results, ttl=ttl)
     return results
 
 
@@ -426,7 +437,8 @@ def fetch_pools_bundle(
     *,
     force_refresh: bool = False,
     timeout: int = 10,
-    max_workers: int = 8
+    max_workers: int = 8,
+    ttl: Optional[int] = None,
 ) -> dict:
     """
     Fetch complete pool data bundle: pool IDs, all pool HTML pages, and pool results.
@@ -443,6 +455,7 @@ def fetch_pools_bundle(
         force_refresh: Bypass cache and force fresh fetch for all requests
         timeout: Request timeout in seconds
         max_workers: Maximum concurrent fetches (default: 8)
+        ttl: Custom cache TTL in seconds for all fetches (uses default if None)
 
     Returns:
         dict with keys:
@@ -462,7 +475,8 @@ def fetch_pools_bundle(
             event_id,
             pool_round_id,
             timeout=timeout,
-            force_refresh=force_refresh
+            force_refresh=force_refresh,
+            ttl=ttl,
         )
         pool_ids_data = parse_pool_ids(pool_ids_html)
         pool_ids = pool_ids_data["pool_ids"]
@@ -486,7 +500,8 @@ def fetch_pools_bundle(
                 pool_round_id,
                 pool_id,
                 timeout=timeout,
-                force_refresh=force_refresh
+                force_refresh=force_refresh,
+                ttl=ttl,
             )
             parsed = parse_pool_html(html, pool_id=pool_id)
             return (pool_id, parsed, None)
@@ -522,7 +537,8 @@ def fetch_pools_bundle(
             event_id,
             pool_round_id,
             timeout=timeout,
-            force_refresh=force_refresh
+            force_refresh=force_refresh,
+            ttl=ttl,
         )
         results_data = parse_pool_results(
             results_json,

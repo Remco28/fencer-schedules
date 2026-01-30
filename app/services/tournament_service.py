@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
-from typing import Optional, Iterable
+from typing import Any, Optional, Iterable
 
 from app.ftl.client import (
     fetch_competitors_json,
@@ -16,6 +16,10 @@ from app.ftl.parsers.de_tableau import parse_de_tableau
 from app.services.club_matcher import match_club
 
 logger = logging.getLogger(__name__)
+
+# Cache TTL constants
+TTL_SHORT = 180  # 3 minutes for active events
+TTL_LONG = 86400  # 24 hours for completed events
 
 
 @dataclass
@@ -96,6 +100,39 @@ def _round_index(round_label: Optional[str]) -> int:
         return _ROUND_ORDER.index(round_label)
     except ValueError:
         return -1
+
+
+def _is_event_completed_from_tableau(matches: list[dict]) -> bool:
+    """Check if an event is completed by examining DE tableau matches.
+
+    An event is complete when the Final match (round="F") has status="complete".
+    """
+    for match in matches:
+        if match.get("round") == "F" and match.get("status") == "complete":
+            return True
+    return False
+
+
+def _mark_event_completed(event: Any, db: Any) -> None:
+    """Mark an event as completed in the database.
+
+    Args:
+        event: CachedEvent model instance
+        db: SQLAlchemy session (optional)
+    """
+    if db is None:
+        return
+    if getattr(event, "is_completed", False):
+        return  # Already marked
+
+    try:
+        event.is_completed = True
+        event.completed_at = datetime.now(UTC)
+        db.add(event)
+        # Don't commit here - let the caller manage the transaction
+        logger.info("Marked event %s (%s) as completed", event.event_id, event.event_name)
+    except Exception as exc:
+        logger.warning("Failed to mark event %s as completed: %s", event.event_id, exc)
 
 
 def _choose_latest_match(matches: Iterable[dict]) -> Optional[dict]:
@@ -303,9 +340,20 @@ def get_tournament_fencer_status(
     tracked_fencers: Optional[list] = None,
     *,
     force_refresh: bool = False,
+    db: Any = None,
 ) -> dict[str, list[FencerStatus]]:
     """
     Aggregate fencer status across all events in a tournament.
+
+    Uses smart caching: completed events use 24-hour TTL, active events use 3-minute TTL.
+
+    Args:
+        tournament_id: Tournament database ID
+        club_filter: Club name to filter fencers by
+        cached_events: List of CachedEvent model instances
+        tracked_fencers: List of TrackedFencer model instances (optional)
+        force_refresh: Bypass cache and force fresh fetch
+        db: SQLAlchemy session for marking events as completed (optional)
 
     Returns:
         {
@@ -326,12 +374,17 @@ def get_tournament_fencer_status(
     statuses: dict[tuple, FencerStatus] = {}
 
     for event in cached_events:
+        # Smart TTL: use long cache for completed events
+        event_completed = getattr(event, "is_completed", False)
+        ttl = TTL_LONG if event_completed else TTL_SHORT
+
         if event.pool_round_id:
             try:
                 bundle = fetch_pools_bundle(
                     event.event_id,
                     event.pool_round_id,
                     force_refresh=force_refresh,
+                    ttl=ttl,
                 )
                 for status in _pool_statuses(bundle, club_filter, event, manual_fencers):
                     key = _status_key(status)
@@ -358,11 +411,18 @@ def get_tournament_fencer_status(
                     event.event_id,
                     event.de_round_id,
                     force_refresh=force_refresh,
+                    ttl=ttl,
                 )
                 tableau = parse_de_tableau(html, event_id=event.event_id, round_id=event.de_round_id)
-                for status in _de_statuses(tableau.get("matches", []), club_filter, event, manual_fencers):
+                matches = tableau.get("matches", [])
+                for status in _de_statuses(matches, club_filter, event, manual_fencers):
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
+
+                # Detect completion from DE tableau (Final match complete)
+                if not event_completed and _is_event_completed_from_tableau(matches):
+                    _mark_event_completed(event, db)
+
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
                 # DE tableau page uses JavaScript rendering, so parsing fails.
                 # Fall back to event results endpoint which works for completed events.
@@ -371,10 +431,16 @@ def get_tournament_fencer_status(
                     results = fetch_event_results_json(
                         event.event_id,
                         force_refresh=force_refresh,
+                        ttl=TTL_LONG,  # Results only exist for completed events
                     )
                     for status in _results_statuses(results, club_filter, event, manual_fencers):
                         key = _status_key(status)
                         statuses[key] = _merge_status(statuses.get(key), status)
+
+                    # If we got results, the event is definitely completed
+                    if results and not event_completed:
+                        _mark_event_completed(event, db)
+
                 except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
                     logger.warning("Results fetch also failed for event %s: %s", event.event_id, results_exc)
                     if club_filter or manual_fencers:

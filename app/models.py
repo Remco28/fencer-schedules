@@ -90,6 +90,8 @@ class CachedEvent(Base):
     pool_round_id = Column(String(32), nullable=True)
     de_round_id = Column(String(32), nullable=True)
     fencer_count = Column(Integer, default=0)
+    is_completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
 
     tournament = relationship("TrackedTournament", back_populates="events")
 
