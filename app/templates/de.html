@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Elimination Bracket{% endblock %}
+
+{% block content %}
+<section>
+    <header class="dashboard-header">
+        <div>
+            <h1>Elimination Bracket</h1>
+        </div>
+        <div class="dashboard-actions">
+            <a href="?event_id={{ data.event_id }}&round_id={{ data.round_id }}&force_refresh=true" class="btn small outline" aria-label="Refresh Bracket">Refresh</a>
+        </div>
+    </header>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% elif not data or not data.groups %}
+    <div class="fencer-group-empty">No bracket data available.</div>
+    {% else %}
+
+    {% for group in data.groups %}
+    <section class="de-round">
+        <h3>{{ group.label }}</h3>
+        <div class="de-matches">
+            {% for match in group.matches %}
+            <div class="de-match">
+                {# Competitor A #}
+                <div class="de-competitor {% if match.winner == 'A' %}winner{% endif %}">
+                    <span class="de-seed">{% if match.seed_a %}({{ match.seed_a }}){% endif %}</span>
+                    <span class="de-name">{{ match.name_a or '---' }}</span>
+                    <span class="de-club">{{ match.club_a or '' }}</span>
+                    <span class="de-score">{% if match.score_a is not none %}{{ match.score_a }}{% endif %}</span>
+                </div>
+                {# Competitor B #}
+                <div class="de-competitor {% if match.winner == 'B' %}winner{% endif %}">
+                    <span class="de-seed">{% if match.seed_b %}({{ match.seed_b }}){% endif %}</span>
+                    <span class="de-name">{{ match.name_b or '---' }}</span>
+                    <span class="de-club">{{ match.club_b or '' }}</span>
+                    <span class="de-score">{% if match.score_b is not none %}{{ match.score_b }}{% endif %}</span>
+                </div>
+                {# Match metadata #}
+                {% if match.strip or match.time %}
+                <div class="de-meta">
+                    {% if match.strip %}<span>Strip {{ match.strip }}</span>{% endif %}
+                    {% if match.time %}<span>{{ match.time }}</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    {% endif %}
+</section>
+{% endblock %}

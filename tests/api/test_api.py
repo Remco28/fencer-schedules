@@ -6,7 +6,7 @@ from app.main import (
     get_pools_bundle,
     search_fencer,
     get_de_tableau,
-    root,
+    health_check,
 )
 from app.ftl.client import FTLHTTPError, FTLParseError, clear_cache
 from app.ftl.parsers import parse_pool_html, parse_pool_results
@@ -160,10 +160,9 @@ PREPARSED_BUNDLE = {
 }
 
 
-def test_root_health_check():
-    data = root()
+def test_health_check():
+    data = health_check()
     assert data["status"] == "ok"
-    assert "service" in data
 
 
 @patch("app.main.fetch_pools_bundle", return_value=PREPARSED_BUNDLE)

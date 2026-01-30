@@ -892,6 +892,67 @@ def _do_de_tableau(
     }
 
 
+# ============================================================================
+# Legacy Detail View Routes (Pools Overview, DE Tableau)
+# ============================================================================
+
+
+@app.get("/pools", response_class=HTMLResponse)
+def pools_view(
+    request: Request,
+    event_id: str = Query(..., description="Event UUID"),
+    pool_round_id: str = Query(..., description="Pool round UUID"),
+    force_refresh: bool = Query(False, description="Bypass cache"),
+    user: User | None = Depends(dependencies.get_optional_user),
+):
+    """
+    Render pools overview page for a specific event/round.
+    """
+    try:
+        data = _do_pools_overview(event_id, pool_round_id, force_refresh)
+    except (FTLHTTPError, FTLParseError) as exc:
+        logger.warning("Pools view failed for %s/%s: %s", event_id, pool_round_id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "pools.html",
+            {"user": user, "data": None, "error": str(exc)},
+        )
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "pools.html",
+        {"user": user, "data": data},
+    )
+
+
+@app.get("/de", response_class=HTMLResponse)
+def de_view(
+    request: Request,
+    event_id: str = Query(..., description="Event UUID"),
+    round_id: str = Query(..., description="DE round UUID"),
+    force_refresh: bool = Query(False, description="Bypass cache"),
+    user: User | None = Depends(dependencies.get_optional_user),
+):
+    """
+    Render DE tableau page for a specific event/round.
+    """
+    try:
+        data = _do_de_tableau(event_id, round_id, force_refresh)
+    except (FTLHTTPError, FTLParseError) as exc:
+        logger.warning("DE view failed for %s/%s: %s", event_id, round_id, exc)
+        return dependencies.templates.TemplateResponse(
+            request,
+            "de.html",
+            {"user": user, "data": None, "error": str(exc)},
+        )
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "de.html",
+        {"user": user, "data": data},
+    )
+
+
 @app.get("/api/pools/{event_id}/{pool_round_id}")
 def get_pools_bundle(
     event_id: str,

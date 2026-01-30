@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Pools Overview{% endblock %}
+
+{% block content %}
+<section>
+    <header class="dashboard-header">
+        <div>
+            <h1>Pools Overview</h1>
+        </div>
+        <div class="dashboard-actions">
+            <a href="?event_id={{ data.event_id }}&pool_round_id={{ data.pool_round_id }}&force_refresh=true" class="btn small outline" aria-label="Refresh Pools">Refresh</a>
+        </div>
+    </header>
+
+    {% if error %}
+    <article class="error-message">
+        <p>{{ error }}</p>
+    </article>
+    {% elif not data or not data.pools %}
+    <div class="fencer-group-empty">No pool data available.</div>
+    {% else %}
+
+    <div class="pool-grid">
+        {% for pool in data.pools %}
+        <article class="pool-card">
+            <div class="pool-header">
+                <strong>Pool {{ pool.pool_number }}</strong>
+                {% if pool.strip %}
+                <span class="pool-strip">Strip {{ pool.strip }}</span>
+                {% endif %}
+            </div>
+            <ul class="pool-roster">
+                {% for fencer in pool.fencers %}
+                <li class="pool-fencer">
+                    <div class="pool-fencer-info">
+                        <span class="pool-fencer-name">{{ fencer.name }}</span>
+                        {% if fencer.club %}
+                        <span class="pool-fencer-club">{{ fencer.club }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="status-{{ fencer.status }}">
+                        {% if fencer.status == 'advanced' %}Advanced
+                        {% elif fencer.status == 'eliminated' %}Eliminated
+                        {% else %}&mdash;
+                        {% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% endif %}
+</section>
+{% endblock %}
