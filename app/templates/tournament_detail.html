@@ -70,7 +70,7 @@
 
     <form method="post" action="/tournament/{{ tournament.id }}/delete" style="margin-top: 2rem;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="outline" onclick="return confirm('Delete this tournament?')">
+        <button type="submit" class="outline danger small" onclick="return confirm('Delete this tournament?')">
             Delete Tournament
         </button>
     </form>

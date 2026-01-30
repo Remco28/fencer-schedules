@@ -154,7 +154,7 @@ nav ul li {
    ======================================== */
 main.container {
     padding-top: 1.5rem;
-    padding-bottom: 6rem; /* Generous padding to prevent mobile cutoff */
+    padding-bottom: 8rem; /* Increased from 6rem to 8rem for mobile safety */
     min-height: 100vh;
 }
 

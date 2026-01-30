@@ -167,12 +167,14 @@
     {% endif %}
 
     <footer class="dashboard-footer">
-        <a href="/tournament/{{ tournament.id }}">View Events</a>
-        <a href="/dashboard">All Tournaments</a>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <a href="/tournament/{{ tournament.id }}" class="btn small outline">View Events</a>
+            <a href="/dashboard" class="btn small outline" style="border-color: transparent; color: var(--text-muted);">All Tournaments</a>
+        </div>
         <form method="post" action="/tournament/{{ tournament.id }}/delete" style="margin-left: auto;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="outline danger" onclick="return confirm('Delete this tournament and all tracking data?')">
-                Delete Tournament
+            <button type="submit" class="outline danger small" onclick="return confirm('Delete this tournament and all tracking data?')">
+                Delete
             </button>
         </form>
     </footer>
