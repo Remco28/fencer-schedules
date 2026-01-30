@@ -908,6 +908,8 @@ def pools_view(
     """
     Render pools overview page for a specific event/round.
     """
+    ftl_url = f"https://www.fencingtimelive.com/pools/scores/{event_id}/{pool_round_id}"
+
     try:
         data = _do_pools_overview(event_id, pool_round_id, force_refresh)
     except Exception as exc:
@@ -915,13 +917,18 @@ def pools_view(
         return dependencies.templates.TemplateResponse(
             request,
             "pools.html",
-            {"user": user, "data": None, "error": f"Unable to load pools: {exc}"},
+            {
+                "user": user, 
+                "data": None, 
+                "error": f"Unable to load pools: {exc}",
+                "ftl_url": ftl_url
+            },
         )
 
     return dependencies.templates.TemplateResponse(
         request,
         "pools.html",
-        {"user": user, "data": data},
+        {"user": user, "data": data, "ftl_url": ftl_url},
     )
 
 
@@ -936,6 +943,8 @@ def de_view(
     """
     Render DE tableau page for a specific event/round.
     """
+    ftl_url = f"https://www.fencingtimelive.com/tableaus/scores/{event_id}/{round_id}"
+    
     try:
         data = _do_de_tableau(event_id, round_id, force_refresh)
     except Exception as exc:
@@ -943,13 +952,18 @@ def de_view(
         return dependencies.templates.TemplateResponse(
             request,
             "de.html",
-            {"user": user, "data": None, "error": f"Unable to load bracket: {exc}"},
+            {
+                "user": user, 
+                "data": None, 
+                "error": f"Unable to load bracket: {exc}",
+                "ftl_url": ftl_url
+            },
         )
 
     return dependencies.templates.TemplateResponse(
         request,
         "de.html",
-        {"user": user, "data": data},
+        {"user": user, "data": data, "ftl_url": ftl_url},
     )
 
 

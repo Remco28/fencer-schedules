@@ -9,13 +9,23 @@
             <h1>Pools Overview</h1>
         </div>
         <div class="dashboard-actions">
-            <a href="?event_id={{ data.event_id }}&pool_round_id={{ data.pool_round_id }}&force_refresh=true" class="btn small outline" aria-label="Refresh Pools">Refresh</a>
+            {% if ftl_url %}
+            <a href="{{ ftl_url }}" target="_blank" class="btn small outline" style="margin-right: 0.5rem;">View Original</a>
+            {% endif %}
+            <a href="?event_id={{ request.query_params.get('event_id') }}&pool_round_id={{ request.query_params.get('pool_round_id') }}&force_refresh=true" class="btn small outline" aria-label="Refresh Pools">Refresh</a>
         </div>
     </header>
 
     {% if error %}
     <article class="error-message">
         <p>{{ error }}</p>
+        {% if ftl_url %}
+        <div style="margin-top: 1rem;">
+            <a href="{{ ftl_url }}" target="_blank" class="btn small outline" style="background: white; color: var(--color-danger); border-color: var(--color-danger);">
+                Open in FencingTimeLive &rarr;
+            </a>
+        </div>
+        {% endif %}
     </article>
     {% elif not data or not data.pools %}
     <div class="fencer-group-empty">No pool data available.</div>
