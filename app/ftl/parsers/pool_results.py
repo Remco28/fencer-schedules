@@ -41,9 +41,13 @@ def parse_pool_results(
     if not isinstance(data, list):
         raise ValueError(f"Expected list payload, got {type(data).__name__}")
 
-    # Validate non-empty
+    # Allow empty list (e.g. start of pools)
     if len(data) == 0:
-        raise ValueError("Empty fencer list")
+        return {
+            "event_id": event_id,
+            "pool_round_id": pool_round_id,
+            "fencers": [],
+        }
 
     # Parse each fencer
     fencers = []

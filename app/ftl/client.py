@@ -545,10 +545,19 @@ def fetch_pools_bundle(
             event_id=event_id,
             pool_round_id=pool_round_id
         )
-    except ValueError as e:
-        raise FTLParseError(f"Failed to parse pool results: {e}") from e
-    except Exception as e:
-        raise FTLHTTPError(f"Failed to fetch pool results: {e}") from e
+    except (ValueError, FTLHTTPError, FTLParseError) as e:
+        # If results fetch fails (e.g. 404 during live pools), just return empty results
+        # We still have the valuable pool HTML data
+        import logging
+        logging.getLogger(__name__).warning(
+            "Failed to fetch pool results for %s/%s (ignoring): %s", 
+            event_id, pool_round_id, e
+        )
+        results_data = {
+            "event_id": event_id,
+            "pool_round_id": pool_round_id,
+            "fencers": []
+        }
 
     return {
         "event_id": event_id,
