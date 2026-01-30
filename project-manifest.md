@@ -11,6 +11,7 @@
 
 - **Development Plan:** `comms/plan.md` - Vision, user journey, implementation phases, data model
 - **Architecture:** `docs/ARCHITECTURE.md` - System components, data flows, file structure
+- **Deployment Guide:** `docs/DEPLOYMENT.md` - Hetzner/Coolify setup instructions
 - **FTL API Specification:** `docs/ftl-api-specification.md` - Complete technical specification for FencingTimeLive parsing
 - **Agent Roles:** `comms/roles/ARCHITECT.md`, `comms/roles/TECHADVISOR.md`
 
