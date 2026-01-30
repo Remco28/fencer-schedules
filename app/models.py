@@ -75,6 +75,21 @@ class TrackedTournament(Base):
         back_populates="tournament",
         cascade="all, delete-orphan",
     )
+    clubs = relationship(
+        "TournamentClub",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
+
+
+class TournamentClub(Base):
+    __tablename__ = "tournament_clubs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tracked_tournament_id = Column(Integer, ForeignKey("tracked_tournaments.id"), nullable=False, index=True)
+    club_name = Column(String(200), nullable=False)
+
+    tournament = relationship("TrackedTournament", back_populates="clubs")
 
 
 class CachedEvent(Base):

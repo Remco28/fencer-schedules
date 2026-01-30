@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tournament{% endblock %}
+
+{% block content %}
+<section>
+    <header class="dashboard-header">
+        <div>
+            <h1>Edit Settings</h1>
+            <p>{{ tournament.tournament_name }}</p>
+        </div>
+    </header>
+
+    <form method="post" id="editForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <label for="clubInput">Tracked Clubs</label>
+        <p class="help-text">Fencers from these clubs will be automatically tracked.</p>
+        
+        <div class="tags-input-container">
+            <!-- Hidden input stores the comma-separated list sent to server -->
+            <input type="hidden" name="clubs" id="clubsHidden" value="{{ tracked_clubs|join(',') }}">
+            
+            <div id="tagsList" class="tags-list">
+                {% for club in tracked_clubs %}
+                <span class="tag">
+                    {{ club }}
+                    <button type="button" class="tag-remove" onclick="removeTag('{{ club }}')">&times;</button>
+                </span>
+                {% endfor %}
+            </div>
+            
+            <div class="input-group">
+                <input type="text" id="clubInput" placeholder="Type a club name and press Enter" onkeydown="handleInputKey(event)">
+                <button type="button" class="btn small" onclick="addTagFromInput()">Add</button>
+            </div>
+        </div>
+
+        {% if available_clubs %}
+        <div class="available-clubs-section">
+            <h3>Detected Clubs in this Tournament</h3>
+            <p class="help-text">Click to add to tracking list:</p>
+            <div class="club-badges">
+                {% for club in available_clubs %}
+                <button type="button" class="club-badge {{ 'selected' if club in tracked_clubs }}" onclick="addTag('{{ club }}')">
+                    {{ club }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <button type="submit">Save Changes</button>
+            <a href="/tournament/{{ tournament.id }}/dashboard" role="button" class="outline">Cancel</a>
+        </div>
+    </form>
+</section>
+
+<style>
+    .help-text {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+    
+    .tags-input-container {
+        border: 1px solid #ccc;
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        background: #fff;
+    }
+    
+    .tags-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .tag {
+        background: var(--primary);
+        color: #fff;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .tag-remove {
+        background: transparent;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0;
+        line-height: 1;
+        opacity: 0.8;
+    }
+    
+    .tag-remove:hover {
+        opacity: 1;
+    }
+    
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .input-group input {
+        flex: 1;
+        margin: 0;
+    }
+    
+    .available-clubs-section {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+    
+    .club-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .club-badge {
+        background: #eee;
+        color: var(--text-main);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+        margin: 0;
+    }
+    
+    .club-badge:hover {
+        background: #ddd;
+    }
+    
+    .club-badge.selected {
+        background: var(--primary);
+        color: #fff;
+        opacity: 0.5;
+        cursor: default;
+    }
+</style>
+
+<script>
+    let trackedClubs = [
+        {% for club in tracked_clubs %}"{{ club }}",{% endfor %}
+    ];
+
+    function updateHiddenInput() {
+        document.getElementById('clubsHidden').value = trackedClubs.join(',');
+        renderTags();
+    }
+
+    function renderTags() {
+        const container = document.getElementById('tagsList');
+        container.innerHTML = '';
+        trackedClubs.forEach(club => {
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.innerHTML = `
+                ${club}
+                <button type="button" class="tag-remove" onclick="removeTag('${club}')">&times;</button>
+            `;
+            container.appendChild(tag);
+        });
+        
+        // Update badges state
+        document.querySelectorAll('.club-badge').forEach(btn => {
+            if (trackedClubs.includes(btn.innerText.trim())) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+    }
+
+    function addTag(club) {
+        club = club.trim();
+        if (club && !trackedClubs.includes(club)) {
+            trackedClubs.push(club);
+            updateHiddenInput();
+        }
+    }
+
+    function removeTag(club) {
+        trackedClubs = trackedClubs.filter(c => c !== club);
+        updateHiddenInput();
+    }
+
+    function addTagFromInput() {
+        const input = document.getElementById('clubInput');
+        addTag(input.value);
+        input.value = '';
+    }
+
+    function handleInputKey(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addTagFromInput();
+        }
+    }
+</script>
+{% endblock %}

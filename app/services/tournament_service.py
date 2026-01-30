@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
-from typing import Any, Optional, Iterable
+from typing import Any, Optional, Iterable, Union
 
 from app.ftl.client import (
     fetch_competitors_json,
@@ -148,7 +148,7 @@ def _choose_latest_match(matches: Iterable[dict]) -> Optional[dict]:
 
 def _pool_statuses(
     bundle: dict,
-    club_filter: str,
+    club_filter: Union[str, list[str]],
     event,
     manual_fencers: dict[str, int],
 ) -> list[FencerStatus]:
@@ -205,7 +205,7 @@ def _pool_statuses(
 
 def _results_statuses(
     results: list[dict],
-    club_filter: str,
+    club_filter: Union[str, list[str]],
     event,
     manual_fencers: dict[str, int],
 ) -> list[FencerStatus]:
@@ -261,7 +261,7 @@ def _results_statuses(
 
 def _de_statuses(
     matches: list[dict],
-    club_filter: str,
+    club_filter: Union[str, list[str]],
     event,
     manual_fencers: dict[str, int],
 ) -> list[FencerStatus]:
@@ -335,7 +335,7 @@ def _de_statuses(
 
 def get_tournament_fencer_status(
     tournament_id: int,
-    club_filter: str,
+    club_filter: Union[str, list[str]],
     cached_events: list,
     tracked_fencers: Optional[list] = None,
     *,
@@ -349,7 +349,7 @@ def get_tournament_fencer_status(
 
     Args:
         tournament_id: Tournament database ID
-        club_filter: Club name to filter fencers by
+        club_filter: Club name (or list of names) to filter fencers by
         cached_events: List of CachedEvent model instances
         tracked_fencers: List of TrackedFencer model instances (optional)
         force_refresh: Bypass cache and force fresh fetch

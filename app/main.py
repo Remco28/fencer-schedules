@@ -27,7 +27,7 @@ from app.ftl.client import (
     FTLParseError,
 )
 from app.ftl.parsers import parse_de_tableau, parse_event_rounds, parse_tournament_schedule
-from app.models import CachedEvent, TrackedFencer, TrackedTournament, User
+from app.models import CachedEvent, TrackedFencer, TrackedTournament, User, TournamentClub
 from app.services.tournament_service import get_tournament_fencer_status
 
 
@@ -54,9 +54,29 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 def on_startup():
-    """Initialize database tables on startup."""
-    from app.database import init_db
+    """Initialize database tables and migrate legacy data."""
+    from app.database import init_db, SessionLocal
+    from app.models import TrackedTournament, TournamentClub
+    
     init_db()
+    
+    # Simple migration: Move legacy club_filter strings to TournamentClub table
+    db = SessionLocal()
+    try:
+        tournaments = db.query(TrackedTournament).all()
+        for t in tournaments:
+            # If has legacy filter but no new clubs entries
+            if t.club_filter and not t.clubs:
+                logger.info(f"Migrating legacy club filter for tournament {t.id}: {t.club_filter}")
+                # Split by comma just in case, though legacy was single string
+                clubs = [c.strip() for c in t.club_filter.split(",") if c.strip()]
+                for club_name in clubs:
+                    db.add(TournamentClub(tracked_tournament_id=t.id, club_name=club_name))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+    finally:
+        db.close()
 
 
 @app.get("/health")
@@ -384,6 +404,7 @@ def tournament_dashboard(
         .options(
             selectinload(TrackedTournament.events),
             selectinload(TrackedTournament.tracked_fencers),
+            selectinload(TrackedTournament.clubs),
         )
         .filter(
             TrackedTournament.id == tournament_id,
@@ -399,10 +420,15 @@ def tournament_dashboard(
     touch_tournament_access(db, tournament, now)
     db.commit()
 
+    # Build club filter list (support both new multi-club and legacy single string)
+    club_filters = [c.club_name for c in tournament.clubs]
+    if not club_filters and tournament.club_filter:
+        club_filters = [tournament.club_filter]
+
     try:
         grouped_fencers = get_tournament_fencer_status(
             tournament_id=tournament.id,
-            club_filter=tournament.club_filter or "",
+            club_filter=club_filters,
             cached_events=tournament.events,
             tracked_fencers=tournament.tracked_fencers,
             force_refresh=force_refresh,
@@ -635,6 +661,126 @@ def tournament_delete(
     db.delete(tournament)
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=303)
+
+
+@app.get("/tournament/{tournament_id}/edit", response_class=HTMLResponse)
+def tournament_edit_page(
+    tournament_id: int,
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Render tournament edit settings page."""
+    tournament = (
+        db.query(TrackedTournament)
+        .options(selectinload(TrackedTournament.events), selectinload(TrackedTournament.clubs))
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    # Get currently tracked clubs
+    tracked_clubs = [c.club_name for c in tournament.clubs]
+    if not tracked_clubs and tournament.club_filter:
+        tracked_clubs = [tournament.club_filter]
+
+    # Discover available clubs from FTL
+    available_clubs = set()
+    for event in tournament.events:
+        try:
+            # We only need to check one or two events to get a good list of clubs
+            competitors = fetch_competitors_json(event.event_id, timeout=TIMEOUT)
+            for comp in competitors:
+                # Add all potential club fields
+                if comp.get("clubs"):
+                    available_clubs.add(comp["clubs"].strip())
+                if comp.get("club1"):
+                    available_clubs.add(comp["club1"].strip())
+                if comp.get("club2"):
+                    available_clubs.add(comp["club2"].strip())
+            
+            if len(available_clubs) > 5:  # If we found a bunch, stop checking events to save time
+                break
+        except Exception:
+            continue
+    
+    sorted_clubs = sorted(list(available_clubs))
+
+    return dependencies.templates.TemplateResponse(
+        request,
+        "tournament_edit.html",
+        {
+            "user": user,
+            "tournament": tournament,
+            "tracked_clubs": tracked_clubs,
+            "available_clubs": sorted_clubs,
+        },
+    )
+
+
+@app.post("/tournament/{tournament_id}/edit", response_class=HTMLResponse)
+async def tournament_edit_submit(
+    tournament_id: int,
+    request: Request,
+    user: User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(dependencies.validate_csrf),
+):
+    """Handle tournament settings update."""
+    tournament = (
+        db.query(TrackedTournament)
+        .options(selectinload(TrackedTournament.events), selectinload(TrackedTournament.clubs))
+        .filter(
+            TrackedTournament.id == tournament_id,
+            TrackedTournament.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    form = await request.form()
+    clubs_str = form.get("clubs", "")
+    
+    # Parse comma-separated list
+    new_clubs = [c.strip() for c in clubs_str.split(",") if c.strip()]
+    
+    # Update DB
+    # 1. Clear existing
+    db.query(TournamentClub).filter(
+        TournamentClub.tracked_tournament_id == tournament.id
+    ).delete()
+    
+    # 2. Add new
+    for club_name in new_clubs:
+        db.add(TournamentClub(tracked_tournament_id=tournament.id, club_name=club_name))
+    
+    # 3. Clear legacy field to avoid confusion
+    tournament.club_filter = None
+    
+    # 4. Update fencer counts for events based on new filter
+    # This ensures the dashboard numbers are correct immediately
+    club_filter_list = new_clubs
+    for event in tournament.events:
+        try:
+            competitors = fetch_competitors_json(event.event_id, timeout=TIMEOUT)
+            count = sum(1 for fencer in competitors if match_club(fencer, club_filter_list))
+            event.fencer_count = count
+        except Exception:
+            pass  # Keep old count if fetch fails
+
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/tournament/{tournament.id}/dashboard",
+        status_code=303,
+    )
 
 
 def _do_fencer_search(
