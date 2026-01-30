@@ -59,9 +59,14 @@ def on_startup():
 
 
 @app.get("/")
-def root():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "FTL Data Service"}
+def root(
+    request: Request,
+    user: User | None = Depends(dependencies.get_optional_user),
+):
+    """Redirect to dashboard if logged in, otherwise login page."""
+    if user:
+        return RedirectResponse(url="/dashboard")
+    return RedirectResponse(url="/login")
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
