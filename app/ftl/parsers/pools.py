@@ -40,7 +40,8 @@ def parse_pool_html(html: str, pool_id: str | None = None) -> dict:
     strip = None
     strip_elem = soup.find('span', class_='poolStripTime')
     if strip_elem:
-        strip_match = re.search(r'strip\s+([A-Z]\d+)', strip_elem.text, re.IGNORECASE)
+        # Match 'strip 5', 'strip H1', 'strip 12', etc.
+        strip_match = re.search(r'strip\s+([A-Z0-9]+)', strip_elem.text, re.IGNORECASE)
         if strip_match:
             strip = strip_match.group(1).upper()
 
