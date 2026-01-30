@@ -27,6 +27,33 @@
         </div>
         {% endif %}
     </article>
+    {% elif data.standings %}
+    
+    <div class="info">
+        <p><strong>Bracket Unavailable:</strong> Showing final standings instead.</p>
+    </div>
+
+    <section>
+        <table role="grid">
+            <thead>
+                <tr>
+                    <th>Place</th>
+                    <th>Name</th>
+                    <th>Club</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fencer in data.standings %}
+                <tr>
+                    <td><strong>{{ fencer.place }}</strong></td>
+                    <td>{{ fencer.name }}</td>
+                    <td>{{ fencer.club }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
     {% elif not data or not data.groups %}
     <div class="fencer-group-empty">No bracket data available.</div>
     {% else %}

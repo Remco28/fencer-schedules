@@ -22,6 +22,7 @@ from app.ftl.client import (
     fetch_tournament_schedule,
     fetch_event_page,
     fetch_competitors_json,
+    fetch_event_results_json,
     FTLHTTPError,
     FTLParseError,
 )
@@ -892,6 +893,34 @@ def _do_de_tableau(
     }
 
 
+def _do_final_standings(
+    event_id: str,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Internal helper to fetch final standings when DE tableau is unavailable.
+    """
+    results = fetch_event_results_json(
+        event_id,
+        timeout=TIMEOUT,
+        force_refresh=force_refresh,
+    )
+
+    standings = []
+    for row in results:
+        standings.append({
+            "place": row.get("place"),
+            "name": row.get("name"),
+            "club": row.get("clubs") or row.get("club1"),
+            "country": row.get("country"),
+        })
+
+    return {
+        "event_id": event_id,
+        "standings": standings,
+    }
+
+
 # ============================================================================
 # Legacy Detail View Routes (Pools Overview, DE Tableau)
 # ============================================================================
@@ -948,17 +977,22 @@ def de_view(
     try:
         data = _do_de_tableau(event_id, round_id, force_refresh)
     except Exception as exc:
-        logger.error("DE view failed for %s/%s: %s", event_id, round_id, exc, exc_info=True)
-        return dependencies.templates.TemplateResponse(
-            request,
-            "de.html",
-            {
-                "user": user, 
-                "data": None, 
-                "error": f"Unable to load bracket: {exc}",
-                "ftl_url": ftl_url
-            },
-        )
+        logger.warning("DE parsing failed for %s/%s (%s). Attempting fallback to standings.", event_id, round_id, exc)
+        try:
+            # Fallback: Fetch final standings
+            data = _do_final_standings(event_id, force_refresh)
+        except Exception as fallback_exc:
+            logger.error("DE fallback failed: %s", fallback_exc)
+            return dependencies.templates.TemplateResponse(
+                request,
+                "de.html",
+                {
+                    "user": user, 
+                    "data": None, 
+                    "error": f"Unable to load bracket: {exc}",
+                    "ftl_url": ftl_url
+                },
+            )
 
     return dependencies.templates.TemplateResponse(
         request,
