@@ -1018,6 +1018,48 @@ def _do_de_tableau(
     tableau = parse_de_tableau(html, event_id=event_id, round_id=round_id)
     matches = tableau.get("matches", [])
 
+    # If results exist, use them to fill missing finalists and provide standings
+    standings = []
+    try:
+        results = fetch_event_results_json(
+            event_id,
+            timeout=TIMEOUT,
+            force_refresh=force_refresh,
+        )
+        for row in results:
+            standings.append({
+                "place": row.get("place"),
+                "name": row.get("name"),
+                "club": row.get("clubs") or row.get("club1"),
+                "country": row.get("country"),
+            })
+    except Exception:
+        standings = []
+
+    if standings:
+        # Patch final match if it has a missing opponent
+        first = next((s for s in standings if str(s.get("place")) == "1"), None)
+        second = next((s for s in standings if str(s.get("place")) == "2"), None)
+        if first and second:
+            for match in matches:
+                if match.get("round") == "F":
+                    name_a = match.get("name_a")
+                    name_b = match.get("name_b")
+                    if name_a and not name_b:
+                        if name_a == first.get("name"):
+                            match["name_b"] = second.get("name")
+                            match["club_b"] = second.get("club")
+                        elif name_a == second.get("name"):
+                            match["name_b"] = first.get("name")
+                            match["club_b"] = first.get("club")
+                    elif name_b and not name_a:
+                        if name_b == first.get("name"):
+                            match["name_a"] = second.get("name")
+                            match["club_a"] = second.get("club")
+                        elif name_b == second.get("name"):
+                            match["name_a"] = first.get("name")
+                            match["club_a"] = first.get("club")
+
     label_map = {
         "64": "Table of 64",
         "32": "Table of 32",
@@ -1051,6 +1093,7 @@ def _do_de_tableau(
         "event_id": event_id,
         "round_id": round_id,
         "groups": groups,
+        "standings": standings,
     }
 
 
