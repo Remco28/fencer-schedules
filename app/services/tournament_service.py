@@ -368,8 +368,23 @@ def _de_statuses(
                 activity = "finished"
                 result_text = "Bronze Medal"
             elif is_winner:
-                activity = "waiting"
-                result_text = f"Advanced to {_NEXT_ROUND_LABELS.get(round_label, 'next round')}"
+                # If the final hasn't populated this fencer yet, treat as up_next for F
+                in_final = any(
+                    (m.get("round") == "F")
+                    and (
+                        (m.get("name_a") and fencer_name == m.get("name_a"))
+                        or (m.get("name_b") and fencer_name == m.get("name_b"))
+                    )
+                    for m in fencer_matches_list
+                )
+                final_exists = any(m.get("round") == "F" for m in matches)
+                if round_label == "SF" and is_winner and final_exists and not in_final:
+                    activity = "up_next"
+                    result_text = "Advanced to Final"
+                    round_label = "F"
+                else:
+                    activity = "waiting"
+                    result_text = f"Advanced to {_NEXT_ROUND_LABELS.get(round_label, 'next round')}"
             else:
                 activity = "finished"
                 result_text = f"Eliminated (Table of {round_label})" if round_label else "Eliminated"

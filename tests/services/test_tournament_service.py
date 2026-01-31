@@ -527,3 +527,47 @@ def test_de_final_pending_beats_completed_sf_with_strip():
     assert len(grouped["up_next"]) == 1
     assert grouped["up_next"][0].name == "HENNEMAN Graham"
     assert grouped["up_next"][0].de_round == "F"
+
+
+def test_sf_winner_up_next_when_final_missing_name():
+    """SF winner should be up_next if final exists but doesn't include them yet."""
+    bundle = {
+        "pools": [
+            {"pool_number": 1, "strip": None, "fencers": [{"name": "LAVIN Ethan", "club": "Elite"}]},
+        ],
+        "results": {"fencers": []},
+    }
+    de_matches = [
+        {
+            "round": "SF",
+            "status": "complete",
+            "winner": "A",
+            "name_a": "LAVIN Ethan",
+            "club_a": None,
+            "name_b": "SINGH Vir",
+            "club_b": None,
+            "score_a": 15,
+            "score_b": 9,
+            "strip": "4",
+        },
+        {
+            "round": "F",
+            "status": "pending",
+            "winner": None,
+            "name_a": "HENNEMAN Graham",
+            "club_a": None,
+            "name_b": None,
+            "club_b": None,
+            "strip": None,
+        },
+    ]
+    event = _event(pool_round_id="P" * 32, de_round_id="D" * 32)
+
+    with patch("app.services.tournament_service.fetch_pools_bundle", return_value=bundle), \
+         patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    assert len(grouped["up_next"]) == 1
+    assert grouped["up_next"][0].name == "LAVIN Ethan"
+    assert grouped["up_next"][0].de_round == "F"
