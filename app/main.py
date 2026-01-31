@@ -1087,8 +1087,17 @@ def _do_de_tableau(
 
     def match_sort_key(item: Dict[str, Any]) -> tuple:
         path = item.get("path") or ""
-        seed_a = item.get("seed_a") or 10**9
-        seed_b = item.get("seed_b") or 10**9
+        def seed_sort_value(seed: Any) -> int:
+            if isinstance(seed, int):
+                return seed
+            if isinstance(seed, str):
+                digits = "".join(ch for ch in seed if ch.isdigit())
+                if digits:
+                    return int(digits)
+            return 10**9
+
+        seed_a = seed_sort_value(item.get("seed_a"))
+        seed_b = seed_sort_value(item.get("seed_b"))
         name_a = (item.get("name_a") or "").lower()
         name_b = (item.get("name_b") or "").lower()
         return (path == "", path, seed_a, seed_b, name_a, name_b)
