@@ -282,7 +282,8 @@ def _results_statuses(
         name = result.get("name", "")
         name_lower = name.lower()
         is_manual = name_lower in manual_fencers
-        is_club = match_club(fencer_data, club_filter)
+        # Manual fencers should always match by name, even if club abbreviations differ
+        is_club = match_club(fencer_data, club_filter) if not is_manual else True
         if not is_manual and not is_club:
             continue
 

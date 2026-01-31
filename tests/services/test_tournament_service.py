@@ -616,3 +616,19 @@ def test_results_used_when_no_de_round():
         grouped = get_tournament_fencer_status(1, "Elite", [event])
 
     assert len(grouped["finished"]) == 2
+
+
+def test_results_include_manual_even_if_club_mismatch():
+    """Manual tracked fencers should match results by name even if club filter doesn't match."""
+    results = [
+        {"name": "HENNEMAN Graham", "place": "1", "clubs": "Manchen Academy of Fencing"},
+    ]
+    event = _event(pool_round_id=None, de_round_id=None)
+    manual_fencers = [SimpleNamespace(id=1, fencer_name="HENNEMAN Graham", source="manual", tracked_tournament_id=1)]
+
+    with patch("app.services.tournament_service.fetch_event_results_json", return_value=results), \
+         patch("app.services.tournament_service.fetch_competitors_json", return_value=[{"name": "HENNEMAN Graham"}]):
+        grouped = get_tournament_fencer_status(1, "MANCHENAOF", [event], tracked_fencers=manual_fencers)
+
+    assert len(grouped["finished"]) == 1
+    assert grouped["finished"][0].name == "HENNEMAN Graham"
