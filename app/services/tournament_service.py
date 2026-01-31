@@ -173,8 +173,8 @@ def _choose_active_or_latest_match(matches: Iterable[dict]) -> Optional[dict]:
         
         status = match.get("status")
         strip = match.get("strip")
-        # Consider it active if explicitly in_progress OR has a strip assignment
-        if status == "in_progress" or strip:
+        # Consider it active if explicitly in_progress, or pending with a strip assignment
+        if status == "in_progress" or (status == "pending" and strip):
             active_matches.append(match_tuple)
             
     # Sort by round index (ascending)
