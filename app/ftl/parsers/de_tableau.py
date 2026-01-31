@@ -185,32 +185,58 @@ def parse_de_tableau(
                             # Stop looking for Fencer B once found
                             break
 
-                # Update status based on both fencers present
-                            if match_data['status'] == 'pending' and match_data['name_b'] and match_data['name_a']:
-                                if match_data['score_a'] is None and match_data['score_b'] is None:
+                # Update status based on both fencers present and no scores
+                if match_data['status'] == 'pending' and match_data['name_b'] and match_data['name_a']:
+                    if match_data['score_a'] is None and match_data['score_b'] is None:
+                        # Both fencers present but no score yet - active if strip already assigned
+                        if match_data['strip']:
+                            match_data['status'] = 'in_progress'
+
+                # Look ahead for "Floating" Strip Info in a bounded window
+                # In new FTL format, strip info (ttistr span) may appear in rows below the match
+                # Search rows i+1 through i+8 for a ttistr span in same or adjacent column
+                if (
+                    match_data['status'] in ('pending',)
+                    and match_data['strip'] is None
+                    and not _is_bye_name(match_data['name_a'])
+                    and not _is_bye_name(match_data['name_b'])
+                ):
+                    for strip_offset in range(1, 9):
+                        if i + strip_offset >= len(rows):
+                            break
+                        strip_row = rows[i + strip_offset]
+                        strip_cells = strip_row.find_all('td')
+
+                        # Search cells in same column and adjacent columns
+                        search_cols = [col_idx]
+                        if col_idx > 0:
+                            search_cols.append(col_idx - 1)
+                        if col_idx + 1 < len(strip_cells):
+                            search_cols.append(col_idx + 1)
+
+                        found_strip = False
+                        for search_col in search_cols:
+                            if search_col >= len(strip_cells):
+                                continue
+                            s_cell = strip_cells[search_col]
+                            ttistr = s_cell.find('span', class_='ttistr')
+                            if ttistr:
+                                # Parse "7:32 PM Strip 4"
+                                text = ttistr.get_text(strip=True)
+                                strip_match_result = re.search(r'Strip\s+([A-Z0-9]+)', text, re.IGNORECASE)
+                                if strip_match_result:
+                                    match_data['strip'] = strip_match_result.group(1).upper()
+                                    # If it has a strip assignment, the match is active
                                     match_data['status'] = 'in_progress'
 
-                # Look ahead for "Floating" Strip Info (Row i+3)
-                # In new FTL format, future/active strip info often lives in a row below Fencer B
-                if i + 3 < len(rows) and match_data['status'] in ('pending', 'in_progress'):
-                    strip_row = rows[i + 3]
-                    strip_cells = strip_row.find_all('td')
-                    # Search all cells in this row for a ttistr span
-                    for s_cell in strip_cells:
-                        ttistr = s_cell.find('span', class_='ttistr')
-                        if ttistr:
-                            # Parse "7:32 PM Strip 4"
-                            text = ttistr.get_text(strip=True)
-                            strip_match = re.search(r'Strip\s+([A-Z0-9]+)', text, re.IGNORECASE)
-                            if strip_match:
-                                match_data['strip'] = strip_match.group(1).upper()
-                                match_data['status'] = 'in_progress' # If it has a strip, it's active
-                            
-                            time_match = re.search(r'(\d{1,2}:\d{2}\s*(?:AM|PM)?)', text, re.IGNORECASE)
-                            if time_match:
-                                match_data['time'] = time_match.group(1)
-                            
-                            # If we found it, stop searching this row
+                                time_match = re.search(r'(\d{1,2}:\d{2}\s*(?:AM|PM)?)', text, re.IGNORECASE)
+                                if time_match and not match_data['time']:
+                                    match_data['time'] = time_match.group(1)
+
+                                found_strip = True
+                                break
+
+                        if found_strip:
                             break
 
                 # Save match
@@ -223,6 +249,13 @@ def parse_de_tableau(
         'round_id': round_id,
         'matches': matches,
     }
+
+
+def _is_bye_name(name: Optional[str]) -> bool:
+    """Return True if the name represents a BYE/placeholder entry."""
+    if not name:
+        return True
+    return name.strip().upper() in {"- BYE -", "BYE"}
 
 
 def _extract_fencer_from_cell(cell: Tag) -> dict:

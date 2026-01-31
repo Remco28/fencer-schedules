@@ -442,3 +442,110 @@ class TestParseDeTableau:
 
         # Sample has 4 matches: IMREK vs WU, GAO vs BYE, WANG vs SMITH, JONES vs DAVIS
         assert len(matches) >= 4, f"Expected at least 4 matches, got {len(matches)}"
+
+
+# HTML fixture with floating ttistr strip info
+TTISTR_STRIP_HTML = """
+<html>
+<body>
+<table class='elimTableau w-100'>
+    <tr>
+        <th>Table of 16</th>
+        <th>Table of 8</th>
+    </tr>
+    <tr>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+    </tr>
+
+    <!-- Pending match with ttistr strip info a few rows down -->
+    <tr>
+        <td class='tbb'>
+            <span class='tseed'>(1)&nbsp;</span>
+            <span class='tcln'>ACTIVE</span>
+            <span class='tcfn'>Fencer</span>
+            <span class='tcaff'><br/>TestClub</span>
+            &nbsp;
+        </td>
+        <td>&nbsp;</td>
+    </tr>
+
+    <tr>
+        <td class='tbr tscoref'>
+            <span class='tsco'>&nbsp;</span>
+        </td>
+        <td>&nbsp;</td>
+    </tr>
+
+    <tr>
+        <td class='tbbr'>
+            <span class='tseed'>(16)&nbsp;</span>
+            <span class='tcln'>OPPONENT</span>
+            <span class='tcfn'>Other</span>
+            &nbsp;
+        </td>
+        <td>&nbsp;</td>
+    </tr>
+
+    <!-- Floating strip info (ttistr) appears a few rows after the match -->
+    <tr>
+        <td>
+            <span class='ttistr'>7:54 PM Strip 5</span>
+        </td>
+        <td>&nbsp;</td>
+    </tr>
+
+</table>
+</body>
+</html>
+"""
+
+
+class TestTtistrStripDetection:
+    """Tests for ttistr (floating strip info) detection in DE parser."""
+
+    def test_ttistr_sets_in_progress_status(self):
+        """Test that a pending match with ttistr strip info is marked as in_progress."""
+        result = parse_de_tableau(TTISTR_STRIP_HTML)
+        matches = result['matches']
+
+        # Find the ACTIVE vs OPPONENT match
+        active_match = None
+        for match in matches:
+            if match.get('name_a') == 'ACTIVE Fencer' and match.get('name_b') == 'OPPONENT Other':
+                active_match = match
+                break
+
+        assert active_match is not None, "Should find ACTIVE vs OPPONENT match"
+        assert active_match['status'] == 'in_progress', f"Expected in_progress, got {active_match['status']}"
+        assert active_match['strip'] == '5', f"Expected strip '5', got {active_match['strip']}"
+
+    def test_ttistr_extracts_time(self):
+        """Test that time is extracted from ttistr span."""
+        result = parse_de_tableau(TTISTR_STRIP_HTML)
+        matches = result['matches']
+
+        active_match = None
+        for match in matches:
+            if match.get('name_a') == 'ACTIVE Fencer':
+                active_match = match
+                break
+
+        assert active_match is not None
+        assert active_match['time'] == '7:54 PM', f"Expected '7:54 PM', got {active_match['time']}"
+
+    def test_pending_without_strip_stays_pending(self):
+        """Test that pending matches without strip info stay pending."""
+        # Use the original sample HTML which has pending WANG vs SMITH without ttistr
+        result = parse_de_tableau(SAMPLE_DE_TABLEAU_HTML)
+        matches = result['matches']
+
+        pending_match = None
+        for match in matches:
+            if match.get('name_a') == 'WANG Justin' and match.get('name_b') == 'SMITH John':
+                pending_match = match
+                break
+
+        assert pending_match is not None
+        # This match has no ttistr and no score, so it should stay pending
+        assert pending_match['status'] == 'pending', f"Expected pending, got {pending_match['status']}"

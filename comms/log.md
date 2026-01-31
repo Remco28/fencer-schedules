@@ -152,3 +152,20 @@
 [2026-01-29 15:00] [CLAUDE]: IMPL DONE: Completed Phase L smart caching. Changes: (1) Added `is_completed` and `completed_at` columns to CachedEvent model for tracking event completion state. (2) Updated all fetch functions in `app/ftl/client.py` to accept optional `ttl` parameter for custom cache duration. (3) Implemented TTL_SHORT (3 min) for active events and TTL_LONG (24 hours) for completed events in tournament_service.py. (4) Added completion detection: events are marked complete when Final bout (round="F") has status="complete", or when event results JSON is successfully fetched. (5) Service now passes `db` session to mark events and main.py commits after fetching status. (6) Added 7 new tests covering TTL usage, completion detection, and event marking. All 173 tests passing.
 [2026-01-29 15:30] [CLAUDE]: IMPL IN_PROGRESS: Starting Phase N - Restore Legacy Detail Views (Pools Overview, DE Tableau).
 [2026-01-29 16:00] [CLAUDE]: IMPL DONE: Completed Phase N - Restore Legacy Views. Changes: (1) Added `/pools` route with event_id, pool_round_id, force_refresh params, calls `_do_pools_overview()` helper, renders `pools.html`. (2) Added `/de` route with event_id, round_id, force_refresh params, calls `_do_de_tableau()` helper, renders `de.html`. (3) Created `pools.html` template - grid of pool cards showing pool number, strip, fencers with name/club/status badges. (4) Created `de.html` template - groups matches by round (Table of 64, etc.), shows competitors with seed/name/club/score, highlights winners. (5) Both templates include Refresh buttons and error handling. (6) Fixed outdated test (root -> health_check). All 173 tests passing.
+
+[2026-01-31 00:57:38 UTC] ARCHITECT: REVIEW IN_PROGRESS - investigating dashboard status issue (waiting vs active)
+
+[2026-01-31 01:01:53 UTC] ARCHITECT: REVIEW DONE - found likely DE parser indentation bug (pending->in_progress never executed) and possible merge priority issue; awaiting confirmation on live HTML.
+
+[2026-01-31 01:10:19 UTC] ARCHITECT: SPEC READY: Authored spec to fix live dashboard active status (DE parser + merge logic) at `comms/tasks/2026-01-31-fix-active-status-live-dashboard.md`.
+
+[2026-01-31] [DEVELOPER]: IMPL IN_PROGRESS: Starting fix for live dashboard active status (DE parser status logic + merge priority).
+
+[2026-01-31] [DEVELOPER]: IMPL DONE: Fixed live dashboard active status. Changes:
+  1. **DE parser bug (de_tableau.py):** Fixed unreachable code - the `status = "in_progress"` logic was after a `break` statement. Moved status update outside the for loop.
+  2. **Expanded ttistr search (de_tableau.py):** Changed from single row `i+3` to bounded window `i+1..i+8`, searching same and adjacent columns for floating strip info.
+  3. **Merge priority fix (tournament_service.py):** Added rule to prefer "active" over "waiting" regardless of phase, so pool strip assignments beat pending DE matches.
+  4. **Added 7 tests:** 3 for ttistr strip detection (in_progress status, time extraction, pending without strip), 4 for merge behavior (active beats waiting, same activity uses phase rank, integrated test).
+  All 42 DE parser + service tests pass (21 + 21). One pre-existing unrelated failure in pool_results_parser tests.
+
+[2026-01-31 01:19:45 UTC] ARCHITECT: HOUSEKEEPING: Restored and archived Phase N spec to `comms/tasks/archive/2026-01-29-phase-n-restore-legacy-views.md`.

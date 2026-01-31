@@ -8,6 +8,8 @@ from app.services.tournament_service import (
     TTL_SHORT,
     TTL_LONG,
     _is_event_completed_from_tableau,
+    _merge_status,
+    FencerStatus,
 )
 from app.ftl.client import FTLHTTPError
 
@@ -270,3 +272,120 @@ def test_event_marked_completed_when_final_complete():
     assert event.is_completed is True
     assert event.completed_at is not None
     mock_db.add.assert_called_once_with(event)
+
+
+# Merge Status Priority Tests
+
+def test_merge_status_active_beats_waiting_across_phases():
+    """Active pool status should beat waiting DE status, regardless of phase."""
+    pool_active = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="active",
+        phase="pools",
+        strip="A5",
+    )
+    de_waiting = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="waiting",
+        phase="de",
+        de_round="32",
+    )
+
+    # Pool active should win even though DE has higher phase priority
+    result = _merge_status(pool_active, de_waiting)
+    assert result.activity == "active"
+    assert result.phase == "pools"
+    assert result.strip == "A5"
+
+    # Verify the reverse order also works
+    result = _merge_status(de_waiting, pool_active)
+    assert result.activity == "active"
+    assert result.phase == "pools"
+
+
+def test_merge_status_de_active_beats_pool_waiting():
+    """Active DE status should beat waiting pool status."""
+    de_active = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="active",
+        phase="de",
+        de_round="16",
+    )
+    pool_waiting = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="waiting",
+        phase="pools",
+    )
+
+    result = _merge_status(pool_waiting, de_active)
+    assert result.activity == "active"
+    assert result.phase == "de"
+
+
+def test_merge_status_same_activity_uses_phase_rank():
+    """When both have same activity, higher phase wins."""
+    de_waiting = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="waiting",
+        phase="de",
+    )
+    pool_waiting = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="waiting",
+        phase="pools",
+    )
+
+    # DE (phase=2) should beat pools (phase=1) when both are waiting
+    result = _merge_status(pool_waiting, de_waiting)
+    assert result.phase == "de"
+
+
+def test_pool_active_beats_de_waiting_integrated():
+    """Integration test: Pool strip assignment should show fencer as Active, not Waiting."""
+    bundle = {
+        "pools": [
+            {"pool_number": 3, "strip": "A5", "fencers": [{"name": "Jane Smith", "club": "Elite"}]},
+        ],
+        "results": {"fencers": []},
+    }
+    # DE match exists but is pending (no strip)
+    de_matches = [{
+        "round": "32",
+        "status": "pending",
+        "winner": None,
+        "name_a": "Jane Smith",
+        "club_a": "Elite",
+        "name_b": "Other Fencer",
+        "club_b": "Other",
+        "strip": None,
+    }]
+    event = _event(pool_round_id="P" * 32, de_round_id="D" * 32)
+
+    with patch("app.services.tournament_service.fetch_pools_bundle", return_value=bundle), \
+         patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    # Should be Active (from pools), not Waiting (from DE pending)
+    assert len(grouped["active"]) == 1
+    assert grouped["active"][0].activity == "active"
+    assert grouped["active"][0].strip == "A5"
+    assert len(grouped["waiting"]) == 0

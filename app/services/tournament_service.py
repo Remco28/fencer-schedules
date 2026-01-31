@@ -73,11 +73,16 @@ def _status_key(status: FencerStatus) -> tuple:
 
 
 def _merge_status(existing: Optional[FencerStatus], candidate: FencerStatus) -> FencerStatus:
+    """Merge two fencer statuses, preferring more relevant/active information.
+
+    Priority rules:
+    1. Prefer club source over manual source
+    2. Prefer non-error over error
+    3. Prefer "active" activity over "waiting" (regardless of phase)
+    4. Fall back to phase/activity ranking for equivalent statuses
+    """
     if existing is None:
         return candidate
-
-    existing_rank = (_phase_rank(existing.phase), _activity_rank(existing.activity))
-    candidate_rank = (_phase_rank(candidate.phase), _activity_rank(candidate.activity))
 
     if existing.source == "club" and candidate.source == "manual":
         return existing
@@ -86,6 +91,17 @@ def _merge_status(existing: Optional[FencerStatus], candidate: FencerStatus) -> 
 
     if candidate.error and not existing.error:
         return existing
+
+    # Key fix: prefer "active" over "waiting" regardless of phase
+    # This ensures a pool strip assignment (active) beats a pending DE match (waiting)
+    if candidate.activity == "active" and existing.activity != "active":
+        return candidate
+    if existing.activity == "active" and candidate.activity != "active":
+        return existing
+
+    # If both have the same activity level, use phase/activity ranking
+    existing_rank = (_phase_rank(existing.phase), _activity_rank(existing.activity))
+    candidate_rank = (_phase_rank(candidate.phase), _activity_rank(candidate.activity))
 
     if candidate_rank > existing_rank:
         return candidate
