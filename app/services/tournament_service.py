@@ -135,15 +135,45 @@ def _mark_event_completed(event: Any, db: Any) -> None:
         logger.warning("Failed to mark event %s as completed: %s", event.event_id, exc)
 
 
-def _choose_latest_match(matches: Iterable[dict]) -> Optional[dict]:
-    latest = None
-    latest_idx = -1
+def _choose_active_or_latest_match(matches: Iterable[dict]) -> Optional[dict]:
+    """
+    Select the most relevant match to display for a fencer.
+    
+    Priority:
+    1. 'Active' matches (status='in_progress' or has strip) - pick the deepest round active match.
+    2. Any match - pick the deepest round.
+    
+    This ensures that if a fencer has a BYE in T16 (technically complete) but also has a 
+    Strip assigned for T8 (which might be logically linked to the T16 slot in the parser),
+    we show the one with the Strip info.
+    """
+    active_matches = []
+    all_matches_sorted = []
+    
     for match in matches:
-        idx = _round_index(match.get("round"))
-        if idx > latest_idx:
-            latest = match
-            latest_idx = idx
-    return latest
+        round_idx = _round_index(match.get("round"))
+        match_tuple = (round_idx, match)
+        all_matches_sorted.append(match_tuple)
+        
+        status = match.get("status")
+        strip = match.get("strip")
+        # Consider it active if explicitly in_progress OR has a strip assignment
+        if status == "in_progress" or strip:
+            active_matches.append(match_tuple)
+            
+    # Sort by round index (ascending)
+    all_matches_sorted.sort(key=lambda x: x[0])
+    active_matches.sort(key=lambda x: x[0])
+    
+    # If we have active matches, return the DEEPEST active match
+    if active_matches:
+        return active_matches[-1][1]
+        
+    # Otherwise return the DEEPEST match overall
+    if all_matches_sorted:
+        return all_matches_sorted[-1][1]
+        
+    return None
 
 
 def _pool_statuses(
@@ -283,7 +313,7 @@ def _de_statuses(
             fencer_matches.setdefault(fencer_name, []).append(match)
 
     for fencer_name, fencer_matches_list in fencer_matches.items():
-        latest = _choose_latest_match(fencer_matches_list)
+        latest = _choose_active_or_latest_match(fencer_matches_list)
         if not latest:
             continue
 
