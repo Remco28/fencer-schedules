@@ -6,7 +6,9 @@ from typing import Any, Optional, Iterable, Union
 
 from app.ftl.client import (
     fetch_competitors_json,
+    fetch_event_format,
     fetch_event_page,
+    fetch_pool_ids_raw,
     fetch_pools_bundle,
     fetch_tableau_raw,
     fetch_event_results_json,
@@ -15,6 +17,7 @@ from app.ftl.client import (
 )
 from app.ftl.parsers.de_tableau import parse_de_tableau
 from app.ftl.parsers.event_rounds import parse_event_rounds
+from app.ftl.parsers.pool_ids import parse_pool_ids
 from app.services.club_matcher import match_club
 
 logger = logging.getLogger(__name__)
@@ -118,6 +121,113 @@ def _round_index(round_label: Optional[str]) -> int:
         return _ROUND_ORDER.index(round_label)
     except ValueError:
         return -1
+
+
+def _merge_round_lists(*lists: Iterable[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for items in lists:
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                merged.append(item)
+    return merged
+
+
+def _discover_round_candidates(event_id: str) -> dict[str, list[str]]:
+    pool_round_ids: list[str] = []
+    de_round_ids: list[str] = []
+
+    try:
+        event_html = fetch_event_page(event_id)
+        rounds = parse_event_rounds(event_html)
+        pool_round_ids = _merge_round_lists(pool_round_ids, rounds.get("pool_round_ids", []))
+        de_round_ids = _merge_round_lists(de_round_ids, rounds.get("de_round_ids", []))
+    except Exception as exc:
+        logger.info("Failed to read event page rounds for %s: %s", event_id, exc)
+
+    try:
+        format_html = fetch_event_format(event_id)
+        rounds = parse_event_rounds(format_html)
+        pool_round_ids = _merge_round_lists(pool_round_ids, rounds.get("pool_round_ids", []))
+        de_round_ids = _merge_round_lists(de_round_ids, rounds.get("de_round_ids", []))
+    except Exception as exc:
+        logger.info("Failed to read format page rounds for %s: %s", event_id, exc)
+
+    # If we have a pool round, see if the pools page exposes additional rounds.
+    if pool_round_ids:
+        try:
+            pools_html = fetch_pool_ids_raw(event_id, pool_round_ids[0])
+            rounds = parse_event_rounds(pools_html)
+            pool_round_ids = _merge_round_lists(pool_round_ids, rounds.get("pool_round_ids", []))
+        except Exception as exc:
+            logger.info("Failed to read pools page rounds for %s: %s", event_id, exc)
+
+    # If we have a DE round, see if the tableau page exposes additional rounds.
+    if de_round_ids:
+        try:
+            tableau_html = fetch_tableau_raw(event_id, de_round_ids[0])
+            rounds = parse_event_rounds(tableau_html)
+            de_round_ids = _merge_round_lists(de_round_ids, rounds.get("de_round_ids", []))
+        except Exception as exc:
+            logger.info("Failed to read tableau page rounds for %s: %s", event_id, exc)
+
+    return {
+        "pool_round_ids": pool_round_ids,
+        "de_round_ids": de_round_ids,
+    }
+
+
+def _select_pool_round_id(event_id: str, candidates: list[str], *, force_refresh: bool) -> Optional[str]:
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    best_id = candidates[0]
+    best_count = -1
+    for round_id in candidates:
+        try:
+            pool_ids_raw = fetch_pool_ids_raw(event_id, round_id, force_refresh=force_refresh)
+            parsed = parse_pool_ids(pool_ids_raw)
+            count = len(parsed.get("pool_ids", []))
+            if count > best_count:
+                best_count = count
+                best_id = round_id
+        except Exception as exc:
+            logger.info("Failed to inspect pool ids for %s/%s: %s", event_id, round_id, exc)
+            continue
+
+    return best_id
+
+
+def _select_de_round_id(event_id: str, candidates: list[str], *, force_refresh: bool) -> Optional[str]:
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    best_id = candidates[0]
+    best_score = -1
+    for round_id in candidates:
+        try:
+            html = fetch_tableau_raw(event_id, round_id, force_refresh=force_refresh)
+            tableau = parse_de_tableau(html, event_id=event_id, round_id=round_id)
+            matches = tableau.get("matches", [])
+            score = len(matches)
+            completed = any(m.get("status") == "complete" for m in matches)
+            in_progress = any(m.get("status") == "in_progress" for m in matches)
+            # Prefer any activity over empty, then larger match counts
+            activity_bonus = 2 if completed else 1 if in_progress else 0
+            score = score * 10 + activity_bonus
+            if score > best_score:
+                best_score = score
+                best_id = round_id
+        except Exception as exc:
+            logger.info("Failed to inspect tableau for %s/%s: %s", event_id, round_id, exc)
+            continue
+
+    return best_id
 
 
 def _is_event_completed_from_tableau(matches: list[dict]) -> bool:
@@ -465,16 +575,38 @@ def get_tournament_fencer_status(
         event_completed = getattr(event, "is_completed", False)
         ttl = TTL_LONG if event_completed else TTL_SHORT
 
-        # If round IDs are missing, attempt to refresh from the event page
-        if not event.pool_round_id or not event.de_round_id:
+        # If round IDs are missing or we are forcing refresh, attempt to discover rounds.
+        if force_refresh or not event.pool_round_id or not event.de_round_id:
             try:
-                event_html = fetch_event_page(event.event_id)
-                rounds = parse_event_rounds(event_html)
-                if not event.pool_round_id:
-                    event.pool_round_id = rounds.get("pool_round_id")
-                if not event.de_round_id:
-                    event.de_round_id = rounds.get("de_round_id")
-                if db is not None:
+                prev_pool = event.pool_round_id
+                prev_de = event.de_round_id
+                round_candidates = _discover_round_candidates(event.event_id)
+                pool_candidates = round_candidates.get("pool_round_ids", [])
+                de_candidates = round_candidates.get("de_round_ids", [])
+
+                selected_pool = None
+                selected_de = None
+                if pool_candidates:
+                    selected_pool = _select_pool_round_id(
+                        event.event_id,
+                        pool_candidates,
+                        force_refresh=force_refresh,
+                    )
+                    if selected_pool:
+                        event.pool_round_id = selected_pool
+
+                if de_candidates:
+                    selected_de = _select_de_round_id(
+                        event.event_id,
+                        de_candidates,
+                        force_refresh=force_refresh,
+                    )
+                    if selected_de:
+                        event.de_round_id = selected_de
+
+                if db is not None and (
+                    event.pool_round_id != prev_pool or event.de_round_id != prev_de
+                ):
                     db.add(event)
             except Exception as exc:
                 logger.info("Failed to refresh round IDs for event %s: %s", event.event_id, exc)

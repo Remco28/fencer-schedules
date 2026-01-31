@@ -391,6 +391,17 @@ def fetch_event_page(
     return _fetch_with_retry(url, timeout=timeout, allow_redirects=True)
 
 
+def fetch_event_format(
+    event_id: str,
+    *,
+    timeout: int = 10,
+) -> str:
+    """Fetch event format page HTML."""
+    path = f"/events/format/{event_id}"
+    url = _build_url(path)
+    return _fetch_with_retry(url, timeout=timeout, allow_redirects=True)
+
+
 def fetch_competitors_json(
     event_id: str,
     *,

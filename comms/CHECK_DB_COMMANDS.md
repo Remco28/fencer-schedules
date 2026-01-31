@@ -1,79 +1,128 @@
-# Coolify DB Commands (Short)
+# Coolify Debug Commands (FTL Round Discovery)
 
-## Check DB connection info
-
-```bash
-python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); print('DB_PATH=', os.getenv('DB_PATH'))"
-```
-
-## Postgres queries (tables + cached events + tracked fencers)
+## Event page round discovery (pools + DE)
 
 ```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); print(conn.execute(sa.text(\"select table_name from information_schema.tables where table_schema='public'\" )).fetchall()); print(conn.execute(sa.text(\"select id,event_id,pool_round_id,de_round_id,is_completed from cached_events where tracked_tournament_id=10\" )).fetchall()); print(conn.execute(sa.text(\"select id,fencer_name,source from tracked_fencers where tracked_tournament_id=10\" )).fetchall()); conn.close()"
-```
+python3 - <<'PY'
+import re
+import requests
 
-## Same queries for tournament id 13 (current Freehold event)
+url = "https://www.fencingtimelive.com/events/view/632701A80E1840AB98D7AA92D796203F"
+html = requests.get(url, timeout=15).text
+open("/tmp/ftl_event.html", "w").write(html)
+print("wrote /tmp/ftl_event.html", "len=", len(html))
 
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); print(conn.execute(sa.text(\"select id,event_id,pool_round_id,de_round_id,is_completed from cached_events where tracked_tournament_id=13\" )).fetchall()); print(conn.execute(sa.text(\"select id,fencer_name,source from tracked_fencers where tracked_tournament_id=13\" )).fetchall()); conn.close()"
-```
+links = re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.I | re.S)
 
-## Check is_completed after a refresh (tournament id 13)
+def clean(text):
+    text = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(text.split())
 
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); print(conn.execute(sa.text(\"select id,event_id,is_completed from cached_events where tracked_tournament_id=13\" )).fetchall()); conn.close()"
-```
+pool = [(h, clean(t)) for h, t in links if "/pools/" in h or "pools" in h.lower()]
+de = [(h, clean(t)) for h, t in links if "/tableaus/scores/" in h]
 
-## Show counts for all tournaments (to find the one with data)
+out = ["POOL LINKS:"]
+out += [f"{h} | {t}" for h, t in pool]
+out.append("")
+out.append("DE LINKS:")
+out += [f"{h} | {t}" for h, t in de]
 
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); print('cached_events counts:', conn.execute(sa.text(\"select tracked_tournament_id, count(*) from cached_events group by tracked_tournament_id order by tracked_tournament_id\" )).fetchall()); print('tracked_fencers counts:', conn.execute(sa.text(\"select tracked_tournament_id, count(*) from tracked_fencers group by tracked_tournament_id order by tracked_tournament_id\" )).fetchall()); conn.close()"
-```
-
-## List tracked fencers for ALL tournaments
-
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); print(conn.execute(sa.text(\"select tracked_tournament_id,fencer_name,source from tracked_fencers order by tracked_tournament_id,fencer_name\" )).fetchall()); conn.close()"
-```
-
-## Reset cached events for a tournament
-
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); conn.execute(sa.text(\"delete from cached_events where tracked_tournament_id=10\")); conn.commit(); conn.close(); print('ok')"
-```
-
-## Reset cached events for tournament id 13
-
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); conn.execute(sa.text(\"delete from cached_events where tracked_tournament_id=13\")); conn.commit(); conn.close(); print('ok')"
-```
-
-## Reset completion flag for tournament id 13 and immediately verify
-
-```bash
-python3 -c "import os; import sqlalchemy as sa; url=os.environ['DATABASE_URL'].replace('postgres://','postgresql://',1); eng=sa.create_engine(url); conn=eng.connect(); conn.execute(sa.text(\"update cached_events set is_completed=false, completed_at=NULL where tracked_tournament_id=13\")); conn.commit(); print(conn.execute(sa.text(\"select id,event_id,is_completed,completed_at from cached_events where tracked_tournament_id=13\" )).fetchall()); conn.close()"
-```
-
----
-
-## DE tableau debug (save raw HTML + JS table HTML)
-
-```bash
-# Save the DE tableau HTML to /tmp/ftl_de.html
-python3 -c "import requests; url='https://www.fencingtimelive.com/tableaus/scores/BA660C4B8C3949DAB4250EA99848E00E/15C08869F21543279512948F0398C58F'; html=requests.get(url, timeout=15).text; open('/tmp/ftl_de.html','w').write(html); print('wrote /tmp/ftl_de.html', 'len=', len(html))"
+open("/tmp/ftl_event_rounds.txt", "w").write("\n".join(out))
+print("wrote /tmp/ftl_event_rounds.txt")
+PY
 ```
 
 ```bash
-# Quick sanity check: does the HTML contain elimTableau?
-python3 -c "html=open('/tmp/ftl_de.html').read(); print('has elimTableau=', 'elimTableau' in html, 'has tableauPanel=', 'tableauPanel' in html)"
+python3 - <<'PY'
+import re
+
+html = open("/tmp/ftl_event.html").read()
+pools = sorted(set(re.findall(r"/pools/scores/([A-Fa-f0-9]{32})/([A-Fa-f0-9]{32})", html)))
+des = sorted(set(re.findall(r"/tableaus/scores/([A-Fa-f0-9]{32})/([A-Fa-f0-9]{32})", html)))
+
+out = ["POOL EVENT/ROUND IDS:"]
+out += [f"{e} / {r}" for e, r in pools]
+out.append("")
+out.append("DE EVENT/ROUND IDS:")
+out += [f"{e} / {r}" for e, r in des]
+
+open("/tmp/ftl_event_round_ids.txt", "w").write("\n".join(out))
+print("wrote /tmp/ftl_event_round_ids.txt")
+PY
+```
+
+## Pools page round discovery (flight tabs often appear here)
+
+```bash
+python3 - <<'PY'
+import re
+import requests
+
+url = "https://www.fencingtimelive.com/pools/scores/632701A80E1840AB98D7AA92D796203F/271FAAD3D1E14CD68C28D064F3B81CF5"
+html = requests.get(url, timeout=15).text
+open("/tmp/ftl_pools_page.html", "w").write(html)
+print("wrote /tmp/ftl_pools_page.html", "len=", len(html))
+
+links = re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.I | re.S)
+
+def clean(text):
+    text = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(text.split())
+
+pool = [(h, clean(t)) for h, t in links if "/pools/" in h]
+out = ["POOLS PAGE LINKS:"]
+out += [f"{h} | {t}" for h, t in pool]
+
+open("/tmp/ftl_pools_page_rounds.txt", "w").write("\n".join(out))
+print("wrote /tmp/ftl_pools_page_rounds.txt")
+PY
 ```
 
 ```bash
-# If it is JS-rendered, fetch trees and table HTML directly and save to /tmp/ftl_de_table.html
-python3 -c "import requests, json; base='https://www.fencingtimelive.com/tableaus/scores/BA660C4B8C3949DAB4250EA99848E00E/15C08869F21543279512948F0398C58F'; trees=json.loads(requests.get(base+'/trees', timeout=15).text); tree=trees[0]; guid=tree.get('guid'); num_tables=tree.get('numTables',4); table_html=requests.get(f'{base}/trees/{guid}/tables/0/{num_tables}', timeout=15).text; open('/tmp/ftl_de_table.html','w').write(table_html); print('wrote /tmp/ftl_de_table.html', 'len=', len(table_html))"
+python3 - <<'PY'
+import re
+
+html = open("/tmp/ftl_pools_page.html").read()
+pools = sorted(set(re.findall(r"/pools/scores/([A-Fa-f0-9]{32})/([A-Fa-f0-9]{32})", html)))
+
+out = ["POOLS PAGE EVENT/ROUND IDS:"]
+out += [f"{e} / {r}" for e, r in pools]
+
+open("/tmp/ftl_pools_page_round_ids.txt", "w").write("\n".join(out))
+print("wrote /tmp/ftl_pools_page_round_ids.txt")
+PY
+```
+
+## Tableau JS trees discovery (check for multiple trees/tableaus)
+
+```bash
+python3 - <<'PY'
+import json
+import requests
+
+base = "https://www.fencingtimelive.com/tableaus/scores/632701A80E1840AB98D7AA92D796203F/0DF4467DCA3D40BA97D4E45C07E097D1"
+trees = json.loads(requests.get(base + "/trees", timeout=15).text)
+open("/tmp/ftl_de_trees.json", "w").write(json.dumps(trees, indent=2))
+print("wrote /tmp/ftl_de_trees.json", "count=", len(trees))
+
+lines = []
+for t in trees:
+    lines.append(
+        f"guid={t.get('guid')} title={t.get('title')} numTables={t.get('numTables')} "
+        f"firstIncompleteTable={t.get('firstIncompleteTable')}"
+    )
+open("/tmp/ftl_de_trees_summary.txt", "w").write("\\n".join(lines))
+print("wrote /tmp/ftl_de_trees_summary.txt")
+PY
 ```
 
 ```bash
-# Optional: dump a snippet of the table HTML to /tmp/ftl_de_table_snip.txt for sharing
-python3 -c "html=open('/tmp/ftl_de_table.html').read(); open('/tmp/ftl_de_table_snip.txt','w').write(html[:4000]); print('wrote /tmp/ftl_de_table_snip.txt')"
+python3 - <<'PY'
+import json
+
+trees = json.load(open("/tmp/ftl_de_trees.json"))
+guids = [t.get("guid") for t in trees if t.get("guid")]
+open("/tmp/ftl_de_tree_guids.txt", "w").write("\\n".join(guids))
+print("wrote /tmp/ftl_de_tree_guids.txt")
+PY
 ```

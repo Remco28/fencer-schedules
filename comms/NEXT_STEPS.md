@@ -1,7 +1,7 @@
 # Next Steps
 
-**Last Updated:** 2026-01-23
-**Current Status:** All core phases complete, legacy UI removed
+**Last Updated:** 2026-01-31
+**Current Status:** Live DE tracking stabilized; added multi-round discovery for pools/DE (testing flighted events pending)
 **Branch:** `main`
 
 ---
@@ -48,7 +48,7 @@ The fencer tracking application is feature-complete with a clean, focused UI.
 - Restore flow for archived tournaments
 - Archived badge and restore button in UI
 
-**Phase G-I: Visual Polish (In Progress)**
+**Phase G-I: Visual Polish (Complete)**
 - Phase G: Mobile-first card structure (Archived)
 - Phase H: High fidelity styling (Archived)
 - Phase I: Layout density & Nav polish (Active)
@@ -57,7 +57,7 @@ The fencer tracking application is feature-complete with a clean, focused UI.
     - Aligned buttons
 
 **UX Cleanup**
-- Removed legacy hex-ID pages (`/search`, `/pools`, `/advancement`, `/de`)
+- Restored legacy detail views (`/pools`, `/de`) with modern templates
 - Simplified navigation: Dashboard, Track Tournament, Profile
 
 ---
@@ -75,10 +75,7 @@ The fencer tracking application is feature-complete with a clean, focused UI.
 
 ## Test Status
 
-**163 tests passing** across:
-- FTL parsers (94 tests)
-- API endpoints (11 tests)
-- Web routes (58 tests)
+**Test status:** Not re-verified after latest DE parser changes.
 
 Run tests: `.venv/bin/pytest`
 
@@ -116,7 +113,9 @@ Run tests: `.venv/bin/pytest`
 - **Mobile optimization**: Test and refine responsive layouts
 - **Notifications**: Alert when tracked fencer becomes active
 - **Multi-user sharing**: Share tournament tracking with others
-- **Performance**: Caching improvements if needed
+- **Performance**: Pre-index DE parse rows (done) and explore partial table fetch for large brackets
+- **Reliability**: Add fixture-backed tests for JS-rendered DE tables from `/trees` endpoint
+- **Flighted events**: Validate multi-round pool/tableau selection against live flighted tournaments
 
 ---
 

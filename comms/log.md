@@ -171,3 +171,8 @@
 [2026-01-31 01:19:45 UTC] ARCHITECT: HOUSEKEEPING: Restored and archived Phase N spec to `comms/tasks/archive/2026-01-29-phase-n-restore-legacy-views.md`.
 
 [2026-01-31 04:54:19 UTC] ARCHITECT: DOCS: Updated ARCHITECTURE.md with live status rules, Up Next behavior, and results fallback.
+
+[2026-01-31 01:31:11 EST] [DEVELOPER]: BUGFIX: Enhanced DE parser to handle large brackets by pre-indexing top/bottom rows per column and scanning full A↔B spans for scores. Verified against JS-rendered table HTML.
+[2026-01-31 01:31:11 EST] [DEVELOPER]: DOCS: Added DE tableau debug commands to `comms/CHECK_DB_COMMANDS.md` (save raw HTML + trees table HTML).
+[2026-01-31 01:31:11 EST] [ARCHITECT]: DOCS: Updated `project-manifest.md` and `comms/NEXT_STEPS.md` to reflect maintenance phase and live DE stability work.
+[2026-01-31 02:24:11 EST] [DEVELOPER]: FEATURE: Added multi-round discovery/selection logic for pools and DE (event page + format + pools/tableau pages) to support flighted events; live flighted-event validation still pending.

@@ -2,7 +2,7 @@
 
 **Purpose:** This file acts as a "map" for AI coding agents. It provides a stable set of pointers to critical project documentation and context, allowing the AI to quickly orient itself at the start of a new session.
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-31
 
 ---
 
@@ -21,9 +21,9 @@
 
 - **Activity Log:** `comms/log.md` - Chronological record of major development activities
 - **Current Next Steps:** `comms/NEXT_STEPS.md` - Immediate action items and priorities
-- **Current Phase:** Phase I (Layout Density & Nav Polish)
-- **Current Branch:** `feature/visual-polish`
-- **Active Task Spec:** `comms/tasks/2026-01-29-phase-i-layout-density.md`
+- **Current Phase:** Maintenance (Live Event Tracking Reliability)
+- **Current Branch:** `feature/multi-round-events`
+- **Active Task Spec:** None (rolling fixes)
 - **Archived Task Specs:** `comms/tasks/archive/` (Phases A-F complete, G/H archived)
 
 ## 3. Project Vision (Updated 2026-01-15)
