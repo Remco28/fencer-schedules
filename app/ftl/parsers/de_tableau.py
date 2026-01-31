@@ -1,5 +1,7 @@
 """DE Tableau parser for FTL elimination bracket pages."""
 import re
+from bisect import bisect_right
+from collections import defaultdict
 from typing import Optional
 from bs4 import BeautifulSoup, Tag
 
@@ -43,6 +45,21 @@ def parse_de_tableau(
     rows = tableau_table.find_all('tr')
     if not rows:
         raise ValueError("No rows found in tableau table")
+    rows_cells = [row.find_all('td') for row in rows]
+
+    # Pre-index top/bottom rows per column to avoid scanning large gaps.
+    col_tbb_rows: dict[int, list[int]] = defaultdict(list)
+    col_tbbr_rows: dict[int, list[int]] = defaultdict(list)
+    for r_idx, cells in enumerate(rows_cells):
+        for c_idx, cell in enumerate(cells):
+            cell_classes = cell.get('class', [])
+            has_name = cell.find('span', class_='tseed') or cell.find('span', class_='tcln')
+            if not has_name:
+                continue
+            if 'tbb' in cell_classes:
+                col_tbb_rows[c_idx].append(r_idx)
+            elif 'tbbr' in cell_classes:
+                col_tbbr_rows[c_idx].append(r_idx)
 
     # Detect round labels from header row
     round_labels = []
@@ -70,7 +87,7 @@ def parse_de_tableau(
     # Parse matches by scanning for the pattern: fencer_a row, score row, fencer_b row
     while i < len(rows):
         row = rows[i]
-        cells = row.find_all('td')
+        cells = rows_cells[i]
 
         if not cells:
             i += 1
@@ -105,85 +122,57 @@ def parse_de_tableau(
                     'path': None,
                 }
 
-                # Look ahead for score row (next row, same column - OLD FORMAT)
-                if i + 1 < len(rows):
-                    score_row = rows[i + 1]
-                    score_cells = score_row.find_all('td')
-                    if col_idx < len(score_cells):
-                        score_cell = score_cells[col_idx]
-                        # STRICT VALIDATION: Only accept score at [i+1] if Fencer B is at [i+2]
-                        # This avoids picking up "Incoming Scores" from the New Format which sit at [i+1]
-                        is_valid_old_format = False
-                        if i + 2 < len(rows):
-                            check_b_row = rows[i + 2]
-                            check_b_cells = check_b_row.find_all('td')
-                            if col_idx < len(check_b_cells):
-                                if 'tbbr' in check_b_cells[col_idx].get('class', []):
-                                    is_valid_old_format = True
+                # Find Fencer B by using pre-indexed rows per column.
+                b_row_index = None
+                tbb_rows = col_tbb_rows.get(col_idx, [])
+                tbbr_rows = col_tbbr_rows.get(col_idx, [])
+                next_top = None
+                next_bottom = None
+                if tbb_rows:
+                    pos = bisect_right(tbb_rows, i)
+                    if pos < len(tbb_rows):
+                        next_top = tbb_rows[pos]
+                if tbbr_rows:
+                    pos = bisect_right(tbbr_rows, i)
+                    if pos < len(tbbr_rows):
+                        next_bottom = tbbr_rows[pos]
+                if next_bottom is not None and (next_top is None or next_bottom < next_top):
+                    b_row_index = next_bottom
 
-                        if is_valid_old_format and (score_cell.find('span', class_='tsco') or 'tscoref' in score_cell.get('class', [])):
-                            score_data = _extract_score_from_cell(score_cell)
-                            match_data['score_a'] = score_data['score_a']
-                            match_data['score_b'] = score_data['score_b']
-                            match_data['winner'] = score_data['winner']
-                            match_data['status'] = score_data['status']
-                            match_data['strip'] = score_data['strip']
-                            match_data['time'] = score_data['time']
-                            match_data['note'] = score_data['note']
-
-                # Look ahead for fencer B (variable distance in New Format)
-                # We scan i+2 to i+8 to find the opposing fencer in the same column
-                found_b = False
-                for b_offset in range(2, 10):
-                    if i + b_offset >= len(rows):
-                        break
-                    
-                    fencer_b_row = rows[i + b_offset]
-                    fencer_b_cells = fencer_b_row.find_all('td')
-                    
+                if b_row_index is not None:
+                    fencer_b_cells = rows_cells[b_row_index]
                     if col_idx < len(fencer_b_cells):
                         fencer_b_cell = fencer_b_cells[col_idx]
-                        if 'tbbr' in fencer_b_cell.get('class', []) and (fencer_b_cell.find('span', class_='tseed') or fencer_b_cell.find('span', class_='tcln')):
-                            fencer_b_data = _extract_fencer_from_cell(fencer_b_cell)
-                            match_data['seed_b'] = fencer_b_data['seed']
-                            match_data['name_b'] = fencer_b_data['name']
-                            match_data['club_b'] = fencer_b_data['club']
-                            found_b = True
-                            
-                            # Found Fencer B. Now look for the score in the New Format location.
-                            # Score is usually in the row of Fencer B, but in the NEXT column (Col+1)
-                            if match_data['score_a'] is None and col_idx + 1 < len(fencer_b_cells):
-                                score_cell_alt = fencer_b_cells[col_idx + 1]
-                                if score_cell_alt.find('span', class_='tsco') or 'tscoref' in score_cell_alt.get('class', []):
-                                    score_data_alt = _extract_score_from_cell(score_cell_alt)
-                                    if score_data_alt['score_a'] is not None or score_data_alt['strip']:
-                                        match_data['score_a'] = score_data_alt['score_a']
-                                        match_data['score_b'] = score_data_alt['score_b']
-                                        match_data['winner'] = score_data_alt['winner']
-                                        match_data['status'] = score_data_alt['status']
-                                        match_data['strip'] = score_data_alt['strip']
-                                        match_data['time'] = score_data_alt['time']
-                            
-                            # Also check rows BETWEEN A and B for score (sometimes it floats)
-                            if match_data['score_a'] is None:
-                                for s_offset in range(1, b_offset):
-                                    s_row = rows[i + s_offset]
-                                    s_cells = s_row.find_all('td')
-                                    if col_idx + 1 < len(s_cells):
-                                        s_cell = s_cells[col_idx + 1]
-                                        if s_cell.find('span', class_='tsco') or 'tscoref' in s_cell.get('class', []):
-                                            score_data_alt = _extract_score_from_cell(s_cell)
-                                            if score_data_alt['score_a'] is not None or score_data_alt['strip']:
-                                                match_data['score_a'] = score_data_alt['score_a']
-                                                match_data['score_b'] = score_data_alt['score_b']
-                                                match_data['winner'] = score_data_alt['winner']
-                                                match_data['status'] = score_data_alt['status']
-                                                match_data['strip'] = score_data_alt['strip']
-                                                match_data['time'] = score_data_alt['time']
-                                                break
+                        fencer_b_data = _extract_fencer_from_cell(fencer_b_cell)
+                        match_data['seed_b'] = fencer_b_data['seed']
+                        match_data['name_b'] = fencer_b_data['name']
+                        match_data['club_b'] = fencer_b_data['club']
 
-                            # Stop looking for Fencer B once found
-                            break
+                    # Look for scores in a wider window, across adjacent columns
+                    # to handle both legacy and newer layouts.
+                    if match_data['score_a'] is None:
+                        score_found = False
+                        for s_idx in range(i, b_row_index + 1):
+                            s_cells = rows_cells[s_idx]
+                            for col_offset in (0, 1):
+                                s_col = col_idx + col_offset
+                                if s_col >= len(s_cells):
+                                    continue
+                                s_cell = s_cells[s_col]
+                                if s_cell.find('span', class_='tsco') or 'tscoref' in s_cell.get('class', []) or re.search(r'\d+\s*-\s*\d+', s_cell.get_text(strip=True)):
+                                    score_data = _extract_score_from_cell(s_cell)
+                                    if score_data['score_a'] is not None or score_data['strip']:
+                                        match_data['score_a'] = score_data['score_a']
+                                        match_data['score_b'] = score_data['score_b']
+                                        match_data['winner'] = score_data['winner']
+                                        match_data['status'] = score_data['status']
+                                        match_data['strip'] = score_data['strip']
+                                        match_data['time'] = score_data['time']
+                                        match_data['note'] = score_data['note']
+                                        score_found = True
+                                        break
+                            if score_found:
+                                break
 
                 # Update status based on both fencers present and no scores
                 if match_data['status'] == 'pending' and match_data['name_b'] and match_data['name_a']:
@@ -309,18 +298,26 @@ def _extract_fencer_from_cell(cell: Tag) -> dict:
 def _extract_score_from_cell(cell: Tag) -> dict:
     """Extract score data (scores, winner, strip, time) from a score cell."""
     score_span = cell.find('span', class_='tsco')
-    if not score_span:
-        return {
-            'score_a': None,
-            'score_b': None,
-            'winner': None,
-            'status': 'pending',
-            'strip': None,
-            'time': None,
-            'note': None,
-        }
-
-    score_text = score_span.get_text(separator='\n', strip=True)
+    score_text = None
+    score_source = None
+    if score_span:
+        score_text = score_span.get_text(separator='\n', strip=True)
+        score_source = score_span
+    else:
+        candidate = cell.get_text(separator='\n', strip=True)
+        if 'tscoref' in cell.get('class', []) or cell.find(class_='tscoref') or re.search(r'\d+\s*-\s*\d+', candidate):
+            score_text = candidate
+            score_source = cell
+        else:
+            return {
+                'score_a': None,
+                'score_b': None,
+                'winner': None,
+                'status': 'pending',
+                'strip': None,
+                'time': None,
+                'note': None,
+            }
 
     # Extract scores (e.g., "15 - 8")
     score_a = None
@@ -355,7 +352,7 @@ def _extract_score_from_cell(cell: Tag) -> dict:
 
     # Extract referee note
     note = None
-    ref_span = score_span.find('span', class_='tref')
+    ref_span = score_source.find('span', class_='tref') if score_source else None
     if ref_span:
         ref_text = ref_span.get_text(strip=True)
         # Remove strip and time from note
