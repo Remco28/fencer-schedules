@@ -1,23 +1,19 @@
 # FencingTimeLive (FTL) API Specification & Implementation Guide
 
-**Version:** 1.0
-**Date:** 2025-11-20
-**Status:** Research Complete - Ready for Implementation
+**Version:** 1.1
+**Date:** 2026-01-29
+**Status:** Updated with Live Event & Archived Tournament Discoveries
 
 ---
 
 ## Executive Summary
 
-This document provides a complete technical specification for scraping live fencing tournament data from FencingTimeLive.com. All required data sources have been identified, tested, and documented.
+This document provides a complete technical specification for scraping live fencing tournament data from FencingTimeLive.com.
 
-**Key Findings:**
-- ✅ All data is accessible via HTTP requests (no authentication required for public events)
-- ✅ Pool strip assignments are available in real-time during active competition
-- ✅ Advancement status (who made the cut) is clearly indicated
-- ✅ DE bracket progression is trackable
-- ✅ No public API exists; all data must be scraped from HTML or internal JSON endpoints
-
-**Feasibility:** **HIGH** - Project is fully feasible with acceptable complexity and risk.
+**Recent Discoveries (v1.1):**
+- **Numeric Strips:** Strip assignments can be purely numeric (e.g., "Strip 5"). Parsers must not assume a "Letter+Digit" format.
+- **Live Results Latency:** The pool results JSON endpoint (`/pools/results/data/...`) may be empty or return 404/500 errors while pools are active. The system should treat this data as optional and fall back to pool HTML data for strip assignments.
+- **JS-rendered Tableaus:** Completed events often switch to client-side JS rendering for DE brackets. Use the Event Results JSON as a fallback.
 
 ---
 
@@ -1433,6 +1429,28 @@ Use these for offline unit testing of parsers.
 </table>
 ```
 
+### Tableau HTML - New Format (JS-Rendered Sub-Resources)
+
+**Key Differences:**
+1.  **Shifted Columns:** Score cells are often in the *next* column's `td`, not the expected row/col intersection.
+2.  **Floating Strip Info:** Strip assignments appear in `span.ttistr` inside a `td.tbb` cell several rows below the match, separate from the score cell.
+
+```html
+<!-- Fencer B Row -->
+<tr>
+    <td class='tbbr'>...Fencer B...</td>
+    <!-- Score is in the NEXT cell (Column 1), not adjacent vertically -->
+    <td class='tscoref'><span class='tsco'>15 - 5</span></td>
+</tr>
+
+<!-- Floating Strip Row (often i+3 from Fencer A) -->
+<tr>
+    <td class='tbb'>
+        <span class='ttistr'>7:32 PM Strip 4</span>
+    </td>
+</tr>
+```
+
 ---
 
 ## Appendix B: Error Handling
@@ -1446,6 +1464,9 @@ Use these for offline unit testing of parsers.
 | Timeout fetching pools | Slow FTL response or network issue | Implement retries (3x with exponential backoff) |
 | HTML parsing fails | FTL changed structure | Log error, alert developer, return cached data if available |
 | Pool results 404 | Pools not complete yet | Handle gracefully, show message "Pool results not available yet" |
+| JS-only Tableau | Live/Archived events | Detect `div#tableauPanel`. Fetch `/trees` JSON to get GUID, then fetch static HTML from `/trees/{GUID}/tables/0/4`. |
+| Numeric Strips | Different venue numbering | Ensure regex matches `[A-Z0-9]+` not just `[A-Z]\d+` |
+| Empty Results JSON | Start of pools | Allow empty fencer lists; do not raise errors if no results yet |
 
 ### Defensive Parsing Example
 
