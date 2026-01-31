@@ -692,23 +692,33 @@ def tournament_edit_page(
     # Discover available clubs from FTL
     available_clubs = set()
     for event in tournament.events:
+        # Source 1: Competitors JSON (Full names)
         try:
-            # We only need to check one or two events to get a good list of clubs
             competitors = fetch_competitors_json(event.event_id, timeout=TIMEOUT)
             for comp in competitors:
-                # Add all potential club fields
-                if comp.get("clubs"):
-                    available_clubs.add(comp["clubs"].strip())
-                if comp.get("club1"):
-                    available_clubs.add(comp["club1"].strip())
-                if comp.get("club2"):
-                    available_clubs.add(comp["club2"].strip())
-            
-            if len(available_clubs) > 5:  # If we found a bunch, stop checking events to save time
-                break
+                if comp.get("clubs"): available_clubs.add(comp["clubs"].strip())
+                if comp.get("club1"): available_clubs.add(comp["club1"].strip())
+                if comp.get("club2"): available_clubs.add(comp["club2"].strip())
         except Exception:
-            continue
+            pass
+
+        # Source 2: Pools Bundle (Abbreviations - Crucial for tracking!)
+        if event.pool_round_id:
+            try:
+                bundle = fetch_pools_bundle(event.event_id, event.pool_round_id, timeout=TIMEOUT)
+                for pool in bundle.get("pools", []):
+                    for fencer in pool.get("fencers", []):
+                        if fencer.get("club"):
+                            available_clubs.add(fencer["club"].strip())
+            except Exception:
+                pass
+        
+        # Stop early if we have a healthy list to keep it fast
+        if len(available_clubs) > 40:
+            break
     
+    # Remove empty strings and None
+    available_clubs = {c for c in available_clubs if c}
     sorted_clubs = sorted(list(available_clubs))
 
     return dependencies.templates.TemplateResponse(

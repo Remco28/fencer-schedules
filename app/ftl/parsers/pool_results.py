@@ -113,18 +113,22 @@ def parse_pool_results(
         prediction_raw = fencer_raw.get("prediction")
         if prediction_raw is not None and isinstance(prediction_raw, str):
             prediction_raw = prediction_raw.strip()
-            # Convert empty string to None
             if prediction_raw == "":
                 prediction_raw = None
         else:
             prediction_raw = None
 
         # Derive status from prediction_raw
-        if prediction_raw and prediction_raw.lower() == "advanced":
-            status = "advanced"
-        elif prediction_raw:
-            # Any other non-empty value (e.g., "Eliminated", "Cut") -> eliminated
-            status = "eliminated"
+        if prediction_raw:
+            pred_lower = prediction_raw.lower()
+            if pred_lower == "advanced":
+                status = "advanced"
+            elif "eliminated" in pred_lower or "cut" in pred_lower or "below" in pred_lower:
+                status = "eliminated"
+            else:
+                # If it's something else (like "Qualified" or "Promoted"), 
+                # or if it's currently ambiguous, mark as unknown
+                status = "unknown"
         else:
             # Missing or empty
             status = "unknown"
