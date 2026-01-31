@@ -691,18 +691,10 @@ def tournament_edit_page(
 
     # Discover available clubs from FTL
     available_clubs = set()
+    found_pool_data = False
+    
+    # Source 1: Pools Bundle (Abbreviations - Priority!)
     for event in tournament.events:
-        # Source 1: Competitors JSON (Full names)
-        try:
-            competitors = fetch_competitors_json(event.event_id, timeout=TIMEOUT)
-            for comp in competitors:
-                if comp.get("clubs"): available_clubs.add(comp["clubs"].strip())
-                if comp.get("club1"): available_clubs.add(comp["club1"].strip())
-                if comp.get("club2"): available_clubs.add(comp["club2"].strip())
-        except Exception:
-            pass
-
-        # Source 2: Pools Bundle (Abbreviations - Crucial for tracking!)
         if event.pool_round_id:
             try:
                 bundle = fetch_pools_bundle(event.event_id, event.pool_round_id, timeout=TIMEOUT)
@@ -710,12 +702,25 @@ def tournament_edit_page(
                     for fencer in pool.get("fencers", []):
                         if fencer.get("club"):
                             available_clubs.add(fencer["club"].strip())
+                            found_pool_data = True
             except Exception:
                 pass
-        
-        # Stop early if we have a healthy list to keep it fast
-        if len(available_clubs) > 40:
-            break
+        if len(available_clubs) > 40: break
+
+    # Source 2: Competitors JSON (Full names - Fallback only)
+    # Only use this if we didn't find any pool data (e.g. tournament hasn't started yet)
+    # This prevents cluttering the list with "Freehold Fencing Academy" when "FREEHOLDFA" is what we need
+    if not found_pool_data:
+        for event in tournament.events:
+            try:
+                competitors = fetch_competitors_json(event.event_id, timeout=TIMEOUT)
+                for comp in competitors:
+                    if comp.get("clubs"): available_clubs.add(comp["clubs"].strip())
+                    if comp.get("club1"): available_clubs.add(comp["club1"].strip())
+                    if comp.get("club2"): available_clubs.add(comp["club2"].strip())
+                if len(available_clubs) > 20: break
+            except Exception:
+                continue
     
     # Remove empty strings and None
     available_clubs = {c for c in available_clubs if c}

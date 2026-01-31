@@ -55,9 +55,22 @@
             {% for fencer in grouped_fencers.active %}
             <article class="fencer-card active">
                 <div class="card-header">
-                    <h3>{{ fencer.name }}</h3>
-                    {% if fencer.source == 'manual' %}
-                    <span class="source-badge">manual</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <h3>{{ fencer.name }}</h3>
+                        {% if fencer.source == 'manual' %}
+                        <span class="source-badge">manual</span>
+                        {% endif %}
+                    </div>
+                    {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                    <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="untrack-btn" style="width: 28px; height: 28px; font-size: 14px;" onclick="return confirm('Stop tracking {{ fencer.name }}?')" title="Stop tracking">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </form>
                     {% endif %}
                 </div>
                 <div class="card-event">{{ fencer.event_name }}</div>
