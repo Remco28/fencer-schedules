@@ -105,13 +105,23 @@ def parse_de_tableau(
                     'path': None,
                 }
 
-                # Look ahead for score row (next row, same column)
+                # Look ahead for score row (next row, same column - OLD FORMAT)
                 if i + 1 < len(rows):
                     score_row = rows[i + 1]
                     score_cells = score_row.find_all('td')
                     if col_idx < len(score_cells):
                         score_cell = score_cells[col_idx]
-                        if score_cell.find('span', class_='tsco') or 'tscoref' in score_cell.get('class', []):
+                        # STRICT VALIDATION: Only accept score at [i+1] if Fencer B is at [i+2]
+                        # This avoids picking up "Incoming Scores" from the New Format which sit at [i+1]
+                        is_valid_old_format = False
+                        if i + 2 < len(rows):
+                            check_b_row = rows[i + 2]
+                            check_b_cells = check_b_row.find_all('td')
+                            if col_idx < len(check_b_cells):
+                                if 'tbbr' in check_b_cells[col_idx].get('class', []):
+                                    is_valid_old_format = True
+
+                        if is_valid_old_format and (score_cell.find('span', class_='tsco') or 'tscoref' in score_cell.get('class', [])):
                             score_data = _extract_score_from_cell(score_cell)
                             match_data['score_a'] = score_data['score_a']
                             match_data['score_b'] = score_data['score_b']
@@ -121,24 +131,31 @@ def parse_de_tableau(
                             match_data['time'] = score_data['time']
                             match_data['note'] = score_data['note']
 
-                # Look ahead for fencer B row (two rows ahead, same column)
-                if i + 2 < len(rows):
-                    fencer_b_row = rows[i + 2]
+                # Look ahead for fencer B (variable distance in New Format)
+                # We scan i+2 to i+8 to find the opposing fencer in the same column
+                found_b = False
+                for b_offset in range(2, 10):
+                    if i + b_offset >= len(rows):
+                        break
+                    
+                    fencer_b_row = rows[i + b_offset]
                     fencer_b_cells = fencer_b_row.find_all('td')
+                    
                     if col_idx < len(fencer_b_cells):
                         fencer_b_cell = fencer_b_cells[col_idx]
-                        if 'tbbr' in fencer_b_cell.get('class', []):
+                        if 'tbbr' in fencer_b_cell.get('class', []) and (fencer_b_cell.find('span', class_='tseed') or fencer_b_cell.find('span', class_='tcln')):
                             fencer_b_data = _extract_fencer_from_cell(fencer_b_cell)
                             match_data['seed_b'] = fencer_b_data['seed']
                             match_data['name_b'] = fencer_b_data['name']
                             match_data['club_b'] = fencer_b_data['club']
-
-                            # Check for score in the cell adjacent to Fencer B (New FTL format)
+                            found_b = True
+                            
+                            # Found Fencer B. Now look for the score in the New Format location.
+                            # Score is usually in the row of Fencer B, but in the NEXT column (Col+1)
                             if match_data['score_a'] is None and col_idx + 1 < len(fencer_b_cells):
                                 score_cell_alt = fencer_b_cells[col_idx + 1]
                                 if score_cell_alt.find('span', class_='tsco') or 'tscoref' in score_cell_alt.get('class', []):
                                     score_data_alt = _extract_score_from_cell(score_cell_alt)
-                                    # Only override if we found something useful
                                     if score_data_alt['score_a'] is not None or score_data_alt['strip']:
                                         match_data['score_a'] = score_data_alt['score_a']
                                         match_data['score_b'] = score_data_alt['score_b']
@@ -146,8 +163,29 @@ def parse_de_tableau(
                                         match_data['status'] = score_data_alt['status']
                                         match_data['strip'] = score_data_alt['strip']
                                         match_data['time'] = score_data_alt['time']
+                            
+                            # Also check rows BETWEEN A and B for score (sometimes it floats)
+                            if match_data['score_a'] is None:
+                                for s_offset in range(1, b_offset):
+                                    s_row = rows[i + s_offset]
+                                    s_cells = s_row.find_all('td')
+                                    if col_idx + 1 < len(s_cells):
+                                        s_cell = s_cells[col_idx + 1]
+                                        if s_cell.find('span', class_='tsco') or 'tscoref' in s_cell.get('class', []):
+                                            score_data_alt = _extract_score_from_cell(s_cell)
+                                            if score_data_alt['score_a'] is not None or score_data_alt['strip']:
+                                                match_data['score_a'] = score_data_alt['score_a']
+                                                match_data['score_b'] = score_data_alt['score_b']
+                                                match_data['winner'] = score_data_alt['winner']
+                                                match_data['status'] = score_data_alt['status']
+                                                match_data['strip'] = score_data_alt['strip']
+                                                match_data['time'] = score_data_alt['time']
+                                                break
 
-                            # Update status based on both fencers present
+                            # Stop looking for Fencer B once found
+                            break
+
+                # Update status based on both fencers present
                             if match_data['status'] == 'pending' and match_data['name_b'] and match_data['name_a']:
                                 if match_data['score_a'] is None and match_data['score_b'] is None:
                                     match_data['status'] = 'in_progress'
