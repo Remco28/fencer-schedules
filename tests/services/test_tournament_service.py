@@ -632,3 +632,26 @@ def test_results_include_manual_even_if_club_mismatch():
 
     assert len(grouped["finished"]) == 1
     assert grouped["finished"][0].name == "HENNEMAN Graham"
+
+
+def test_completed_event_merges_results_for_tracked_names():
+    """Completed events should merge results for tracked names even if club abbreviations differ."""
+    bundle = {
+        "pools": [
+            {"pool_number": 1, "strip": None, "fencers": [{"name": "HENNEMAN Graham", "club": "MANCHENAOF"}]},
+        ],
+        "results": {"fencers": []},
+    }
+    results = [
+        {"name": "HENNEMAN Graham", "place": "1", "clubs": "Manchen Academy of Fencing"},
+    ]
+    event = _event(pool_round_id="P" * 32, de_round_id="D" * 32, is_completed=True)
+
+    with patch("app.services.tournament_service.fetch_pools_bundle", return_value=bundle), \
+         patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": []}), \
+         patch("app.services.tournament_service.fetch_event_results_json", return_value=results):
+        grouped = get_tournament_fencer_status(1, "MANCHENAOF", [event])
+
+    assert len(grouped["finished"]) == 1
+    assert grouped["finished"][0].name == "HENNEMAN Graham"

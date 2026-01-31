@@ -256,6 +256,7 @@ def _results_statuses(
     club_filter: Union[str, list[str]],
     event,
     manual_fencers: dict[str, int],
+    name_allowlist: Optional[set[str]] = None,
 ) -> list[FencerStatus]:
     """
     Convert event results JSON to FencerStatus objects.
@@ -273,6 +274,7 @@ def _results_statuses(
     """
     statuses = []
 
+    name_allowlist = name_allowlist or set()
     for result in results:
         # Check if fencer matches club filter
         # Results have: clubs, club1, club2 fields
@@ -284,7 +286,9 @@ def _results_statuses(
         is_manual = name_lower in manual_fencers
         # Manual fencers should always match by name, even if club abbreviations differ
         is_club = match_club(fencer_data, club_filter) if not is_manual else True
-        if not is_manual and not is_club:
+        # Allowlist names when club abbreviations don't match results
+        is_allowed = name_lower in name_allowlist
+        if not is_manual and not is_club and not is_allowed:
             continue
 
         place = result.get("place", "")
@@ -292,6 +296,7 @@ def _results_statuses(
         # Determine result text based on placement
         result_text = f"Place: {place}" if place else "Complete"
 
+        source = "manual" if is_manual else "club"
         statuses.append(FencerStatus(
             name=name,
             event_id=event.event_id,
@@ -301,7 +306,7 @@ def _results_statuses(
             phase="complete",
             result=result_text,
             last_updated=datetime.now(UTC).isoformat(),
-            source="club" if is_club else "manual",
+            source=source,
             fencer_db_id=manual_fencers.get(name_lower),
         ))
 
@@ -453,6 +458,7 @@ def get_tournament_fencer_status(
 
     statuses: dict[tuple, FencerStatus] = {}
     known_club_names: set[str] = set()
+    tracked_name_allowlist: set[str] = set(manual_fencers.keys())
 
     for event in cached_events:
         # Smart TTL: use long cache for completed events
@@ -487,6 +493,7 @@ def get_tournament_fencer_status(
                     statuses[key] = _merge_status(statuses.get(key), status)
                     if status.source == "club":
                         known_club_names.add(status.name.lower())
+                    tracked_name_allowlist.add(status.name.lower())
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
                 logger.warning("Pools fetch failed for event %s: %s", event.event_id, exc)
                 if club_filter or manual_fencers:
@@ -516,6 +523,7 @@ def get_tournament_fencer_status(
                 for status in _de_statuses(matches, club_filter, event, manual_fencers, known_club_names):
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
+                    tracked_name_allowlist.add(status.name.lower())
 
                 # Detect completion from DE tableau (Final match complete)
                 if not event_completed and _is_event_completed_from_tableau(matches):
@@ -529,7 +537,7 @@ def get_tournament_fencer_status(
                             ttl=TTL_LONG,
                         )
                         if results:
-                            for status in _results_statuses(results, club_filter, event, manual_fencers):
+                            for status in _results_statuses(results, club_filter, event, manual_fencers, tracked_name_allowlist):
                                 key = _status_key(status)
                                 statuses[key] = _merge_status(statuses.get(key), status)
                             # Only mark completed if results look final (places 1+2 and count matches competitors)
@@ -569,7 +577,7 @@ def get_tournament_fencer_status(
                         force_refresh=force_refresh,
                         ttl=TTL_LONG,  # Results only exist for completed events
                     )
-                    for status in _results_statuses(results, club_filter, event, manual_fencers):
+                    for status in _results_statuses(results, club_filter, event, manual_fencers, tracked_name_allowlist):
                         key = _status_key(status)
                         statuses[key] = _merge_status(statuses.get(key), status)
 
@@ -602,7 +610,7 @@ def get_tournament_fencer_status(
                     ttl=TTL_LONG,
                 )
                 if results:
-                    for status in _results_statuses(results, club_filter, event, manual_fencers):
+                    for status in _results_statuses(results, club_filter, event, manual_fencers, tracked_name_allowlist):
                         key = _status_key(status)
                         statuses[key] = _merge_status(statuses.get(key), status)
                     # Only mark completed if results appear final
@@ -627,6 +635,22 @@ def get_tournament_fencer_status(
                         _mark_event_completed(event, db)
             except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
                 logger.info("Results fetch failed for event %s (no DE round): %s", event.event_id, results_exc)
+
+        # If event is marked completed, always merge results for tracked names
+        if event_completed:
+            try:
+                results = fetch_event_results_json(
+                    event.event_id,
+                    # Avoid stale empty cache for completed events
+                    force_refresh=True,
+                    ttl=TTL_LONG,
+                )
+                if results:
+                    for status in _results_statuses(results, club_filter, event, manual_fencers, tracked_name_allowlist):
+                        key = _status_key(status)
+                        statuses[key] = _merge_status(statuses.get(key), status)
+            except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
+                logger.info("Results fetch failed for completed event %s: %s", event.event_id, results_exc)
 
     for status in statuses.values():
         if status.activity not in grouped:
