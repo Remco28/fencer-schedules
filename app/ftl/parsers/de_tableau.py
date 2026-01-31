@@ -133,10 +133,47 @@ def parse_de_tableau(
                             match_data['name_b'] = fencer_b_data['name']
                             match_data['club_b'] = fencer_b_data['club']
 
+                            # Check for score in the cell adjacent to Fencer B (New FTL format)
+                            if match_data['score_a'] is None and col_idx + 1 < len(fencer_b_cells):
+                                score_cell_alt = fencer_b_cells[col_idx + 1]
+                                if score_cell_alt.find('span', class_='tsco') or 'tscoref' in score_cell_alt.get('class', []):
+                                    score_data_alt = _extract_score_from_cell(score_cell_alt)
+                                    # Only override if we found something useful
+                                    if score_data_alt['score_a'] is not None or score_data_alt['strip']:
+                                        match_data['score_a'] = score_data_alt['score_a']
+                                        match_data['score_b'] = score_data_alt['score_b']
+                                        match_data['winner'] = score_data_alt['winner']
+                                        match_data['status'] = score_data_alt['status']
+                                        match_data['strip'] = score_data_alt['strip']
+                                        match_data['time'] = score_data_alt['time']
+
                             # Update status based on both fencers present
                             if match_data['status'] == 'pending' and match_data['name_b'] and match_data['name_a']:
                                 if match_data['score_a'] is None and match_data['score_b'] is None:
                                     match_data['status'] = 'in_progress'
+
+                # Look ahead for "Floating" Strip Info (Row i+3)
+                # In new FTL format, future/active strip info often lives in a row below Fencer B
+                if i + 3 < len(rows) and match_data['status'] in ('pending', 'in_progress'):
+                    strip_row = rows[i + 3]
+                    strip_cells = strip_row.find_all('td')
+                    # Search all cells in this row for a ttistr span
+                    for s_cell in strip_cells:
+                        ttistr = s_cell.find('span', class_='ttistr')
+                        if ttistr:
+                            # Parse "7:32 PM Strip 4"
+                            text = ttistr.get_text(strip=True)
+                            strip_match = re.search(r'Strip\s+([A-Z0-9]+)', text, re.IGNORECASE)
+                            if strip_match:
+                                match_data['strip'] = strip_match.group(1).upper()
+                                match_data['status'] = 'in_progress' # If it has a strip, it's active
+                            
+                            time_match = re.search(r'(\d{1,2}:\d{2}\s*(?:AM|PM)?)', text, re.IGNORECASE)
+                            if time_match:
+                                match_data['time'] = time_match.group(1)
+                            
+                            # If we found it, stop searching this row
+                            break
 
                 # Save match
                 matches.append(match_data)
