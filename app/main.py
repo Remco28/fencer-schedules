@@ -1059,6 +1059,15 @@ def _do_de_tableau(
                         elif name_b == second.get("name"):
                             match["name_a"] = first.get("name")
                             match["club_a"] = first.get("club")
+        # Fill missing seeds with standings placement (e.g., "4T") when available
+        place_map = {s.get("name"): s.get("place") for s in standings if s.get("name") and s.get("place")}
+        for match in matches:
+            name_a = match.get("name_a")
+            name_b = match.get("name_b")
+            if not match.get("seed_a") and name_a in place_map:
+                match["seed_a"] = place_map[name_a]
+            if not match.get("seed_b") and name_b in place_map:
+                match["seed_b"] = place_map[name_b]
 
     label_map = {
         "64": "Table of 64",
