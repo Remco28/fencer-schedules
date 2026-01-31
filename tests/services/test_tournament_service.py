@@ -358,6 +358,37 @@ def test_merge_status_same_activity_uses_phase_rank():
     assert result.phase == "de"
 
 
+def test_merge_status_finished_beats_active():
+    """Finished DE status should beat active pool status."""
+    pool_active = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="active",
+        phase="pools",
+        strip="A5",
+    )
+    de_finished = FencerStatus(
+        name="Jane Smith",
+        event_id="E" * 32,
+        event_name="Event",
+        weapon="Epee",
+        activity="finished",
+        phase="de",
+        de_round="8",
+        result="Eliminated",
+    )
+
+    result = _merge_status(pool_active, de_finished)
+    assert result.activity == "finished"
+    assert result.phase == "de"
+
+    result = _merge_status(de_finished, pool_active)
+    assert result.activity == "finished"
+    assert result.phase == "de"
+
+
 def test_pool_active_beats_de_waiting_integrated():
     """Integration test: Pool strip assignment should show fencer as Active, not Waiting."""
     bundle = {
@@ -389,3 +420,35 @@ def test_pool_active_beats_de_waiting_integrated():
     assert grouped["active"][0].activity == "active"
     assert grouped["active"][0].strip == "A5"
     assert len(grouped["waiting"]) == 0
+
+
+def test_de_matches_use_known_club_names_when_club_missing():
+    """DE matches without club info should still be included for known club fencers."""
+    bundle = {
+        "pools": [
+            {"pool_number": 1, "strip": "5", "fencers": [{"name": "MENDEZ Brendan", "club": "Elite FC"}]},
+        ],
+        "results": {"fencers": []},
+    }
+    de_matches = [{
+        "round": "8",
+        "status": "complete",
+        "winner": "A",
+        "name_a": "PEARLY Aiden",
+        "club_a": None,
+        "score_a": 15,
+        "name_b": "MENDEZ Brendan",
+        "club_b": None,
+        "score_b": 7,
+        "strip": "5",
+    }]
+    event = _event(pool_round_id="P" * 32, de_round_id="D" * 32)
+
+    with patch("app.services.tournament_service.fetch_pools_bundle", return_value=bundle), \
+         patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    assert len(grouped["finished"]) == 1
+    assert grouped["finished"][0].name == "MENDEZ Brendan"
+    assert grouped["finished"][0].activity == "finished"

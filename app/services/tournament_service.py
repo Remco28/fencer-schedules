@@ -92,11 +92,11 @@ def _merge_status(existing: Optional[FencerStatus], candidate: FencerStatus) -> 
     if candidate.error and not existing.error:
         return existing
 
-    # Key fix: prefer "active" over "waiting" regardless of phase
-    # This ensures a pool strip assignment (active) beats a pending DE match (waiting)
-    if candidate.activity == "active" and existing.activity != "active":
+    # Prefer "active" over "waiting" regardless of phase.
+    # Do not override "finished" with "active".
+    if candidate.activity == "active" and existing.activity == "waiting":
         return candidate
-    if existing.activity == "active" and candidate.activity != "active":
+    if existing.activity == "active" and candidate.activity == "waiting":
         return existing
 
     # If both have the same activity level, use phase/activity ranking
@@ -310,9 +310,11 @@ def _de_statuses(
     club_filter: Union[str, list[str]],
     event,
     manual_fencers: dict[str, int],
+    known_club_names: Optional[set[str]] = None,
 ) -> list[FencerStatus]:
     statuses = []
     fencer_matches: dict[str, list[dict]] = {}
+    known_club_names = known_club_names or set()
 
     for match in matches:
         for side in ("a", "b"):
@@ -324,6 +326,8 @@ def _de_statuses(
             name_lower = fencer_name.lower()
             is_manual = name_lower in manual_fencers
             is_club = match_club({"club": match.get(club_key)}, club_filter)
+            if not is_club and name_lower in known_club_names:
+                is_club = True
             if not is_manual and not is_club:
                 continue
             fencer_matches.setdefault(fencer_name, []).append(match)
@@ -362,6 +366,8 @@ def _de_statuses(
 
         name_lower = fencer_name.lower()
         is_club = match_club({"club": latest.get("club_a") if is_a else latest.get("club_b")}, club_filter)
+        if not is_club and name_lower in known_club_names:
+            is_club = True
         statuses.append(FencerStatus(
             name=fencer_name,
             event_id=event.event_id,
@@ -418,6 +424,7 @@ def get_tournament_fencer_status(
         return grouped
 
     statuses: dict[tuple, FencerStatus] = {}
+    known_club_names: set[str] = set()
 
     for event in cached_events:
         # Smart TTL: use long cache for completed events
@@ -432,9 +439,12 @@ def get_tournament_fencer_status(
                     force_refresh=force_refresh,
                     ttl=ttl,
                 )
-                for status in _pool_statuses(bundle, club_filter, event, manual_fencers):
+                pool_statuses = _pool_statuses(bundle, club_filter, event, manual_fencers)
+                for status in pool_statuses:
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
+                    if status.source == "club":
+                        known_club_names.add(status.name.lower())
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
                 logger.warning("Pools fetch failed for event %s: %s", event.event_id, exc)
                 if club_filter or manual_fencers:
@@ -461,7 +471,7 @@ def get_tournament_fencer_status(
                 )
                 tableau = parse_de_tableau(html, event_id=event.event_id, round_id=event.de_round_id)
                 matches = tableau.get("matches", [])
-                for status in _de_statuses(matches, club_filter, event, manual_fencers):
+                for status in _de_statuses(matches, club_filter, event, manual_fencers, known_club_names):
                     key = _status_key(status)
                     statuses[key] = _merge_status(statuses.get(key), status)
 
