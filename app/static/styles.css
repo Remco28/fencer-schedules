@@ -99,6 +99,26 @@ nav .nav-links {
     flex-wrap: wrap;
 }
 
+@media (max-width: 640px) {
+    body > header.container nav {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.6rem 0.9rem;
+        gap: 0.5rem;
+    }
+
+    nav .nav-links {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    nav .nav-links a,
+    .link-button {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.5rem;
+    }
+}
+
 nav .nav-links a {
     color: rgba(255, 255, 255, 0.85);
     text-decoration: none;
@@ -1078,6 +1098,41 @@ body > footer.container {
     justify-content: space-between;
     font-size: 0.85rem;
     color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+    .de-competitor {
+        grid-template-columns: 40px 1fr 48px;
+    }
+
+    .de-name {
+        grid-column: 2;
+    }
+
+    .de-club {
+        grid-column: 2 / -1;
+        grid-row: 2;
+        font-size: 0.8rem;
+    }
+
+    .de-score {
+        grid-column: 3;
+        grid-row: 1;
+        justify-self: end;
+    }
+}
+
+/* ========================================
+   Responsive Tables
+   ======================================== */
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+    min-width: 520px;
 }
 
 /* ========================================

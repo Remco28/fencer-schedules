@@ -37,6 +37,7 @@
     {% if tournament.archived_at %}
     <p>Events are archived. Restore to reload this tournament.</p>
     {% elif tournament.events %}
+    <div class="table-scroll">
     <table>
         <thead>
             <tr>
@@ -64,6 +65,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <p>No events found matching your filters.</p>
     {% endif %}
