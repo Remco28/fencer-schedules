@@ -37,9 +37,6 @@ def parse_de_tableau(
     # Find the main tableau table
     tableau_table = soup.find('table', class_='elimTableau')
     if not tableau_table:
-        # Check for JS-only rendering (common in archived events)
-        if soup.find('div', id='tableauPanel'):
-            raise ValueError("Tableau is rendered via JavaScript and cannot be parsed. Please view on FencingTimeLive.")
         raise ValueError("Could not find DE tableau table (table.elimTableau)")
 
     # Get all rows from the table

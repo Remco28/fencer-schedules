@@ -319,22 +319,8 @@ def fetch_tableau_raw(
 ) -> str:
     """
     Fetch DE tableau HTML with caching.
-
-    Args:
-        event_id: Event UUID
-        round_id: DE round UUID
-        timeout: Request timeout
-        force_refresh: Bypass cache and force fresh fetch
-        ttl: Custom cache TTL in seconds (uses default if None)
-
-    Returns:
-        Raw HTML text
-
-    Raises:
-        FTLHTTPError: If fetch fails
+    Handles both legacy static HTML and modern JS-rendered shells.
     """
-    path = f"/tableaus/scores/{event_id}/{round_id}"
-    url = _build_url(path)
     cache_key = f"tableau:{event_id}:{round_id}"
 
     if not force_refresh:
@@ -342,7 +328,43 @@ def fetch_tableau_raw(
         if cached is not None:
             return cached
 
+    # 1. Fetch the main page
+    path = f"/tableaus/scores/{event_id}/{round_id}"
+    url = _build_url(path)
     html = _fetch_with_retry(url, timeout=timeout)
+
+    # 2. Check if this is a JS-rendered shell (contains tableauPanel)
+    if "tableauPanel" in html and "elimTableau" not in html:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Detected JS-rendered tableau for %s/%s. Fetching sub-resources.", event_id, round_id)
+        
+        try:
+            # 3. Fetch the trees JSON to get the GUID and numTables
+            trees_url = f"{url}/trees"
+            trees_resp = _fetch_with_retry(trees_url, timeout=timeout)
+            trees = json.loads(trees_resp)
+            
+            if trees and isinstance(trees, list):
+                tree = trees[0] # Primary Tableau
+                guid = tree.get("guid")
+                num_tables = tree.get("numTables", 4)
+                first_table = tree.get("firstIncompleteTable", 0)
+                
+                # 4. Fetch the actual HTML table content
+                # Pattern: /trees/{guid}/tables/{startTable}/{numTablesToShow}
+                # We fetch from table 0 to num_tables to get the full visible bracket
+                table_url = f"{url}/trees/{guid}/tables/0/{num_tables}"
+                table_html = _fetch_with_retry(table_url, timeout=timeout)
+                
+                if "elimTableau" in table_html:
+                    html = table_html
+                else:
+                    logger.warning("Sub-resource fetch did not contain elimTableau")
+        except Exception as e:
+            logger.error("Failed to fetch tableau sub-resources: %s", e)
+            # Fallback to the original shell (parser will handle/fail gracefully)
+
     _cache.set(cache_key, html, ttl=ttl)
     return html
 
