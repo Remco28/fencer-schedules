@@ -17,16 +17,18 @@ from app.services.club_matcher import match_club
 from app.services.cleanup_service import cleanup_expired_tournaments, touch_tournament_access
 from app.database import get_db
 from app.ftl.client import (
+    fetch_competitors_json,
+    fetch_event_page,
+    fetch_event_results_json,
+    fetch_pool_results_raw,
     fetch_pools_bundle,
     fetch_tableau_raw,
     fetch_tournament_schedule,
-    fetch_event_page,
-    fetch_competitors_json,
-    fetch_event_results_json,
     FTLHTTPError,
     FTLParseError,
 )
 from app.ftl.parsers import parse_de_tableau, parse_event_rounds, parse_tournament_schedule
+from app.ftl.parsers.pool_results import parse_pool_results
 from app.models import CachedEvent, TrackedFencer, TrackedTournament, User, TournamentClub
 from app.services.tournament_service import get_tournament_fencer_status
 
@@ -1059,15 +1061,45 @@ def _do_de_tableau(
                         elif name_b == second.get("name"):
                             match["name_a"] = first.get("name")
                             match["club_a"] = first.get("club")
-        # Fill missing seeds with standings placement (e.g., "4T") when available
-        place_map = {s.get("name"): s.get("place") for s in standings if s.get("name") and s.get("place")}
-        for match in matches:
-            name_a = match.get("name_a")
-            name_b = match.get("name_b")
-            if not match.get("seed_a") and name_a in place_map:
-                match["seed_a"] = place_map[name_a]
-            if not match.get("seed_b") and name_b in place_map:
-                match["seed_b"] = place_map[name_b]
+    # Fill missing seeds from pool results (seeding), not final standings
+    try:
+        event_html = fetch_event_page(event_id, timeout=TIMEOUT)
+        rounds = parse_event_rounds(event_html)
+        pool_round_id = rounds.get("pool_round_id")
+    except Exception:
+        pool_round_id = None
+
+    if pool_round_id:
+        try:
+            pool_results_raw = fetch_pool_results_raw(
+                event_id,
+                pool_round_id,
+                force_refresh=force_refresh,
+                timeout=TIMEOUT,
+            )
+            pool_results = parse_pool_results(
+                pool_results_raw,
+                event_id=event_id,
+                pool_round_id=pool_round_id,
+            )
+            place_map = {}
+            for fencer in pool_results.get("fencers", []):
+                name = fencer.get("name")
+                place = fencer.get("place")
+                tie = fencer.get("tie")
+                if name and place is not None:
+                    place_label = f"{place}T" if tie else str(place)
+                    place_map[name] = place_label
+
+            for match in matches:
+                name_a = match.get("name_a")
+                name_b = match.get("name_b")
+                if not match.get("seed_a") and name_a in place_map:
+                    match["seed_a"] = place_map[name_a]
+                if not match.get("seed_b") and name_b in place_map:
+                    match["seed_b"] = place_map[name_b]
+        except Exception:
+            pass
 
     label_map = {
         "64": "Table of 64",
