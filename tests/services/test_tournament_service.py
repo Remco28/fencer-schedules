@@ -571,3 +571,32 @@ def test_sf_winner_up_next_when_final_missing_name():
     assert len(grouped["up_next"]) == 1
     assert grouped["up_next"][0].name == "LAVIN Ethan"
     assert grouped["up_next"][0].de_round == "F"
+
+
+def test_results_override_incomplete_tableau():
+    """If tableau isn't complete but results exist, use results and mark finished."""
+    de_matches = [
+        {
+            "round": "F",
+            "status": "pending",
+            "winner": None,
+            "name_a": "HENNEMAN Graham",
+            "club_a": None,
+            "name_b": None,
+            "club_b": None,
+            "strip": None,
+        },
+    ]
+    results = [
+        {"name": "HENNEMAN Graham", "place": "1", "clubs": "Elite FC"},
+        {"name": "LAVIN Ethan", "place": "2", "clubs": "Elite FC"},
+    ]
+    event = _event(pool_round_id=None, de_round_id="D" * 32)
+
+    with patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}), \
+         patch("app.services.tournament_service.fetch_event_results_json", return_value=results):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    assert len(grouped["finished"]) == 2
+    assert all(status.phase == "complete" for status in grouped["finished"])

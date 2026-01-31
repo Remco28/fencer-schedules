@@ -503,6 +503,25 @@ def get_tournament_fencer_status(
                 # Detect completion from DE tableau (Final match complete)
                 if not event_completed and _is_event_completed_from_tableau(matches):
                     _mark_event_completed(event, db)
+                # If tableau is incomplete but results are available, prefer results to mark completion
+                if not event_completed and not _is_event_completed_from_tableau(matches):
+                    try:
+                        results = fetch_event_results_json(
+                            event.event_id,
+                            force_refresh=force_refresh,
+                            ttl=TTL_LONG,
+                        )
+                        if results:
+                            for status in _results_statuses(results, club_filter, event, manual_fencers):
+                                key = _status_key(status)
+                                statuses[key] = _merge_status(statuses.get(key), status)
+                            _mark_event_completed(event, db)
+                    except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
+                        logger.info(
+                            "Results fetch failed for event %s after tableau parse: %s",
+                            event.event_id,
+                            results_exc,
+                        )
 
             except (FTLHTTPError, FTLParseError, ValueError) as exc:
                 # DE tableau page uses JavaScript rendering, so parsing fails.
