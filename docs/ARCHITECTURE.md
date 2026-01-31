@@ -117,7 +117,15 @@ Tournament (tournament_id)
 | `/pools/results/data/{event_id}/{pool_round_id}` | Results JSON (advancement) |
 | `/tableaus/scores/{event_id}/{de_round_id}` | DE tableau HTML |
 
-**Caching:** 3-minute TTL for active events. Manual refresh available.
+**Caching:** 3-minute TTL for active events, 24-hour TTL for completed events. Manual refresh available.
+
+**Live Status Rules (Dashboard):**
+- **Active**: DE match is in_progress or pending with a strip assigned; pool strip assigned.
+- **Up Next**: DE pending with both fencers but no strip, or SF winner when Final exists but is not populated.
+- **Waiting**: No strip and not queued per Up Next rules.
+- **Finished**: Results JSON or completed DE.
+
+**Results Fallback:** Results are merged for tracked names when available, even if club abbreviations differ. Completed events always merge results to avoid stale “Up Next” statuses when final placements are published.
 
 **Error Handling:** Retry 3x with exponential backoff. 10-second timeout. 502/504 for upstream errors.
 

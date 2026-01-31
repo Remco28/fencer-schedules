@@ -169,3 +169,5 @@
   All 42 DE parser + service tests pass (21 + 21). One pre-existing unrelated failure in pool_results_parser tests.
 
 [2026-01-31 01:19:45 UTC] ARCHITECT: HOUSEKEEPING: Restored and archived Phase N spec to `comms/tasks/archive/2026-01-29-phase-n-restore-legacy-views.md`.
+
+[2026-01-31 04:54:19 UTC] ARCHITECT: DOCS: Updated ARCHITECTURE.md with live status rules, Up Next behavior, and results fallback.
