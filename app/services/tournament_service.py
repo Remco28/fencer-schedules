@@ -6,6 +6,7 @@ from typing import Any, Optional, Iterable, Union
 
 from app.ftl.client import (
     fetch_competitors_json,
+    fetch_event_page,
     fetch_pools_bundle,
     fetch_tableau_raw,
     fetch_event_results_json,
@@ -13,6 +14,7 @@ from app.ftl.client import (
     FTLParseError,
 )
 from app.ftl.parsers.de_tableau import parse_de_tableau
+from app.ftl.parsers.event_rounds import parse_event_rounds
 from app.services.club_matcher import match_club
 
 logger = logging.getLogger(__name__)
@@ -456,6 +458,20 @@ def get_tournament_fencer_status(
         event_completed = getattr(event, "is_completed", False)
         ttl = TTL_LONG if event_completed else TTL_SHORT
 
+        # If round IDs are missing, attempt to refresh from the event page
+        if not event.pool_round_id or not event.de_round_id:
+            try:
+                event_html = fetch_event_page(event.event_id)
+                rounds = parse_event_rounds(event_html)
+                if not event.pool_round_id:
+                    event.pool_round_id = rounds.get("pool_round_id")
+                if not event.de_round_id:
+                    event.de_round_id = rounds.get("de_round_id")
+                if db is not None:
+                    db.add(event)
+            except Exception as exc:
+                logger.info("Failed to refresh round IDs for event %s: %s", event.event_id, exc)
+
         if event.pool_round_id:
             try:
                 bundle = fetch_pools_bundle(
@@ -575,6 +591,41 @@ def get_tournament_fencer_status(
                         )
                         key = _status_key(error_status)
                         statuses[key] = _merge_status(statuses.get(key), error_status)
+
+        # If no DE round is available, still try results endpoint to show finished placements
+        if not event.de_round_id:
+            try:
+                results = fetch_event_results_json(
+                    event.event_id,
+                    force_refresh=force_refresh,
+                    ttl=TTL_LONG,
+                )
+                if results:
+                    for status in _results_statuses(results, club_filter, event, manual_fencers):
+                        key = _status_key(status)
+                        statuses[key] = _merge_status(statuses.get(key), status)
+                    # Only mark completed if results appear final
+                    results_complete = False
+                    try:
+                        competitors = fetch_competitors_json(
+                            event.event_id,
+                            force_refresh=force_refresh,
+                            ttl=TTL_LONG,
+                        )
+                        competitor_count = len(competitors) if competitors else 0
+                        places = {str(r.get("place", "")).strip() for r in results}
+                        if competitor_count and len(results) >= competitor_count and "1" in places and "2" in places:
+                            results_complete = True
+                    except Exception as comp_exc:
+                        logger.info(
+                            "Competitors fetch failed for event %s while checking results completeness: %s",
+                            event.event_id,
+                            comp_exc,
+                        )
+                    if results_complete:
+                        _mark_event_completed(event, db)
+            except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
+                logger.info("Results fetch failed for event %s (no DE round): %s", event.event_id, results_exc)
 
     for status in statuses.values():
         if status.activity not in grouped:

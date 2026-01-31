@@ -601,3 +601,18 @@ def test_results_override_incomplete_tableau():
 
     assert len(grouped["finished"]) == 2
     assert all(status.phase == "complete" for status in grouped["finished"])
+
+
+def test_results_used_when_no_de_round():
+    """If no DE round exists, results should still populate finished statuses."""
+    results = [
+        {"name": "HENNEMAN Graham", "place": "1", "clubs": "Elite FC"},
+        {"name": "LAVIN Ethan", "place": "2", "clubs": "Elite FC"},
+    ]
+    event = _event(pool_round_id=None, de_round_id=None)
+
+    with patch("app.services.tournament_service.fetch_event_results_json", return_value=results), \
+         patch("app.services.tournament_service.fetch_competitors_json", return_value=[{"name": "HENNEMAN Graham"}, {"name": "LAVIN Ethan"}]):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    assert len(grouped["finished"]) == 2
