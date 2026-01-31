@@ -595,7 +595,8 @@ def test_results_override_incomplete_tableau():
 
     with patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
          patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}), \
-         patch("app.services.tournament_service.fetch_event_results_json", return_value=results):
+         patch("app.services.tournament_service.fetch_event_results_json", return_value=results), \
+         patch("app.services.tournament_service.fetch_competitors_json", return_value=[{"name": "HENNEMAN Graham"}, {"name": "LAVIN Ethan"}]):
         grouped = get_tournament_fencer_status(1, "Elite", [event])
 
     assert len(grouped["finished"]) == 2

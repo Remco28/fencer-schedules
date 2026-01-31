@@ -515,7 +515,26 @@ def get_tournament_fencer_status(
                             for status in _results_statuses(results, club_filter, event, manual_fencers):
                                 key = _status_key(status)
                                 statuses[key] = _merge_status(statuses.get(key), status)
-                            _mark_event_completed(event, db)
+                            # Only mark completed if results look final (places 1+2 and count matches competitors)
+                            results_complete = False
+                            try:
+                                competitors = fetch_competitors_json(
+                                    event.event_id,
+                                    force_refresh=force_refresh,
+                                    ttl=TTL_LONG,
+                                )
+                                competitor_count = len(competitors) if competitors else 0
+                                places = {str(r.get("place", "")).strip() for r in results}
+                                if competitor_count and len(results) >= competitor_count and "1" in places and "2" in places:
+                                    results_complete = True
+                            except Exception as comp_exc:
+                                logger.info(
+                                    "Competitors fetch failed for event %s while checking results completeness: %s",
+                                    event.event_id,
+                                    comp_exc,
+                                )
+                            if results_complete:
+                                _mark_event_completed(event, db)
                     except (FTLHTTPError, FTLParseError, ValueError) as results_exc:
                         logger.info(
                             "Results fetch failed for event %s after tableau parse: %s",
