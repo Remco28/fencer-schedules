@@ -60,7 +60,7 @@ _NEXT_ROUND_LABELS = {
 
 
 def _activity_rank(activity: str) -> int:
-    return {"finished": 3, "active": 2, "waiting": 1}.get(activity, 0)
+    return {"finished": 3, "active": 2, "up_next": 1, "waiting": 0}.get(activity, 0)
 
 
 def _phase_rank(phase: str) -> int:
@@ -92,11 +92,11 @@ def _merge_status(existing: Optional[FencerStatus], candidate: FencerStatus) -> 
     if candidate.error and not existing.error:
         return existing
 
-    # Prefer "active" over "waiting" regardless of phase.
+    # Prefer "active" over "waiting" or "up_next" regardless of phase.
     # Do not override "finished" with "active".
-    if candidate.activity == "active" and existing.activity == "waiting":
+    if candidate.activity == "active" and existing.activity in ("waiting", "up_next"):
         return candidate
-    if existing.activity == "active" and candidate.activity == "waiting":
+    if existing.activity == "active" and candidate.activity in ("waiting", "up_next"):
         return existing
 
     # If both have the same activity level, use phase/activity ranking
@@ -315,6 +315,7 @@ def _de_statuses(
     statuses = []
     fencer_matches: dict[str, list[dict]] = {}
     known_club_names = known_club_names or set()
+    bye_tokens = {"- bye -", "bye"}
 
     for match in matches:
         for side in ("a", "b"):
@@ -348,7 +349,16 @@ def _de_statuses(
         if status == "in_progress":
             activity = "active"
         elif status == "pending":
-            activity = "waiting"
+            is_bye_a = (latest.get("name_a") or "").strip().lower() in bye_tokens
+            is_bye_b = (latest.get("name_b") or "").strip().lower() in bye_tokens
+            if latest.get("strip"):
+                activity = "active"
+            elif latest.get("name_a") and latest.get("name_b") and not is_bye_a and not is_bye_b:
+                activity = "up_next"
+            elif round_label in ("F", "SF") and latest.get("name_a") and not is_bye_a:
+                activity = "up_next"
+            else:
+                activity = "waiting"
         elif status == "complete":
             is_winner = (winner == "A" and is_a) or (winner == "B" and not is_a)
             if round_label == "F":
@@ -414,7 +424,7 @@ def get_tournament_fencer_status(
             "finished": [FencerStatus, ...],
         }
     """
-    grouped = {"active": [], "waiting": [], "finished": []}
+    grouped = {"active": [], "up_next": [], "waiting": [], "finished": []}
     manual_fencers = {
         fencer.fencer_name.lower(): fencer.id
         for fencer in (tracked_fencers or [])

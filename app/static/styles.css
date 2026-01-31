@@ -24,6 +24,7 @@
     --color-active: #27ae60;
     --color-active-bg: #f8fbff;
     --color-active-border: #3498db;
+    --color-up-next: #e67e22;
     --color-waiting: #7f8c8d;
     --color-finished: #95a5a6;
     --color-danger: #e74c3c;
@@ -611,6 +612,10 @@ main h1 {
 
 .badge.waiting {
     background: var(--color-waiting);
+}
+
+.badge.up-next {
+    background: var(--color-up-next);
 }
 
 .badge.finished {

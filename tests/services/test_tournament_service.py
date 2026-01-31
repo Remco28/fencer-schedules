@@ -28,7 +28,7 @@ def _event(event_id="E" * 32, name="Event", weapon="Epee", pool_round_id="P" * 3
 
 def test_get_tournament_fencer_status_empty_club():
     grouped = get_tournament_fencer_status(1, "", [], force_refresh=False)
-    assert grouped == {"active": [], "waiting": [], "finished": []}
+    assert grouped == {"active": [], "up_next": [], "waiting": [], "finished": []}
 
 
 def test_pools_active_fencer():
@@ -452,3 +452,34 @@ def test_de_matches_use_known_club_names_when_club_missing():
     assert len(grouped["finished"]) == 1
     assert grouped["finished"][0].name == "MENDEZ Brendan"
     assert grouped["finished"][0].activity == "finished"
+
+
+def test_de_pending_without_strip_is_up_next():
+    """Pending DE matches with both fencers and no strip should be up_next."""
+    bundle = {
+        "pools": [
+            {"pool_number": 1, "strip": None, "fencers": [{"name": "HENNEMAN Graham", "club": "Elite"}]},
+        ],
+        "results": {"fencers": []},
+    }
+    de_matches = [{
+        "round": "F",
+        "status": "pending",
+        "winner": None,
+        "name_a": "HENNEMAN Graham",
+        "club_a": None,
+        "name_b": "LAVIN Ethan",
+        "club_b": None,
+        "strip": None,
+    }]
+    event = _event(pool_round_id="P" * 32, de_round_id="D" * 32)
+
+    with patch("app.services.tournament_service.fetch_pools_bundle", return_value=bundle), \
+         patch("app.services.tournament_service.fetch_tableau_raw", return_value="<html></html>"), \
+         patch("app.services.tournament_service.parse_de_tableau", return_value={"matches": de_matches}):
+        grouped = get_tournament_fencer_status(1, "Elite", [event])
+
+    assert len(grouped["active"]) == 0
+    assert len(grouped["up_next"]) == 1
+    assert grouped["up_next"][0].name == "HENNEMAN Graham"
+    assert grouped["up_next"][0].activity == "up_next"

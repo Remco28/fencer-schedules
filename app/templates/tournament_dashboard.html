@@ -106,6 +106,42 @@
         {% endif %}
     </section>
 
+    {# Up Next Section - Compact Cards #}
+    <section class="fencer-group">
+        <h2>Up Next <span class="badge up-next">{{ grouped_fencers.up_next|length }}</span></h2>
+        {% if grouped_fencers.up_next %}
+        <div class="fencer-grid compact">
+            {% for fencer in grouped_fencers.up_next %}
+            <article class="fencer-card waiting compact">
+                <div class="fencer-info">
+                    <div class="fencer-name">
+                        {{ fencer.name }}
+                        {% if fencer.source == 'manual' %}<span class="source-badge">manual</span>{% endif %}
+                    </div>
+                    <div class="fencer-detail">{{ fencer.event_name }}</div>
+                </div>
+                <div class="fencer-status">
+                    <span class="result-badge">Up Next</span>
+                    {% if fencer.source == 'manual' and fencer.fencer_db_id %}
+                    <form method="post" action="/tournament/{{ tournament.id }}/untrack/{{ fencer.fencer_db_id }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="untrack-btn" onclick="return confirm('Stop tracking {{ fencer.name }}?')" title="Stop tracking">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="fencer-group-empty">No fencers up next.</div>
+        {% endif %}
+    </section>
+
     {# Waiting Section - Compact Cards #}
     <section class="fencer-group">
         <h2>Waiting <span class="badge waiting">{{ grouped_fencers.waiting|length }}</span></h2>
