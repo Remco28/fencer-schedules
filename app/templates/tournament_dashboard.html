@@ -14,6 +14,7 @@
         </div>
         <div class="dashboard-actions">
             {% if not tournament.archived_at %}
+            <a href="/tournament/{{ tournament.id }}" class="btn small outline">View Events</a>
             <a href="/tournament/{{ tournament.id }}/search" class="btn small outline">+ Add Fencer</a>
             <a href="/tournament/{{ tournament.id }}/edit" class="btn small outline">Edit Settings</a>
             {% endif %}
@@ -217,10 +218,6 @@
     {% endif %}
 
     <footer class="dashboard-footer">
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <a href="/tournament/{{ tournament.id }}" class="btn small outline">View Events</a>
-            <a href="/dashboard" class="btn small outline" style="border-color: transparent; color: var(--text-muted);">All Tournaments</a>
-        </div>
         <form method="post" action="/tournament/{{ tournament.id }}/delete" style="margin-left: auto;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="outline danger small" onclick="return confirm('Delete this tournament and all tracking data?')">
