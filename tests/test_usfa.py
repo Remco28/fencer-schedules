@@ -16,6 +16,23 @@ def test_parse_events_by_day() -> None:
     assert any("Junior" in e.name for e in events)
 
 
+def test_parse_events_reads_close_of_registration_clock() -> None:
+    html = (FIXTURES / "usfa_tournament_12013.html").read_text()
+    events = {e.source_event_id: e for e in parse_tournament_events(html, year=2026)}
+    junior = events["72823"]
+    assert junior.clock is not None
+    assert junior.clock.hour == 8
+    assert junior.clock.minute == 0
+    assert junior.clock_label == "close of registration"
+    noon = events["72806"]
+    assert noon.clock is not None
+    assert noon.clock.hour == 12
+    late = events["72829"]
+    assert late.clock is not None
+    assert late.clock.hour == 10
+    assert late.clock.minute == 30
+
+
 def test_parse_entrants_reads_club_and_name() -> None:
     payload = json.loads((FIXTURES / "usfa_entrants_72823.json").read_text())
     fencers = parse_entrants_table(payload["entrants_table"])

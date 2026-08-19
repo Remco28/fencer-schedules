@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 import httpx
 from bs4 import BeautifulSoup
@@ -10,6 +10,10 @@ from fencer_schedules.models import Event, Fencer
 
 USFA_HOST = "https://member.usafencing.org"
 _MEMBERSHIP = re.compile(r"#(\d+)")
+_CLOSE_REG = re.compile(
+    r"(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<ampm>[ap]m)\s+Close of Registration",
+    re.I,
+)
 
 
 def parse_tournament_events(html: str, year: int | None = None) -> list[Event]:
@@ -29,11 +33,14 @@ def parse_tournament_events(html: str, year: int | None = None) -> list[Event]:
             continue
         name_el = node.find(class_="name")
         name = name_el.get_text(" ", strip=True) if name_el else "Event"
+        clock, label = _parse_close_of_registration(node.get_text(" ", strip=True))
         events.append(
             Event(
                 source_event_id=str(event_id),
                 name=name,
                 day=current_day or date.min,
+                clock=clock,
+                clock_label=label,
             )
         )
     return events
@@ -67,6 +74,20 @@ def _parse_day(text: str, year: int) -> date | None:
         except ValueError:
             continue
     return None
+
+
+def _parse_close_of_registration(text: str) -> tuple[time | None, str | None]:
+    match = _CLOSE_REG.search(text)
+    if not match:
+        return None, None
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute"))
+    ampm = match.group("ampm").lower()
+    if ampm == "pm" and hour != 12:
+        hour += 12
+    if ampm == "am" and hour == 12:
+        hour = 0
+    return time(hour, minute), "close of registration"
 
 
 class UsfaClient:

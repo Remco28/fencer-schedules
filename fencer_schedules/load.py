@@ -26,7 +26,9 @@ def load_tournament(
     filled: list[Event] = []
     for event in usfa_events:
         entrants = usfa.fetch_entrants(tournament.usfa_id, event.source_event_id)
-        clock, label = clocks.get(_norm(event.name), (event.clock, event.clock_label))
+        clock, label = event.clock, event.clock_label
+        if clock is None:
+            clock, label = clocks.get(_norm(event.name), (None, None))
         filled.append(
             event.model_copy(
                 update={"fencers": entrants, "clock": clock, "clock_label": label}
