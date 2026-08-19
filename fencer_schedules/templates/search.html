@@ -14,6 +14,8 @@
     .hit { display: block; padding: .8rem 0; border-bottom: 1px solid #8884; text-decoration: none; }
     .muted { opacity: .7; font-size: .9rem; }
     .badge { font-size: .75rem; border: 1px solid currentColor; padding: .1rem .35rem; }
+    .loaded { margin-top: 1.5rem; }
+    .row { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; padding: .45rem 0; border-bottom: 1px solid #8884; }
   </style>
 </head>
 <body>
@@ -25,11 +27,14 @@
   {% if hits is not none %}
     {% if hits %}
       {% for t in hits %}
-        <form class="hit" action="/tournaments/{{ t.askfred_id }}/load" method="post">
+        <form class="hit" action="/tournaments/{{ t.askfred_id }}/open" method="post">
           <button class="btn" type="submit" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid #8884;">
             <strong>{{ t.name }}</strong><br>
             <span class="muted">{{ t.start_date }}{% if t.end_date != t.start_date %}–{{ t.end_date }}{% endif %} · {{ t.venue or "—" }}</span>
             <span class="badge">{{ "USFA" if t.usfa_id else "local" }}</span>
+            {% if loaded and t.askfred_id in loaded|map(attribute='askfred_id') %}
+              <span class="badge">saved</span>
+            {% endif %}
           </button>
         </form>
       {% endfor %}
@@ -37,8 +42,25 @@
       <p>No upcoming matches.</p>
     {% endif %}
   {% endif %}
-  {% if current %}
-    <p><a href="/schedule">Open loaded: {{ current.name }}</a></p>
+
+  {% if loaded %}
+    <div class="loaded">
+      <h2>Saved tournaments</h2>
+      {% for t in loaded %}
+        <div class="row">
+          <form action="/tournaments/{{ t.askfred_id }}/open" method="post">
+            <button class="btn" type="submit" style="background:none; border:0; text-align:left; padding:0;">
+              <strong>{{ t.name }}</strong>
+              {% if current and t.askfred_id == current.askfred_id %} · open{% endif %}
+              <div class="muted">{{ t.start_date }}</div>
+            </button>
+          </form>
+          <form action="/tournaments/{{ t.askfred_id }}/remove" method="post">
+            <button type="submit">Remove</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
   {% endif %}
 </body>
 </html>

@@ -29,7 +29,8 @@
 | Layout | **One scroll:** day → events (by start time when known) → tracked fencers | Locked |
 | Time grain | Event clock time when present. Not per-fencer pool/DE times. | Locked |
 | Refresh | Re-fetch entries, then regenerate PDF. No live polling. | Locked |
-| After the event | Auto-purge (~48h TTL). No history store. | Locked |
+| After the event | Auto-purge (~48h TTL), or Remove by hand. | Locked |
+| Multiple tournaments | Keep several loaded lists. Switch locally. Re-fetch only on first open or Refresh. | Locked 2026-08-19 |
 | Host | Local / self-hosted | Locked |
 | Anti-bot | Polite requests, cache, rate limits. Captcha workarounds within reason. | Locked |
 | First tournament | Trick or Retreat ROC / RJCC — USFA `12013` (`member.usafencing.org/details/tournaments/12013`), AskFRED `f4fbfddf-8316-46d2-9392-8a8245059f86`, Aug 22–23, Edison NJ. Regional → **USFA names**. Example, not a hard ship date. | Locked |

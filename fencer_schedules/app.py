@@ -53,7 +53,7 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
-            {"hits": None, "current": store.current(), "q": ""},
+            {"hits": None, "current": store.current(), "loaded": store.list(), "q": ""},
         )
 
     @app.get("/search", response_class=HTMLResponse)
@@ -63,12 +63,26 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
-            {"hits": hits, "current": store.current(), "q": q},
+            {"hits": hits, "current": store.current(), "loaded": store.list(), "q": q},
         )
+
+    @app.post("/tournaments/{askfred_id}/open")
+    def open_tournament(askfred_id: str) -> RedirectResponse:
+        if store.has(askfred_id):
+            store.select(askfred_id)
+        else:
+            store.save(load_tournament(askfred_id, settings, askfred=askfred))
+        return RedirectResponse("/schedule", status_code=303)
 
     @app.post("/tournaments/{askfred_id}/load")
     def load(askfred_id: str) -> RedirectResponse:
-        store.save(load_tournament(askfred_id, settings, askfred=askfred))
+        return open_tournament(askfred_id)
+
+    @app.post("/tournaments/{askfred_id}/remove")
+    def remove(askfred_id: str) -> RedirectResponse:
+        store.remove(askfred_id)
+        if store.current() is None:
+            return RedirectResponse("/", status_code=303)
         return RedirectResponse("/schedule", status_code=303)
 
     @app.get("/schedule", response_class=HTMLResponse)
@@ -84,6 +98,7 @@ def create_app(
                 "tournament": tournament,
                 "events": visible_events(tournament, settings),
                 "other_events": other_events(tournament, settings),
+                "loaded": store.list(),
                 "settings": settings,
                 "track_q": track_q,
                 "suggestions": suggestions,

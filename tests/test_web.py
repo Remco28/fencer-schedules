@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from datetime import date
+
 import httpx
 import pytest
 import respx
@@ -11,6 +13,7 @@ from fastapi.testclient import TestClient
 from fencer_schedules.app import create_app
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
+from fencer_schedules.models import Event, Fencer, Tournament
 from fencer_schedules.sources.askfred import AskFredClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -122,3 +125,42 @@ def test_pdf_download(client: TestClient) -> None:
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
     assert pdf.content.startswith(b"%PDF")
+
+
+def test_switch_between_saved_tournaments(client: TestClient) -> None:
+    store = client.app.state.store
+    store.save(
+        Tournament(
+            askfred_id="one",
+            name="First Cup",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+            events=[
+                Event(
+                    source_event_id="e1",
+                    name="Senior Mixed Epee",
+                    day=date(2026, 9, 1),
+                    fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                )
+            ],
+        )
+    )
+    store.save(
+        Tournament(
+            askfred_id="two",
+            name="Second Cup",
+            start_date=date(2026, 9, 2),
+            end_date=date(2026, 9, 2),
+        )
+    )
+    opened = client.post("/tournaments/one/open", follow_redirects=True)
+    assert opened.status_code == 200
+    assert "First Cup" in opened.text
+    assert "Doe, Jordan" in opened.text
+    home = client.get("/")
+    assert "First Cup" in home.text
+    assert "Second Cup" in home.text
+    client.post("/tournaments/two/remove", follow_redirects=True)
+    home = client.get("/")
+    assert "Second Cup" not in home.text
+    assert "Doe, Jordan" in client.get("/schedule").text
