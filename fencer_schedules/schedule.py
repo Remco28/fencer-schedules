@@ -18,6 +18,7 @@ def is_tracked(fencer: Fencer, settings: Settings) -> bool:
 
 
 def visible_events(tournament: Tournament, settings: Settings) -> list[Event]:
+    """Events that have at least one tracked fencer (PDF / club list)."""
     if not tournament.names_available:
         return sorted(tournament.events, key=_event_sort)
     kept: list[Event] = []
@@ -28,6 +29,16 @@ def visible_events(tournament: Tournament, settings: Settings) -> list[Event]:
         kept.append(event.model_copy(update={"fencers": tracked}))
     kept.sort(key=_event_sort)
     return kept
+
+
+def other_events(tournament: Tournament, settings: Settings) -> list[Event]:
+    """Events with nobody tracked yet — still listed so you can open them."""
+    if not tournament.names_available:
+        return []
+    tracked_ids = {e.source_event_id for e in visible_events(tournament, settings)}
+    rest = [e.model_copy(update={"fencers": []}) for e in tournament.events if e.source_event_id not in tracked_ids]
+    rest.sort(key=_event_sort)
+    return rest
 
 
 def event_by_id(tournament: Tournament, event_id: str) -> Event | None:

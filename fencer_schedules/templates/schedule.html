@@ -59,10 +59,10 @@
       <h2 class="day">{{ event.day.strftime("%A, %B %-d") }}</h2>
     {% endif %}
     <section class="event">
-      <strong><a href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a></strong>
-      {% if event.clock %}
-        <div class="muted">{{ event.clock.strftime("%-I:%M %p") }}</div>
-      {% endif %}
+      <strong>
+        {% if event.clock %}{{ event.clock|clock }} · {% endif %}
+        <a href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+      </strong>
       {% for fencer in event.fencers %}
         <div class="fencer">
           <span>{{ fencer.name }} <span class="muted">{{ fencer.club }}</span></span>
@@ -75,7 +75,20 @@
       {% endfor %}
     </section>
   {% else %}
-    <p>No tracked fencers yet. Open an event to pick people.</p>
+    <p>No tracked fencers yet. Open an event below to pick people.</p>
   {% endfor %}
+
+  {% if other_events %}
+    <h2 class="day">Other events</h2>
+    <p class="muted">No one tracked yet. Open one to add people.</p>
+    {% for event in other_events %}
+      <section class="event">
+        <strong>
+          {% if event.clock %}{{ event.clock|clock }} · {% endif %}
+          <a href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+        </strong>
+      </section>
+    {% endfor %}
+  {% endif %}
 </body>
 </html>

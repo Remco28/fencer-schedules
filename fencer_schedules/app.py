@@ -20,10 +20,20 @@ from fencer_schedules.schedule import (
     tracking_overrides,
     untrack_named,
     visible_events,
+    other_events,
 )
 from fencer_schedules.sources.askfred import AskFredClient
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def format_clock(clock) -> str:
+    if clock is None:
+        return ""
+    return clock.strftime("%I:%M %p").lstrip("0")
+
+
+TEMPLATES.env.filters["clock"] = format_clock
 
 
 def create_app(
@@ -73,6 +83,7 @@ def create_app(
             {
                 "tournament": tournament,
                 "events": visible_events(tournament, settings),
+                "other_events": other_events(tournament, settings),
                 "settings": settings,
                 "track_q": track_q,
                 "suggestions": suggestions,

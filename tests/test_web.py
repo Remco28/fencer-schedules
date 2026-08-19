@@ -59,13 +59,21 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
         return_value=httpx.Response(200, text=(FIXTURES / "usfa_tournament_12013.html").read_text())
     )
     respx.get("https://member.usafencing.org/details/tournaments/12013/entrants").mock(
-        return_value=httpx.Response(200, json=_json("usfa_entrants_72823.json"))
+        side_effect=lambda request: httpx.Response(
+            200,
+            json={"entrants_table": "<table></table>"}
+            if request.url.params.get("event_id") == "99999"
+            else _json("usfa_entrants_72823.json"),
+        )
     )
     load = client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     assert load.status_code == 200
     assert "Doe, Jordan" in load.text
+    assert "8:00 AM" in load.text or "8:00" in load.text
     assert "Elite Fencers Club" in load.text
     assert "Saturday" in load.text
+    assert "Cadet Men’s Foil" in load.text or "Cadet Men's Foil" in load.text
+    assert "Other events" in load.text
     assert "fencing now" not in load.text.lower()
     assert "strip" not in load.text.lower()
 

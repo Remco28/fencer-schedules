@@ -6,6 +6,7 @@ from fencer_schedules.config import Settings
 from fencer_schedules.models import Event, Fencer, Tournament
 from fencer_schedules.schedule import (
     add_manual,
+    other_events,
     search_loaded_fencers,
     track_named,
     untrack_named,
@@ -80,6 +81,11 @@ def test_track_named_adds_other_club() -> None:
     )
     names = [f.name for e in visible_events(updated, settings) for f in e.fencers]
     assert "Albrecht-Smith, Anne" in names
+
+
+def test_other_events_lists_untracked_events() -> None:
+    others = other_events(_tournament(), _settings())
+    assert [e.name for e in others] == ["Cadet Women’s Foil"]
 
 
 def test_local_keeps_empty_events() -> None:

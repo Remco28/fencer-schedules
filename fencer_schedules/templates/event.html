@@ -18,7 +18,7 @@
   <h1>{{ event.name }}</h1>
   <p class="muted">
     {{ event.day.strftime("%A, %B %-d") }}
-    {% if event.clock %} · {{ event.clock.strftime("%-I:%M %p") }}{% endif %}
+    {% if event.clock %} · {{ event.clock|clock }}{% endif %}
   </p>
 
   {% for row in rows %}
