@@ -9,9 +9,18 @@ from fastapi.templating import Jinja2Templates
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
 from fencer_schedules.load import load_tournament
-from fencer_schedules.models import Tournament
 from fencer_schedules.pdf import filename_for, render_pdf
-from fencer_schedules.schedule import add_manual, search_loaded_fencers, visible_events
+from fencer_schedules.schedule import (
+    add_manual,
+    apply_overrides,
+    event_by_id,
+    is_tracked,
+    search_loaded_fencers,
+    track_named,
+    tracking_overrides,
+    untrack_named,
+    visible_events,
+)
 from fencer_schedules.sources.askfred import AskFredClient
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -30,16 +39,15 @@ def create_app(
     app.state.askfred = askfred
 
     @app.get("/", response_class=HTMLResponse)
-    def home(request: Request) -> HTMLResponse:
-        current = store.current()
+    def home(request: Request):
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
-            {"hits": None, "current": current, "q": ""},
+            {"hits": None, "current": store.current(), "q": ""},
         )
 
     @app.get("/search", response_class=HTMLResponse)
-    def search(request: Request, q: str = "") -> HTMLResponse:
+    def search(request: Request, q: str = ""):
         client = askfred or AskFredClient(settings.askfred_api_token)
         hits = client.search(q)
         return TEMPLATES.TemplateResponse(
@@ -50,12 +58,11 @@ def create_app(
 
     @app.post("/tournaments/{askfred_id}/load")
     def load(askfred_id: str) -> RedirectResponse:
-        tournament = load_tournament(askfred_id, settings, askfred=askfred)
-        store.save(tournament)
+        store.save(load_tournament(askfred_id, settings, askfred=askfred))
         return RedirectResponse("/schedule", status_code=303)
 
     @app.get("/schedule", response_class=HTMLResponse)
-    def schedule(request: Request, track_q: str = "") -> HTMLResponse:
+    def schedule(request: Request, track_q: str = ""):
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
@@ -72,28 +79,68 @@ def create_app(
             },
         )
 
-    @app.post("/schedule/track")
-    def track(query: str = Form(...)) -> RedirectResponse:
+    @app.get("/schedule/events/{event_id}", response_class=HTMLResponse)
+    def event_roster(request: Request, event_id: str):
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
-        store.save(add_manual(tournament, query))
-        return RedirectResponse("/schedule", status_code=303)
+        event = event_by_id(tournament, event_id)
+        if event is None:
+            return RedirectResponse("/schedule", status_code=303)
+        rows = [
+            {"fencer": fencer, "tracked": is_tracked(fencer, settings)}
+            for fencer in event.fencers
+        ]
+        return TEMPLATES.TemplateResponse(
+            request,
+            "event.html",
+            {
+                "tournament": tournament,
+                "event": event,
+                "rows": rows,
+            },
+        )
+
+    @app.post("/schedule/track")
+    def track(
+        query: str | None = Form(default=None),
+        name: str | None = Form(default=None),
+        club: str | None = Form(default=None),
+        next: str = Form(default="/schedule"),
+    ) -> RedirectResponse:
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        if name and club:
+            store.save(track_named(tournament, name, club, settings))
+        elif query:
+            store.save(add_manual(tournament, query, settings))
+        return RedirectResponse(next or "/schedule", status_code=303)
+
+    @app.post("/schedule/untrack")
+    def untrack(
+        name: str = Form(...),
+        club: str = Form(...),
+        next: str = Form(default="/schedule"),
+    ) -> RedirectResponse:
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        store.save(untrack_named(tournament, name, club))
+        return RedirectResponse(next or "/schedule", status_code=303)
 
     @app.post("/schedule/refresh")
     def refresh() -> RedirectResponse:
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
-        manuals = _manuals(tournament)
+        overrides = tracking_overrides(tournament)
         reloaded = load_tournament(tournament.askfred_id, settings, askfred=askfred)
-        for name, club in manuals:
-            reloaded = add_manual(reloaded, name)
-        store.save(reloaded)
+        store.save(apply_overrides(reloaded, overrides))
         return RedirectResponse("/schedule", status_code=303)
 
     @app.get("/schedule.pdf")
-    def schedule_pdf() -> Response:
+    def schedule_pdf():
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
@@ -105,21 +152,6 @@ def create_app(
         )
 
     return app
-
-
-def _manuals(tournament: Tournament) -> list[tuple[str, str]]:
-    seen: set[tuple[str, str]] = set()
-    out: list[tuple[str, str]] = []
-    for event in tournament.events:
-        for fencer in event.fencers:
-            if fencer.source != "manual":
-                continue
-            key = (fencer.name, fencer.club)
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(key)
-    return out
 
 
 app = create_app()

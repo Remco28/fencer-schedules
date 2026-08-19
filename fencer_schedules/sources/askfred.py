@@ -133,5 +133,5 @@ class AskFredClient:
             name=attrs.get("full_name") or attrs.get("short_name") or "Event",
             day=day,
             clock=clock,
-            clock_label="close of registration" if clock else None,
+            clock_label=None,
         )

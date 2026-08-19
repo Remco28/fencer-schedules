@@ -64,5 +64,5 @@ def test_fetch_events_maps_close_of_registration() -> None:
     )
     events = AskFredClient(token="x").fetch_events(TRICK_ID)
     assert len(events) == 2
-    assert events[0].clock_label == "close of registration"
+    assert events[0].clock is not None
     assert events[0].name.startswith("Division IA")

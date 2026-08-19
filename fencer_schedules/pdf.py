@@ -34,10 +34,7 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
             pdf.set_font("Helvetica", "B", 11)
             clock = ""
             if event.clock:
-                label = f"{event.clock.strftime('%-I:%M %p')}"
-                if event.clock_label:
-                    label += f" ({event.clock_label})"
-                clock = f" — {label}"
+                clock = f" — {event.clock.strftime('%-I:%M %p')}"
             pdf.cell(0, 6, _latin(f"{event.name}{clock}"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", size=11)
             if not event.fencers:

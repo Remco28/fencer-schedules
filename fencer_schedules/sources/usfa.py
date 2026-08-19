@@ -87,7 +87,7 @@ def _parse_close_of_registration(text: str) -> tuple[time | None, str | None]:
         hour += 12
     if ampm == "am" and hour == 12:
         hour = 0
-    return time(hour, minute), "close of registration"
+    return time(hour, minute), None
 
 
 class UsfaClient:

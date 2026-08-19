@@ -80,6 +80,34 @@ def test_track_additional_fencer(client: TestClient) -> None:
 
 
 @respx.mock
+def test_event_roster_track_and_untrack(client: TestClient) -> None:
+    test_load_trick_shows_club_fencer(client)
+    roster = client.get("/schedule/events/72823")
+    assert roster.status_code == 200
+    assert "Albrecht-Smith, Anne" in roster.text
+    assert "Track" in roster.text
+    added = client.post(
+        "/schedule/track",
+        data={
+            "name": "Albrecht-Smith, Anne",
+            "club": "Manchen Academy Of Fencing",
+            "next": "/schedule/events/72823",
+        },
+        follow_redirects=True,
+    )
+    assert "Untrack" in added.text
+    schedule = client.get("/schedule")
+    assert "Albrecht-Smith, Anne" in schedule.text
+    client.post(
+        "/schedule/untrack",
+        data={"name": "Albrecht-Smith, Anne", "club": "Manchen Academy Of Fencing"},
+        follow_redirects=True,
+    )
+    gone = client.get("/schedule")
+    assert "Albrecht-Smith, Anne" not in gone.text
+
+
+@respx.mock
 def test_pdf_download(client: TestClient) -> None:
     test_load_trick_shows_club_fencer(client)
     pdf = client.get("/schedule.pdf")

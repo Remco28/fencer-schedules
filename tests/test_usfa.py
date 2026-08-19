@@ -23,7 +23,7 @@ def test_parse_events_reads_close_of_registration_clock() -> None:
     assert junior.clock is not None
     assert junior.clock.hour == 8
     assert junior.clock.minute == 0
-    assert junior.clock_label == "close of registration"
+    assert junior.clock_label is None
     noon = events["72806"]
     assert noon.clock is not None
     assert noon.clock.hour == 12

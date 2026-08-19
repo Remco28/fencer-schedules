@@ -4,7 +4,13 @@ from datetime import date
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Event, Fencer, Tournament
-from fencer_schedules.schedule import add_manual, search_loaded_fencers, visible_events
+from fencer_schedules.schedule import (
+    add_manual,
+    search_loaded_fencers,
+    track_named,
+    untrack_named,
+    visible_events,
+)
 
 
 def _settings() -> Settings:
@@ -56,6 +62,24 @@ def test_manual_add_keeps_other_club_label() -> None:
 def test_search_finds_non_club_fencer() -> None:
     hits = search_loaded_fencers(_tournament(), "albrecht")
     assert hits[0].name.startswith("Albrecht")
+
+
+def test_untrack_hides_club_and_manual() -> None:
+    settings = _settings()
+    tracked = add_manual(_tournament(), "Albrecht", settings)
+    hidden = untrack_named(tracked, "Doe, Jordan", "Elite Fencers Club")
+    hidden = untrack_named(hidden, "Albrecht-Smith, Anne", "Manchen Academy Of Fencing")
+    names = [f.name for e in visible_events(hidden, settings) for f in e.fencers]
+    assert names == []
+
+
+def test_track_named_adds_other_club() -> None:
+    settings = _settings()
+    updated = track_named(
+        _tournament(), "Albrecht-Smith, Anne", "Manchen Academy Of Fencing", settings
+    )
+    names = [f.name for e in visible_events(updated, settings) for f in e.fencers]
+    assert "Albrecht-Smith, Anne" in names
 
 
 def test_local_keeps_empty_events() -> None:

@@ -23,7 +23,9 @@
 | FTL in v1 | **Not required.** Frank will still create a free FTL account in gitignored `.env` for later. Never paste the password in chat. | Locked |
 | Club identity | Match **Elite Fencers Club** / **Elite FC**. **Never match `EFC`** — that is *Elite Fencing Club*. | Locked 2026-08-19 |
 | Club config | Gitignored config file. No settings page. | Locked |
-| Extra fencers | Search inside the loaded tournament; they join the phone list **and** the PDF, with their club shown | Locked |
+| Extra fencers | Search the **loaded local list** (no API). Or open an event roster and tap Track. Untrack from the schedule or roster. | Locked 2026-08-19 |
+| Event roster | Tap an event to see every name; tap to track/untrack | Locked 2026-08-19 |
+| Clock | USFA card time is the **event start**. Show it as a time only. | Locked 2026-08-19 |
 | Layout | **One scroll:** day → events (by start time when known) → tracked fencers | Locked |
 | Time grain | Event clock time when present. Not per-fencer pool/DE times. | Locked |
 | Refresh | Re-fetch entries, then regenerate PDF. No live polling. | Locked |

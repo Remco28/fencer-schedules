@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ event.name }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; line-height: 1.45; }
+    h1 { font-size: 1.2rem; margin: 0 0 .3rem; }
+    .muted { opacity: .7; }
+    .row { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; padding: .55rem 0; border-bottom: 1px solid #8884; }
+    button { font-size: 1rem; padding: .4rem .65rem; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <p><a href="/schedule">← Schedule</a></p>
+  <h1>{{ event.name }}</h1>
+  <p class="muted">
+    {{ event.day.strftime("%A, %B %-d") }}
+    {% if event.clock %} · {{ event.clock.strftime("%-I:%M %p") }}{% endif %}
+  </p>
+
+  {% for row in rows %}
+    <div class="row">
+      <div>
+        {{ row.fencer.name }}<br>
+        <span class="muted">{{ row.fencer.club }}</span>
+      </div>
+      {% if row.tracked %}
+        <form action="/schedule/untrack" method="post">
+          <input type="hidden" name="name" value="{{ row.fencer.name }}">
+          <input type="hidden" name="club" value="{{ row.fencer.club }}">
+          <input type="hidden" name="next" value="/schedule/events/{{ event.source_event_id }}">
+          <button type="submit">Untrack</button>
+        </form>
+      {% else %}
+        <form action="/schedule/track" method="post">
+          <input type="hidden" name="name" value="{{ row.fencer.name }}">
+          <input type="hidden" name="club" value="{{ row.fencer.club }}">
+          <input type="hidden" name="next" value="/schedule/events/{{ event.source_event_id }}">
+          <button type="submit">Track</button>
+        </form>
+      {% endif %}
+    </div>
+  {% else %}
+    <p>No names for this event.</p>
+  {% endfor %}
+</body>
+</html>

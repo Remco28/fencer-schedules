@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class Fencer(BaseModel):
     name: str
     club: str
-    source: Literal["club", "manual"] = "club"
+    source: Literal["club", "manual", "hidden"] = "club"
     membership_id: str | None = None
 
 
