@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fencer Schedules</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; line-height: 1.4; }
+    form.search { display: flex; gap: .5rem; }
+    input[type=search], input[type=text] { flex: 1; font-size: 1rem; padding: .6rem; }
+    button, .btn { font-size: 1rem; padding: .6rem .9rem; }
+    a { color: inherit; }
+    .hit { display: block; padding: .8rem 0; border-bottom: 1px solid #8884; text-decoration: none; }
+    .muted { opacity: .7; font-size: .9rem; }
+    .badge { font-size: .75rem; border: 1px solid currentColor; padding: .1rem .35rem; }
+  </style>
+</head>
+<body>
+  <h1>Find a tournament</h1>
+  <form class="search" action="/search" method="get">
+    <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat" autofocus>
+    <button type="submit">Search</button>
+  </form>
+  {% if hits is not none %}
+    {% if hits %}
+      {% for t in hits %}
+        <form class="hit" action="/tournaments/{{ t.askfred_id }}/load" method="post">
+          <button class="btn" type="submit" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid #8884;">
+            <strong>{{ t.name }}</strong><br>
+            <span class="muted">{{ t.start_date }}{% if t.end_date != t.start_date %}–{{ t.end_date }}{% endif %} · {{ t.venue or "—" }}</span>
+            <span class="badge">{{ "USFA" if t.usfa_id else "local" }}</span>
+          </button>
+        </form>
+      {% endfor %}
+    {% else %}
+      <p>No upcoming matches.</p>
+    {% endif %}
+  {% endif %}
+  {% if current %}
+    <p><a href="/schedule">Open loaded: {{ current.name }}</a></p>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "id": "f4fbfddf-8316-46d2-9392-8a8245059f86",
+      "type": "tournament",
+      "attributes": {
+        "name": "Trick or Retreat ROC / RJCC",
+        "registration_url": "https://member.usafencing.org/details/tournaments/12013",
+        "start_date": "2026-08-22",
+        "end_date": "2026-08-23",
+        "venue_name": "NJ Convention & Exposition Center"
+      }
+    },
+    {
+      "id": "07060a1f-1e22-4db1-b6f6-a7f0d956d877",
+      "type": "tournament",
+      "attributes": {
+        "name": "Wanglei Summer Cup III: Youth & Senior Open",
+        "registration_url": "https://www.askfred.net/tournaments/07060a1f-1e22-4db1-b6f6-a7f0d956d877/preregister",
+        "start_date": "2026-08-29",
+        "end_date": "2026-08-29",
+        "venue_name": "Wanglei International Fencing Club"
+      }
+    }
+  ],
+  "metadata": {"page": 1, "per_page": 50, "last_page": 1, "total_records": 2}
+}

@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "evt-d1awe",
+      "type": "event",
+      "attributes": {
+        "full_name": "Division IA Women’s Epee",
+        "short_name": "D1AWE",
+        "weapon": "epee",
+        "close_of_registration": "2026-08-22T08:00:00.000-04:00"
+      }
+    },
+    {
+      "id": "evt-jnrme",
+      "type": "event",
+      "attributes": {
+        "full_name": "Junior Men’s Epee",
+        "short_name": "JNRME",
+        "weapon": "epee",
+        "close_of_registration": "2026-08-22T12:00:00.000-04:00"
+      }
+    }
+  ],
+  "metadata": {"page": 1, "per_page": 50, "last_page": 1, "total_records": 2}
+}

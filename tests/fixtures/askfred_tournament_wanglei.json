@@ -1,0 +1,17 @@
+{
+  "data": {
+    "id": "07060a1f-1e22-4db1-b6f6-a7f0d956d877",
+    "type": "tournament",
+    "attributes": {
+      "name": "Wanglei Summer Cup III: Youth & Senior Open",
+      "tournament_type": "tournament",
+      "is_cancelled": false,
+      "url": "https://www.askfred.net/tournaments/07060a1f-1e22-4db1-b6f6-a7f0d956d877",
+      "registration_url": "https://www.askfred.net/tournaments/07060a1f-1e22-4db1-b6f6-a7f0d956d877/preregister",
+      "end_date": "2026-08-29",
+      "start_date": "2026-08-29",
+      "timezone": "America/New_York",
+      "venue_name": "Wanglei International Fencing Club"
+    }
+  }
+}

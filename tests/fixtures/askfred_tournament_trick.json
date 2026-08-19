@@ -1,0 +1,20 @@
+{
+  "data": {
+    "id": "f4fbfddf-8316-46d2-9392-8a8245059f86",
+    "type": "tournament",
+    "attributes": {
+      "name": "Trick or Retreat ROC / RJCC",
+      "tournament_type": "tournament",
+      "is_cancelled": false,
+      "url": "https://www.askfred.net/tournaments/f4fbfddf-8316-46d2-9392-8a8245059f86",
+      "registration_url": "https://member.usafencing.org/details/tournaments/12013",
+      "end_date": "2026-08-23",
+      "prereg_close": "2026-08-11",
+      "prereg_open": "2026-06-08",
+      "start_date": "2026-08-22",
+      "timezone": "America/New_York",
+      "venue_name": "NJ Convention & Exposition Center",
+      "venue_address": "97 Sunfield Avenue, Edison, New Jersey 08837 US"
+    }
+  }
+}
