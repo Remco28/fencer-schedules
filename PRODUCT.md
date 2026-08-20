@@ -18,7 +18,7 @@
 | Surface | Phone web for the list; PDF download for distribution. | Locked |
 | Stack | **Python + FastAPI + SQLite + Jinja2**, local | Locked |
 | Search | **One box.** Prefer USFA hits for regional/national; AskFRED for the rest. | Locked 2026-08-19 |
-| Fencer names | **USFA** when AskFRED `registration_url` points at `member.usafencing.org`. AskFRED **preregistrations HTML** has local names but the **API does not**; local names are **nice-to-have, not v1**. | Locked 2026-08-19 |
+| Fencer names | **USFA** when AskFRED `registration_url` points at `member.usafencing.org`. Locals: logged-in AskFRED `/preregistrations` page (`ASKFRED_EMAIL` / `ASKFRED_PASSWORD` in `.env`). | Locked 2026-08-20 |
 | FencingTracker | Out of v1 | Locked |
 | FTL in v1 | **Not required.** Frank will still create a free FTL account in gitignored `.env` for later. Never paste the password in chat. | Locked |
 | Club identity | Match **Elite Fencers Club** / **Elite FC**. **Never match `EFC`** — that is *Elite Fencing Club*. | Locked 2026-08-19 |
