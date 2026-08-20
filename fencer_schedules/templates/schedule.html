@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ tournament.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -15,9 +18,20 @@
       </div>
       <div class="icon-row">
         <form action="/schedule/refresh" method="post">
-          <button class="icon-btn" type="submit" title="Refresh"><span>↻</span></button>
+          <button class="icon-btn" type="submit" title="Refresh" aria-label="Refresh">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.2-5.5"/>
+              <path d="M20 4v5h-5"/>
+            </svg>
+          </button>
         </form>
-        <a class="icon-btn" href="/schedule.pdf" title="Generate PDF"><span>PDF</span></a>
+        <a class="icon-btn" href="/schedule.pdf" title="Generate PDF" aria-label="Generate PDF">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 3.5h7l5 5V20.5H7z"/>
+            <path d="M14 3.5V9h5"/>
+            <path d="M9.5 13.5h5M9.5 17h3.5"/>
+          </svg>
+        </a>
       </div>
     </div>
     <div class="meta">
@@ -27,21 +41,6 @@
   </header>
 
   <main class="sheet">
-    {% if loaded and loaded|length > 1 %}
-      <div class="switcher">
-        {% for t in loaded %}
-          {% if t.askfred_id == tournament.askfred_id %}
-            <span class="on">{{ t.name }}</span>
-          {% else %}
-            <form action="/tournaments/{{ t.askfred_id }}/open" method="post" style="display:inline">
-              <button class="btn-ghost" type="submit" style="text-decoration:underline">{{ t.name }}</button>
-            </form>
-          {% endif %}
-          {% if not loop.last %} · {% endif %}
-        {% endfor %}
-      </div>
-    {% endif %}
-
     {% if not tournament.names_available %}
       <p class="banner">Names unavailable (AskFRED does not publish entries in the API).</p>
     {% endif %}
