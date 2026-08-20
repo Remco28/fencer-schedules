@@ -9,7 +9,7 @@ cd ~/Dev/fencer-schedules
 uv sync --extra dev --python 3.12
 ```
 
-AskFRED token lives in gitignored `.env` as `ASKFRED_API_TOKEN`. Do not paste it in chat. Club name is `config.yaml`.
+AskFRED token lives in gitignored `.env` as `ASKFRED_API_TOKEN`. For **local** tournament names, also set `ASKFRED_EMAIL` and `ASKFRED_PASSWORD` (same account). Do not paste secrets in chat. Club name is `config.yaml`.
 
 ## Run
 

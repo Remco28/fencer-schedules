@@ -53,7 +53,7 @@ Docs: https://help.askfred.net/en/articles/10328385-api-endpoints-data
 
 **Auto-route implication:** if `registration_url` contains `member.usafencing.org`, take names from USFA. That is how we know “USFA has this tournament.”
 
-**Local names:** the human page `/tournaments/{id}/preregistrations` is the list. From this host that URL is captcha-walled. Official API paths for it are **404**. Nice-to-have later (browser session or AskFRED adding the endpoint). Not a v1 gate.
+**Local names:** HTML `/preregistrations` is captcha-walled without a session. Login page (`/users/sign_in`) is **not** captcha-walled from this host. Workaround: Devise login with `ASKFRED_EMAIL` / `ASKFRED_PASSWORD` in `.env`, then GET the prereg page with that cookie. Official API still has no entries endpoint.
 
 ## FTL — later
 

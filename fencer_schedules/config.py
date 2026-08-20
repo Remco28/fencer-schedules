@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     club_name: str = "Elite Fencers Club"
     club_aliases: list[str] = Field(default_factory=list)
     askfred_api_token: str = ""
+    askfred_email: str = ""
+    askfred_password: str = ""
     database_path: Path = _REPO / "fencer_schedules.db"
 
     @classmethod
@@ -33,12 +35,20 @@ class Settings(BaseSettings):
             club_name = club.get("name") or club_name
             club_aliases = list(club.get("aliases") or [])
         token = ""
+        email = ""
+        password = ""
         if env_path.is_file():
             for line in env_path.read_text().splitlines():
                 if line.startswith("ASKFRED_API_TOKEN="):
                     token = line.split("=", 1)[1].strip().strip('"').strip("'")
+                elif line.startswith("ASKFRED_EMAIL="):
+                    email = line.split("=", 1)[1].strip().strip('"').strip("'")
+                elif line.startswith("ASKFRED_PASSWORD="):
+                    password = line.split("=", 1)[1].strip().strip('"').strip("'")
         return cls(
             club_name=club_name,
             club_aliases=club_aliases,
             askfred_api_token=token,
+            askfred_email=email,
+            askfred_password=password,
         )

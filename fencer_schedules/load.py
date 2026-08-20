@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Event, Tournament
+from fencer_schedules.models import Event, Fencer, Tournament
 from fencer_schedules.sources.askfred import AskFredClient
+from fencer_schedules.sources.askfred_prereg import AskFredSite
 from fencer_schedules.sources.usfa import UsfaClient
+
+
+class PreregSource(Protocol):
+    def fetch_preregistrations(self, tournament_id: str) -> dict[str, list[Fencer]]: ...
+
 
 
 def load_tournament(
@@ -11,13 +19,14 @@ def load_tournament(
     settings: Settings,
     askfred: AskFredClient | None = None,
     usfa: UsfaClient | None = None,
+    askfred_site: PreregSource | None = None,
 ) -> Tournament:
     askfred = askfred or AskFredClient(settings.askfred_api_token)
     tournament = askfred.fetch_tournament(askfred_id)
     askfred_events = askfred.fetch_events(askfred_id)
     if not tournament.usfa_id:
-        tournament.events = askfred_events
-        tournament.names_available = False
+        tournament.events = _with_askfred_names(askfred_events, askfred_id, settings, askfred_site)
+        tournament.names_available = any(event.fencers for event in tournament.events)
         return tournament
 
     usfa = usfa or UsfaClient()
@@ -37,6 +46,38 @@ def load_tournament(
     tournament.events = filled
     tournament.names_available = True
     return tournament
+
+
+def _with_askfred_names(
+    events: list[Event],
+    askfred_id: str,
+    settings: Settings,
+    site: PreregSource | None,
+) -> list[Event]:
+    if site is None:
+        if not (settings.askfred_email and settings.askfred_password):
+            return events
+        site = AskFredSite(settings.askfred_email, settings.askfred_password)
+    try:
+        by_title = site.fetch_preregistrations(askfred_id)
+    except RuntimeError:
+        return events
+    index = {_norm(title): fencers for title, fencers in by_title.items()}
+    attached: list[Event] = []
+    for event in events:
+        fencers = _match_event_fencers(event.name, index)
+        attached.append(event.model_copy(update={"fencers": fencers}))
+    return attached
+
+
+def _match_event_fencers(name: str, index: dict[str, list[Fencer]]) -> list[Fencer]:
+    key = _norm(name)
+    if key in index:
+        return index[key]
+    for title, fencers in index.items():
+        if key in title or title in key:
+            return fencers
+    return []
 
 
 def _norm(name: str) -> str:
