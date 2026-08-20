@@ -4,105 +4,118 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ tournament.name }}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; line-height: 1.4; }
-    h1 { font-size: 1.25rem; margin: 0 0 .3rem; }
-    .muted { opacity: .7; }
-    .day { margin-top: 1.4rem; font-size: 1.05rem; }
-    .event { margin: .7rem 0 1rem; }
-    .fencer { padding: .25rem 0; display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
-    .banner { background: #fc3; color: #111; padding: .6rem .7rem; margin: .8rem 0; }
-    form.inline { display: flex; gap: .4rem; margin: .8rem 0; }
-    input[type=text] { flex: 1; font-size: 1rem; padding: .5rem; }
-    button { font-size: 1rem; padding: .45rem .7rem; }
-    .linkish { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }
-    .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
-    a { color: inherit; }
-  </style>
+  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <p><a href="/">← Search</a></p>
-  {% if loaded and loaded|length > 1 %}
-    <p>
-      {% for t in loaded %}
-        {% if t.askfred_id == tournament.askfred_id %}
-          <strong>{{ t.name }}</strong>
-        {% else %}
-          <form action="/tournaments/{{ t.askfred_id }}/open" method="post" style="display:inline">
-            <button type="submit" style="background:none;border:0;padding:0;text-decoration:underline;font:inherit;cursor:pointer">{{ t.name }}</button>
-          </form>
-        {% endif %}
-        {% if not loop.last %} · {% endif %}
-      {% endfor %}
-    </p>
-  {% endif %}
-  <h1>{{ tournament.name }}</h1>
-  <p class="muted">{{ tournament.venue }} · {{ tournament.start_date }}{% if tournament.end_date != tournament.start_date %}–{{ tournament.end_date }}{% endif %}</p>
+  <header class="top">
+    <div class="brand">
+      <div>
+        <a class="back" href="/">← Search</a>
+        <h1>{{ tournament.name }}</h1>
+      </div>
+      <div class="icon-row">
+        <form action="/schedule/refresh" method="post">
+          <button class="icon-btn" type="submit" title="Refresh"><span>↻</span></button>
+        </form>
+        <a class="icon-btn" href="/schedule.pdf" title="Generate PDF"><span>PDF</span></a>
+      </div>
+    </div>
+    <div class="meta">
+      {% if tournament.venue %}<div class="teal">{{ tournament.venue }}</div>{% endif %}
+      <div class="dim">{{ tournament.start_date|span(tournament.end_date) }}</div>
+    </div>
+  </header>
 
-  {% if not tournament.names_available %}
-    <p class="banner">Names unavailable (AskFRED does not publish entries in the API).</p>
-  {% endif %}
-
-  <div class="actions">
-    <form action="/schedule/refresh" method="post"><button type="submit">Refresh</button></form>
-    <a href="/schedule.pdf"><button type="button">Generate PDF</button></a>
-  </div>
-
-  {% if tournament.names_available %}
-  <form class="inline" action="/schedule" method="get">
-    <input type="text" name="track_q" value="{{ track_q }}" placeholder="Track additional fencer">
-    <button type="submit">Find</button>
-  </form>
-  {% if suggestions %}
-    <ul>
-      {% for f in suggestions %}
-        <li>
-          <form action="/schedule/track" method="post" class="inline">
-            <input type="hidden" name="name" value="{{ f.name }}">
-            <input type="hidden" name="club" value="{{ f.club }}">
-            <button type="submit">Add {{ f.name }} · {{ f.club }}</button>
-          </form>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  {% endif %}
-
-  {% for event in events %}
-    {% if loop.first or events[loop.index0 - 1].day != event.day %}
-      <h2 class="day">{{ event.day.strftime("%A, %B %-d") }}</h2>
+  <main class="sheet">
+    {% if loaded and loaded|length > 1 %}
+      <div class="switcher">
+        {% for t in loaded %}
+          {% if t.askfred_id == tournament.askfred_id %}
+            <span class="on">{{ t.name }}</span>
+          {% else %}
+            <form action="/tournaments/{{ t.askfred_id }}/open" method="post" style="display:inline">
+              <button class="btn-ghost" type="submit" style="text-decoration:underline">{{ t.name }}</button>
+            </form>
+          {% endif %}
+          {% if not loop.last %} · {% endif %}
+        {% endfor %}
+      </div>
     {% endif %}
-    <section class="event">
-      <strong>
-        {% if event.clock %}{{ event.clock|clock }} · {% endif %}
-        <a href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
-      </strong>
-      {% for fencer in event.fencers %}
-        <div class="fencer">
-          <span>{{ fencer.name }} <span class="muted">{{ fencer.club }}</span></span>
-          <form action="/schedule/untrack" method="post">
-            <input type="hidden" name="name" value="{{ fencer.name }}">
-            <input type="hidden" name="club" value="{{ fencer.club }}">
-            <button class="linkish" type="submit">Untrack</button>
-          </form>
-        </div>
-      {% endfor %}
-    </section>
-  {% else %}
-    <p>No tracked fencers yet. Open an event below to pick people.</p>
-  {% endfor %}
 
-  {% if other_events %}
-    <h2 class="day">Other events</h2>
-    <p class="muted">No one tracked yet. Open one to add people.</p>
-    {% for event in other_events %}
-      <section class="event">
-        <strong>
-          {% if event.clock %}{{ event.clock|clock }} · {% endif %}
-          <a href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
-        </strong>
+    {% if not tournament.names_available %}
+      <p class="banner">Names unavailable (AskFRED does not publish entries in the API).</p>
+    {% endif %}
+
+    {% if tournament.names_available %}
+    <form class="search" action="/schedule" method="get">
+      <input type="text" name="track_q" value="{{ track_q }}" placeholder="Track additional fencer">
+      <button class="btn-gold" type="submit">Find</button>
+    </form>
+    {% if suggestions %}
+      <ul class="suggestions">
+        {% for f in suggestions %}
+          <li>
+            <form action="/schedule/track" method="post">
+              <input type="hidden" name="name" value="{{ f.name }}">
+              <input type="hidden" name="club" value="{{ f.club }}">
+              <button class="btn-navy" type="submit">Add {{ f.name }} · {{ f.club }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% endif %}
+
+    {% if days and days|length > 1 %}
+      <nav class="days">
+        {% for day in days %}
+          <a class="day-tab" href="#day-{{ day.isoformat() }}">{{ day.strftime("%a") }}<br>{{ day.strftime("%b %-d") }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {% for event in events %}
+      {% if loop.first or events[loop.index0 - 1].day != event.day %}
+        <h2 class="day-head" id="day-{{ event.day.isoformat() }}">{{ event.day.strftime("%A, %B %-d") }}</h2>
+      {% endif %}
+      <section class="card">
+        <div class="card-top">
+          <div class="time">{% if event.clock %}{{ event.clock|clock }}{% endif %}</div>
+          {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
+        </div>
+        <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+        {% for fencer in event.fencers %}
+          <div class="person">
+            <div class="avatar">{{ fencer.name|initials }}</div>
+            <div class="who">
+              <div class="name">{{ fencer.name }}</div>
+              <div class="club">{{ fencer.club }}</div>
+            </div>
+            <form action="/schedule/untrack" method="post">
+              <input type="hidden" name="name" value="{{ fencer.name }}">
+              <input type="hidden" name="club" value="{{ fencer.club }}">
+              <button class="btn-danger" type="submit">Untrack</button>
+            </form>
+          </div>
+        {% endfor %}
       </section>
+    {% else %}
+      <p class="muted">No tracked fencers yet. Open an event below to pick people.</p>
     {% endfor %}
-  {% endif %}
+
+    {% if other_events %}
+      <h2 class="day-head">Other events</h2>
+      <p class="muted">No one tracked yet. Open one to add people.</p>
+      {% for event in other_events %}
+        <section class="card">
+          <div class="card-top">
+            <div class="time">{% if event.clock %}{{ event.clock|clock }}{% endif %}</div>
+            {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
+          </div>
+          <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+        </section>
+      {% endfor %}
+    {% endif %}
+  </main>
 </body>
 </html>

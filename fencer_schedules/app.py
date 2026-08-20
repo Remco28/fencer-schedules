@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from fencer_schedules.config import Settings
@@ -25,6 +27,8 @@ from fencer_schedules.schedule import (
 from fencer_schedules.sources.askfred import AskFredClient
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+STATIC_DIR = Path(__file__).parent / "static"
+_CODE = re.compile(r"\(([A-Z0-9]{2,8})\)\s*$")
 
 
 def format_clock(clock) -> str:
@@ -33,7 +37,31 @@ def format_clock(clock) -> str:
     return clock.strftime("%I:%M %p").lstrip("0")
 
 
+def initials(name: str) -> str:
+    if "," in name:
+        last, first = (p.strip() for p in name.split(",", 1))
+        return ((last[:1] + first[:1]) or "?").upper()
+    parts = name.split()
+    if len(parts) >= 2:
+        return (parts[0][:1] + parts[-1][:1]).upper()
+    return (name[:2] or "?").upper()
+
+
+def event_code(name: str) -> str:
+    match = _CODE.search(name or "")
+    return match.group(1) if match else ""
+
+
+def format_span(start, end) -> str:
+    if start == end:
+        return start.strftime("%b %d, %Y").replace(" 0", " ")
+    return f"{start.strftime('%b %d').replace(' 0', ' ')}–{end.strftime('%b %d, %Y').replace(' 0', ' ')}"
+
+
 TEMPLATES.env.filters["clock"] = format_clock
+TEMPLATES.env.filters["initials"] = initials
+TEMPLATES.env.filters["code"] = event_code
+TEMPLATES.env.filters["span"] = format_span
 
 
 def create_app(
@@ -47,6 +75,7 @@ def create_app(
     app.state.settings = settings
     app.state.store = store
     app.state.askfred = askfred
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
@@ -91,6 +120,7 @@ def create_app(
         if tournament is None:
             return RedirectResponse("/", status_code=303)
         suggestions = search_loaded_fencers(tournament, track_q) if track_q else []
+        days = sorted({event.day for event in tournament.events})
         return TEMPLATES.TemplateResponse(
             request,
             "schedule.html",
@@ -98,6 +128,7 @@ def create_app(
                 "tournament": tournament,
                 "events": visible_events(tournament, settings),
                 "other_events": other_events(tournament, settings),
+                "days": days,
                 "loaded": store.list(),
                 "settings": settings,
                 "track_q": track_q,

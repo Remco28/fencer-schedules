@@ -4,63 +4,59 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fencer Schedules</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; line-height: 1.4; }
-    form.search { display: flex; gap: .5rem; }
-    input[type=search], input[type=text] { flex: 1; font-size: 1rem; padding: .6rem; }
-    button, .btn { font-size: 1rem; padding: .6rem .9rem; }
-    a { color: inherit; }
-    .hit { display: block; padding: .8rem 0; border-bottom: 1px solid #8884; text-decoration: none; }
-    .muted { opacity: .7; font-size: .9rem; }
-    .badge { font-size: .75rem; border: 1px solid currentColor; padding: .1rem .35rem; }
-    .loaded { margin-top: 1.5rem; }
-    .row { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; padding: .45rem 0; border-bottom: 1px solid #8884; }
-  </style>
+  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <h1>Find a tournament</h1>
-  <form class="search" action="/search" method="get">
-    <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat" autofocus>
-    <button type="submit">Search</button>
-  </form>
-  {% if hits is not none %}
-    {% if hits %}
-      {% for t in hits %}
-        <form class="hit" action="/tournaments/{{ t.askfred_id }}/open" method="post">
-          <button class="btn" type="submit" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid #8884;">
-            <strong>{{ t.name }}</strong><br>
-            <span class="muted">{{ t.start_date }}{% if t.end_date != t.start_date %}–{{ t.end_date }}{% endif %} · {{ t.venue or "—" }}</span>
-            <span class="badge">{{ "USFA" if t.usfa_id else "local" }}</span>
-            {% if loaded and t.askfred_id in loaded|map(attribute='askfred_id') %}
-              <span class="badge">saved</span>
-            {% endif %}
-          </button>
-        </form>
-      {% endfor %}
-    {% else %}
-      <p>No upcoming matches.</p>
-    {% endif %}
-  {% endif %}
+  <header class="top">
+    <div class="brand">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="mark">†</div>
+        <h1>Fencer Schedules</h1>
+      </div>
+    </div>
+    <p class="dim" style="margin:0;color:#94a3b8;font-size:.9rem">Elite Fencers Club</p>
+  </header>
+  <main class="sheet">
+    <form class="search" action="/search" method="get">
+      <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat">
+      <button class="btn-gold" type="submit">Search</button>
+    </form>
 
-  {% if loaded %}
-    <div class="loaded">
-      <h2>Saved tournaments</h2>
-      {% for t in loaded %}
-        <div class="row">
+    {% if hits is not none %}
+      {% if hits %}
+        {% for t in hits %}
           <form action="/tournaments/{{ t.askfred_id }}/open" method="post">
-            <button class="btn" type="submit" style="background:none; border:0; text-align:left; padding:0;">
-              <strong>{{ t.name }}</strong>
-              {% if current and t.askfred_id == current.askfred_id %} · open{% endif %}
-              <div class="muted">{{ t.start_date }}</div>
+            <button class="hit" type="submit">
+              <strong>{{ t.name }}</strong><br>
+              <span class="muted">{{ t.start_date|span(t.end_date) }} · {{ t.venue or "—" }}</span>
+              <span class="badge {% if not t.usfa_id %}soft{% endif %}">{{ "USFA" if t.usfa_id else "local" }}</span>
+              {% if loaded and t.askfred_id in loaded|map(attribute='askfred_id') %}
+                <span class="badge soft">saved</span>
+              {% endif %}
+            </button>
+          </form>
+        {% endfor %}
+      {% else %}
+        <p class="muted">No upcoming matches.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if loaded %}
+      <h2 class="day-head">Saved tournaments</h2>
+      {% for t in loaded %}
+        <div class="saved-row">
+          <form action="/tournaments/{{ t.askfred_id }}/open" method="post">
+            <button class="btn-ghost" type="submit">
+              <div class="name">{{ t.name }}</div>
+              <div class="muted">{{ t.start_date|span(t.end_date) }}{% if current and t.askfred_id == current.askfred_id %} · open{% endif %}</div>
             </button>
           </form>
           <form action="/tournaments/{{ t.askfred_id }}/remove" method="post">
-            <button type="submit">Remove</button>
+            <button class="btn-remove" type="submit">Remove</button>
           </form>
         </div>
       {% endfor %}
-    </div>
-  {% endif %}
+    {% endif %}
+  </main>
 </body>
 </html>
