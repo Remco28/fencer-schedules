@@ -24,6 +24,9 @@ class FakeSite:
             "Senior Mixed Epee": [Fencer(name="Sun, Kang", club="Elite Fencers Club")],
         }
 
+    def fetch_preregistration_clocks(self, tournament_id: str):
+        return {}
+
 
 @respx.mock
 def test_local_load_uses_prereg_names() -> None:

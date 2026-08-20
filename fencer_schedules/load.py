@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import time
 from typing import Protocol
 
 from fencer_schedules.config import Settings
@@ -11,6 +12,8 @@ from fencer_schedules.sources.usfa import UsfaClient
 
 class PreregSource(Protocol):
     def fetch_preregistrations(self, tournament_id: str) -> dict[str, list[Fencer]]: ...
+
+    def fetch_preregistration_clocks(self, tournament_id: str) -> dict[str, time]: ...
 
 
 
@@ -60,13 +63,20 @@ def _with_askfred_names(
         site = AskFredSite(settings.askfred_email, settings.askfred_password)
     try:
         by_title = site.fetch_preregistrations(askfred_id)
+        clocks = {_norm(title): clock for title, clock in site.fetch_preregistration_clocks(askfred_id).items()}
     except RuntimeError:
         return events
     index = {_norm(title): fencers for title, fencers in by_title.items()}
     attached: list[Event] = []
     for event in events:
         fencers = _match_event_fencers(event.name, index)
-        attached.append(event.model_copy(update={"fencers": fencers}))
+        clock = event.clock or clocks.get(_norm(event.name))
+        if clock is None:
+            for title, value in clocks.items():
+                if _norm(event.name) in title or title in _norm(event.name):
+                    clock = value
+                    break
+        attached.append(event.model_copy(update={"fencers": fencers, "clock": clock}))
     return attached
 
 
