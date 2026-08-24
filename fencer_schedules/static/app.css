@@ -93,7 +93,10 @@ button, .btn { cursor: pointer; }
   font-size: .92rem;
 }
 .meta .teal { color: #5eead4; }
-.meta .dim { color: #94a3b8; }
+.dim-link { color: #7dd3fc; text-decoration: none; }
+.dim-link:hover { text-decoration: underline; }
+.meta .dim a { color: #7dd3fc; }
+.meta .dim a:hover { text-decoration: underline; }
 
 .sheet {
   background: var(--white);

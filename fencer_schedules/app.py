@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
+from fencer_schedules.exports import csv_bytes, filename_for as export_filename, text_version
 from fencer_schedules.load import load_tournament
 from fencer_schedules.pdf import filename_for, render_pdf
 from fencer_schedules.schedule import (
@@ -195,6 +196,28 @@ def create_app(
         reloaded = load_tournament(tournament.askfred_id, settings, askfred=askfred)
         store.save(apply_overrides(reloaded, overrides))
         return RedirectResponse("/schedule", status_code=303)
+
+    @app.get("/schedule.csv")
+    def schedule_csv():
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        return Response(
+            content=csv_bytes(tournament, settings),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{export_filename(tournament, ".csv")}"'},
+        )
+
+    @app.get("/schedule.txt")
+    def schedule_txt():
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        return Response(
+            content=text_version(tournament, settings),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'inline; filename="{export_filename(tournament, ".txt")}"'},
+        )
 
     @app.get("/schedule.pdf")
     def schedule_pdf():

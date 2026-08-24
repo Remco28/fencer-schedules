@@ -127,6 +127,26 @@ def test_pdf_download(client: TestClient) -> None:
     assert pdf.content.startswith(b"%PDF")
 
 
+@respx.mock
+def test_csv_download(client: TestClient) -> None:
+    test_load_trick_shows_club_fencer(client)
+    csv = client.get("/schedule.csv")
+    assert csv.status_code == 200
+    assert csv.headers["content-type"].startswith("text/csv")
+    assert b"fencer,club" in csv.content
+    assert b"Doe, Jordan" in csv.content
+
+
+@respx.mock
+def test_text_export(client: TestClient) -> None:
+    test_load_trick_shows_club_fencer(client)
+    txt = client.get("/schedule.txt")
+    assert txt.status_code == 200
+    assert txt.headers["content-type"].startswith("text/plain")
+    assert "Doe, Jordan" in txt.text
+    assert "Elite Fencers Club" in txt.text
+
+
 def test_switch_between_saved_tournaments(client: TestClient) -> None:
     store = client.app.state.store
     store.save(

@@ -17,6 +17,18 @@
         <h1>{{ tournament.name }}</h1>
       </div>
       <div class="icon-row">
+        <a class="icon-btn" href="/schedule.txt" title="Copy as text" aria-label="Copy as text">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 6h10v12H7z"/>
+            <path d="M7 10h10M7 13.5h7M7 17h5"/>
+          </svg>
+        </a>
+        <a class="icon-btn" href="/schedule.csv" title="Download CSV" aria-label="Download CSV">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v10m0 0 4-4m-4 4-4-4"/>
+            <path d="M5 15v4h14v-4"/>
+          </svg>
+        </a>
         <form action="/schedule/refresh" method="post">
           <button class="icon-btn" type="submit" title="Refresh" aria-label="Refresh">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -36,7 +48,13 @@
     </div>
     <div class="meta">
       {% if tournament.venue %}<div class="teal">{{ tournament.venue }}</div>{% endif %}
-      <div class="dim">{{ tournament.start_date|span(tournament.end_date) }}</div>
+      <div class="dim">
+        {{ tournament.start_date|span(tournament.end_date) }}
+        · <a href="https://www.askfred.net/tournaments/{{ tournament.askfred_id }}" target="_blank" rel="noopener" class="dim-link">AskFRED ↗</a>
+        {% if tournament.usfa_id %}
+          · <a href="https://member.usafencing.org/details/tournaments/{{ tournament.usfa_id }}" target="_blank" rel="noopener" class="dim-link">USFA ↗</a>
+        {% endif %}
+      </div>
     </div>
   </header>
 
