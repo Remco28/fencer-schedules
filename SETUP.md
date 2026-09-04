@@ -40,7 +40,7 @@ sudo systemctl enable --now fencer-schedules.service
 sudo systemctl enable --now fencer-schedules-monitor.timer
 ```
 
-The web app restarts on crash and on boot. The watcher runs at 09:00 and 21:00 America/New_York.
+The web app restarts on crash and on boot. The watcher timer ticks hourly (`OnCalendar=hourly`); the app only checks within ±30 minutes of the alert times saved in gear → Settings (default `09:00,21:00` America/New_York).
 
 Manual one-shot:
 

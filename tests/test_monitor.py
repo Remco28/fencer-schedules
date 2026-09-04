@@ -1,13 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date, datetime, time
 
 import pytest
 
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
 from fencer_schedules.models import Event, Fencer, Tournament
-from fencer_schedules.monitor import build_digest, new_names, run
+from fencer_schedules.monitor import (
+    alert_times_for,
+    build_digest,
+    is_check_hour,
+    new_names,
+    normalize_alert_times,
+    parse_alert_times,
+    run,
+)
+
+NINE_AM = datetime(2026, 8, 22, 9, 0)
 
 TRICK_ID = "f4fbfddf-8316-46d2-9392-8a8245059f86"
 
@@ -105,7 +115,7 @@ def test_first_run_baselines_silently(tmp_path, monkeypatch) -> None:
     sent: list = []
     monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
 
-    subjects = run(_settings(), store)
+    subjects = run(_settings(), store, now=NINE_AM)
     assert subjects == []
     assert sent == []
     watch = store.watch_for(TRICK_ID, None, "club")
@@ -129,7 +139,7 @@ def test_second_run_with_added_fencer_emails(tmp_path, monkeypatch) -> None:
     sent: list = []
     monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
 
-    subjects = run(_settings(), store)
+    subjects = run(_settings(), store, now=NINE_AM)
     assert len(subjects) == 1
     assert "Trick or Retreat" in subjects[0]
     assert len(sent) == 1
@@ -152,7 +162,7 @@ def test_club_watch_filters_to_our_club(tmp_path, monkeypatch) -> None:
 
     sent: list = []
     monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
-    subjects = run(_settings(), store)
+    subjects = run(_settings(), store, now=NINE_AM)
     assert subjects == []
     assert sent == []
 
@@ -171,7 +181,7 @@ def test_event_watch_reports_anyone(tmp_path, monkeypatch) -> None:
     )
     sent: list = []
     monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
-    subjects = run(_settings(), store)
+    subjects = run(_settings(), store, now=NINE_AM)
     assert len(subjects) == 1
     assert sent and "Junior Men's Epee" in sent[0][2]
 
@@ -187,7 +197,7 @@ def test_failing_load_does_not_kill_run(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _boom)
     sent: list = []
     monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
-    subjects = run(_settings(), store)
+    subjects = run(_settings(), store, now=NINE_AM)
     assert subjects == []
     assert sent == []
 
@@ -226,3 +236,127 @@ def test_recipients_default(tmp_path) -> None:
     from fencer_schedules.monitor import recipients_for
 
     assert recipients_for(store) == ["frankcng@gmail.com"]
+
+
+# ---- alert times ----
+
+
+def test_parse_alert_times_valid_sorted_deduped() -> None:
+    assert parse_alert_times("21:00, 09:00,09:00") == ["09:00", "21:00"]
+    assert parse_alert_times("07:30") == ["07:30"]
+
+
+def test_parse_alert_times_drops_invalid() -> None:
+    assert parse_alert_times("9am, 25:00, , 12:60") == []
+    assert parse_alert_times("") == []
+    assert parse_alert_times(None) == []
+    assert parse_alert_times("09:00, bogus, 18:15") == ["09:00", "18:15"]
+
+
+def test_normalize_alert_times_from_form_list() -> None:
+    assert normalize_alert_times(["21:00", "09:00"]) == "09:00,21:00"
+    assert normalize_alert_times(["07:30, 19:00"]) == "07:30,19:00"
+    assert normalize_alert_times(["", "bogus"]) == ""
+    assert normalize_alert_times([]) == ""
+
+
+def test_alert_times_default_when_unset(tmp_path) -> None:
+    store = Store(tmp_path / "t.db")
+    assert alert_times_for(store) == ["09:00", "21:00"]
+
+
+def test_alert_times_default_when_invalid(tmp_path) -> None:
+    store = Store(tmp_path / "t.db")
+    store.set_setting("alert_times", "bogus, ,")
+    assert alert_times_for(store) == ["09:00", "21:00"]
+
+
+def test_alert_times_save_roundtrip(tmp_path) -> None:
+    store = Store(tmp_path / "t.db")
+    store.set_setting("alert_times", normalize_alert_times(["19:00", "07:30"]))
+    assert store.get_setting("alert_times") == "07:30,19:00"
+    assert alert_times_for(store) == ["07:30", "19:00"]
+
+
+def test_is_check_hour_boundaries() -> None:
+    assert is_check_hour(datetime(2026, 8, 22, 9, 0), ["09:00"])
+    assert is_check_hour(datetime(2026, 8, 22, 8, 30), ["09:00"])
+    assert is_check_hour(datetime(2026, 8, 22, 9, 30), ["09:00"])
+    assert not is_check_hour(datetime(2026, 8, 22, 8, 29), ["09:00"])
+    assert not is_check_hour(datetime(2026, 8, 22, 9, 31), ["09:00"])
+
+
+def test_is_check_hour_midnight_wrap() -> None:
+    assert is_check_hour(datetime(2026, 8, 22, 23, 50), ["00:10"])
+    assert is_check_hour(datetime(2026, 8, 22, 0, 20), ["00:10"])
+    assert not is_check_hour(datetime(2026, 8, 22, 1, 0), ["00:10"])
+
+
+def _seed_watched(store: Store) -> None:
+    _seed(store, _tournament([_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")])]))
+    store.set_watch(TRICK_ID, None, "club")
+    store.save_last_seen(store.watch_for(TRICK_ID, None, "club"), {"e1": [["Doe, Jordan", "Elite Fencers Club"]]})
+
+
+def _fresh_with_newcomer(aid, s, **kw):
+    return _tournament(
+        [_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club"), _fencer("Smith, James", "Elite FC")])]
+    )
+
+
+def test_run_skips_when_not_check_hour(tmp_path, monkeypatch) -> None:
+    store = Store(tmp_path / "t.db")
+    _seed_watched(store)
+
+    def _boom(aid, s, **kw):
+        raise AssertionError("load_tournament must not be called outside check hours")
+
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _boom)
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    subjects = run(_settings(), store, now=datetime(2026, 8, 22, 14, 0))
+    assert subjects == []
+    assert sent == []
+    # last_seen untouched
+    assert store.watch_for(TRICK_ID, None, "club").last_seen == '{"e1": [["Doe, Jordan", "Elite Fencers Club"]]}'
+
+
+def test_run_runs_within_window(tmp_path, monkeypatch) -> None:
+    store = Store(tmp_path / "t.db")
+    _seed_watched(store)
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _fresh_with_newcomer)
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    subjects = run(_settings(), store, now=datetime(2026, 8, 22, 9, 10))
+    assert len(subjects) == 1
+    assert len(sent) == 1
+
+
+def test_run_uses_saved_times(tmp_path, monkeypatch) -> None:
+    store = Store(tmp_path / "t.db")
+    _seed_watched(store)
+    store.set_setting("alert_times", "07:30")
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _fresh_with_newcomer)
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    assert run(_settings(), store, now=datetime(2026, 8, 22, 9, 0)) == []
+    assert sent == []
+    assert len(run(_settings(), store, now=datetime(2026, 8, 22, 7, 40))) == 1
+    assert len(sent) == 1
+
+
+def test_dry_run_ignores_check_window(tmp_path, monkeypatch, capsys) -> None:
+    store = Store(tmp_path / "t.db")
+    _seed_watched(store)
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _fresh_with_newcomer)
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    # 14:00 is outside the default 09:00/21:00 windows, but dry-run evaluates.
+    run(_settings(), store, dry_run=True, now=datetime(2026, 8, 22, 14, 0))
+    assert sent == []
+    out = capsys.readouterr().out
+    assert "New registrants" in out

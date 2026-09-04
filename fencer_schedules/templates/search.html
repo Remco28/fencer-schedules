@@ -9,9 +9,12 @@
 <body>
   <header class="top">
     <div class="brand">
-      <div style="display:flex;gap:10px;align-items:center">
-        <div class="mark">†</div>
-        <h1>Fencer Schedules</h1>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="mark" aria-hidden="true">†</div>
+        <div>
+          <h1>Fencer Schedules</h1>
+          <p class="club-tag">Elite Fencers Club</p>
+        </div>
       </div>
       <a class="icon-btn" href="/settings" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -20,38 +23,46 @@
         </svg>
       </a>
     </div>
-    <p class="dim" style="margin:0;color:#94a3b8;font-size:.9rem">Elite Fencers Club</p>
+    <p class="lede">Start lists for upcoming tournaments — find it, track your fencers, print the sheet.</p>
   </header>
   <main class="sheet">
-    <form class="search" action="/search" method="get">
-      <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat">
+    <form class="search" action="/search" method="get" role="search">
+      <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat" aria-label="Search tournaments">
       <button class="btn-gold" type="submit">Search</button>
     </form>
 
     {% if hits is not none %}
       {% if hits %}
+        <h2 class="section-label">Matches for “{{ q }}”</h2>
+        <div class="results">
         {% for t in hits %}
           <form action="/tournaments/{{ t.askfred_id }}/open" method="post">
             <button class="hit" type="submit">
-              <strong>{{ t.name }}</strong><br>
+              <strong>{{ t.name }}</strong>
               <span class="muted">{{ t.start_date|span(t.end_date) }} · {{ t.venue or "—" }}</span>
-              <span class="badge {% if not t.usfa_id %}soft{% endif %}">{{ "USFA" if t.usfa_id else "local" }}</span>
-              {% if loaded and t.askfred_id in loaded|map(attribute='askfred_id') %}
-                <span class="badge soft">saved</span>
-              {% endif %}
+              <span class="hit-badges">
+                <span class="badge {% if not t.usfa_id %}soft{% endif %}">{{ "USFA" if t.usfa_id else "local" }}</span>
+                {% if loaded and t.askfred_id in loaded|map(attribute='askfred_id') %}
+                  <span class="badge soft">saved</span>
+                {% endif %}
+              </span>
             </button>
           </form>
         {% endfor %}
+        </div>
       {% else %}
-        <p class="muted">No upcoming matches.</p>
+        <div class="empty">
+          <p class="empty-title">No upcoming matches.</p>
+          <p>Try a shorter name — “ROC”, “SYC”, or the host city.</p>
+        </div>
       {% endif %}
     {% endif %}
 
     {% if loaded %}
-      <h2 class="day-head">Saved tournaments</h2>
+      <h2 class="section-label">Saved tournaments</h2>
       {% for t in loaded %}
         <div class="saved-row">
-          <form action="/tournaments/{{ t.askfred_id }}/open" method="post">
+          <form action="/tournaments/{{ t.askfred_id }}/open" method="post" style="flex:1;min-width:0">
             <button class="btn-ghost" type="submit">
               <div class="name">{{ t.name }}</div>
               <div class="muted">{{ t.start_date|span(t.end_date) }}{% if current and t.askfred_id == current.askfred_id %} · open{% endif %}</div>
@@ -62,6 +73,11 @@
           </form>
         </div>
       {% endfor %}
+    {% elif hits is none %}
+      <div class="empty">
+        <p class="empty-title">Nothing saved yet.</p>
+        <p>Search above, open a tournament, and it will stay here for quick access.</p>
+      </div>
     {% endif %}
   </main>
 </body>

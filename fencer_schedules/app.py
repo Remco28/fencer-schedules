@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store
+from fencer_schedules.monitor import alert_times_for, normalize_alert_times
 from fencer_schedules.exports import csv_bytes, filename_for as export_filename, text_version
 from fencer_schedules.load import load_tournament
 from fencer_schedules.pdf import filename_for, render_pdf
@@ -227,12 +228,26 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request,
             "settings.html",
-            {"recipient": recipient, "saved": request.query_params.get("saved") == "1"},
+            {
+                "recipient": recipient,
+                "alert_times": alert_times_for(store),
+                "saved": request.query_params.get("saved") == "1",
+            },
         )
 
     @app.post("/settings")
-    def settings_save(recipient: str = Form(...)) -> RedirectResponse:
-        store.set_setting("alert_recipient", recipient.strip())
+    async def settings_save(request: Request) -> RedirectResponse:
+        form = await request.form()
+        recipient = str(form.get("recipient", "") or "").strip()
+        raw_times = form.getlist("alert_times")
+        normalized = normalize_alert_times(raw_times)
+        store.set_setting("alert_recipient", recipient)
+        if normalized:
+            store.set_setting("alert_times", normalized)
+        else:
+            # Empty/invalid posts fall back to the default on read; persist
+            # the default so the stored value stays a valid HH:MM list.
+            store.set_setting("alert_times", ",".join(alert_times_for(store)))
         return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.get("/schedule.csv")

@@ -1,9 +1,8 @@
 [Unit]
-Description=Fencer Schedules registrant watcher twice a day
+Description=Fencer Schedules registrant watcher hourly tick (app decides check hours)
 
 [Timer]
-OnCalendar=*-*-* 09:00:00
-OnCalendar=*-*-* 21:00:00
+OnCalendar=hourly
 Persistent=true
 AccuracySec=1min
 

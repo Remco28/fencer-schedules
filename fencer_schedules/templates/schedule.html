@@ -9,7 +9,7 @@
 <body>
   <header class="top">
     <div class="brand">
-      <div>
+      <div style="min-width:0">
         <a class="back" href="/">← Search</a>
         <h1>{{ tournament.name }}</h1>
       </div>
@@ -71,7 +71,7 @@
             <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
             <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
           </svg>
-          <span>{% if club_watching %}Watching — Elite FC only{% else %}Watch for new Elite FC fencers{% endif %}</span>
+          <span>{% if club_watching %}Watching — Elite FC only<small>Tap to stop email alerts for this tournament.</small>{% else %}Watch for new Elite FC fencers<small>Get an email when a club fencer signs up.</small>{% endif %}</span>
         </button>
       </form>
     </div>
@@ -83,7 +83,7 @@
 
     {% if tournament.names_available %}
     <form class="search" action="/schedule" method="get">
-      <input type="text" name="track_q" value="{{ track_q }}" placeholder="Track additional fencer">
+      <input type="text" name="track_q" value="{{ track_q }}" placeholder="Track additional fencer" aria-label="Track additional fencer">
       <button class="btn-gold" type="submit">Find</button>
     </form>
     {% if suggestions %}
@@ -98,11 +98,16 @@
           </li>
         {% endfor %}
       </ul>
+    {% elif track_q %}
+      <div class="empty">
+        <p class="empty-title">No match for “{{ track_q }}”.</p>
+        <p>Check the spelling, or add them from the event roster below.</p>
+      </div>
     {% endif %}
     {% endif %}
 
     {% if days and days|length > 1 %}
-      <nav class="days">
+      <nav class="days" aria-label="Jump to day">
         {% for day in days %}
           <a class="day-tab" href="#day-{{ day.isoformat() }}">{{ day.strftime("%a") }}<br>{{ day.strftime("%b %-d") }}</a>
         {% endfor %}
@@ -115,13 +120,13 @@
       {% endif %}
       <section class="card">
         <div class="card-top">
-          <div class="time">{% if event.clock %}{{ event.clock|clock }}{% endif %}</div>
+          <div class="time">{% if event.clock %}{{ event.clock|clock }}{% else %}Time TBA{% endif %}</div>
           {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
         </div>
         <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
         {% for fencer in event.fencers %}
           <div class="person">
-            <div class="avatar">{{ fencer.name|initials }}</div>
+            <div class="avatar" aria-hidden="true">{{ fencer.name|initials }}</div>
             <div class="who">
               <div class="name">{{ fencer.name }}</div>
               <div class="club">{{ fencer.club }}</div>
@@ -135,7 +140,10 @@
         {% endfor %}
       </section>
     {% else %}
-      <p class="muted">No tracked fencers yet. Open an event below to pick people.</p>
+      <div class="empty">
+        <p class="empty-title">No tracked fencers yet.</p>
+        <p>Open an event below to pick people.</p>
+      </div>
     {% endfor %}
 
     {% if other_events %}
@@ -144,7 +152,7 @@
       {% for event in other_events %}
         <section class="card">
           <div class="card-top">
-            <div class="time">{% if event.clock %}{{ event.clock|clock }}{% endif %}</div>
+            <div class="time">{% if event.clock %}{{ event.clock|clock }}{% else %}Time TBA{% endif %}</div>
             {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
           </div>
           <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>

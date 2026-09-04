@@ -14,20 +14,70 @@
         <h1>Settings</h1>
       </div>
     </div>
+    <p class="lede">Who gets watcher emails, and at which morning and evening checks.</p>
   </header>
   <main class="sheet">
     {% if saved %}
-      <p class="flash">Saved.</p>
+      <p class="flash" role="status">Saved.</p>
     {% endif %}
     <form class="settings" action="/settings" method="post">
       <label class="field">
         <span class="field-label">Send alerts to</span>
-        <input type="text" name="recipient" value="{{ recipient }}" placeholder="frankcng@gmail.com">
+        <input type="text" name="recipient" value="{{ recipient }}" placeholder="frankcng@gmail.com" autocomplete="email" inputmode="email">
         <span class="field-hint">One email, or several separated by commas.</span>
       </label>
-      <button class="btn-gold" type="submit">Save</button>
+      <fieldset class="field times-field">
+        <legend class="field-label">Check times <span class="field-inline-hint">(Eastern)</span></legend>
+        <div id="alert-times" class="times-list">
+          {% for t in alert_times %}
+          <div class="time-row">
+            <input type="time" name="alert_times" value="{{ t }}" required>
+            <button class="btn-remove" type="button" data-remove aria-label="Remove {{ t }}">Remove</button>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="times-actions">
+          <button class="btn-ghost-link" type="button" id="add-time">+ Add time</button>
+        </div>
+        <span class="field-hint">The watcher wakes hourly and only checks within ±30 minutes of these times.</span>
+      </fieldset>
+      <button class="btn-gold btn-save" type="submit">Save</button>
     </form>
     <p class="muted note">Used by the registrant watcher. It emails here when a watched tournament or event gets a new sign-up.</p>
   </main>
+  <script>
+  (function () {
+    var list = document.getElementById("alert-times");
+    var add = document.getElementById("add-time");
+    if (!list || !add) return;
+    function row(value) {
+      var div = document.createElement("div");
+      div.className = "time-row";
+      var input = document.createElement("input");
+      input.type = "time";
+      input.name = "alert_times";
+      input.required = true;
+      if (value) input.value = value;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-remove";
+      btn.setAttribute("data-remove", "");
+      btn.textContent = "Remove";
+      btn.setAttribute("aria-label", "Remove time");
+      div.appendChild(input);
+      div.appendChild(btn);
+      return div;
+    }
+    add.addEventListener("click", function () {
+      list.appendChild(row(""));
+      var last = list.lastElementChild.querySelector("input");
+      if (last) last.focus();
+    });
+    list.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("[data-remove]");
+      if (btn) btn.closest(".time-row").remove();
+    });
+  })();
+  </script>
 </body>
 </html>

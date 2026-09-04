@@ -9,7 +9,7 @@
 <body>
   <header class="top">
     <div class="brand">
-      <div>
+      <div style="min-width:0">
         <a class="back" href="/schedule">← Schedule</a>
         <h1>{{ event.name }}</h1>
       </div>
@@ -34,14 +34,14 @@
             <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
             <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
           </svg>
-          <span>{% if event_watching %}Watching this event — anyone{% else %}Email me when anyone signs up{% endif %}</span>
+          <span>{% if event_watching %}Watching this event — anyone<small>Tap to stop email alerts for this event.</small>{% else %}Email me when anyone signs up<small>One email per check when the roster grows.</small>{% endif %}</span>
         </button>
       </form>
     </div>
     <p class="count">{% if rows|length == 1 %}1 fencer{% else %}{{ rows|length }} fencers{% endif %}</p>
     {% for row in rows %}
       <div class="person">
-        <div class="avatar {% if row.tracked %}navy{% endif %}">{{ row.fencer.name|initials }}</div>
+        <div class="avatar {% if row.tracked %}navy{% endif %}" aria-hidden="true">{{ row.fencer.name|initials }}</div>
         <div class="who">
           <div class="name">{{ row.fencer.name }}</div>
           <div class="club">{{ row.fencer.club }}</div>
@@ -63,7 +63,10 @@
         {% endif %}
       </div>
     {% else %}
-      <p class="muted">No names for this event.</p>
+      <div class="empty">
+        <p class="empty-title">No names for this event.</p>
+        <p>Check back after entries publish.</p>
+      </div>
     {% endfor %}
   </main>
 </body>

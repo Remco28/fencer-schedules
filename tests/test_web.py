@@ -191,6 +191,9 @@ def test_settings_page_shows_default_recipient(client: TestClient) -> None:
     resp = client.get("/settings")
     assert resp.status_code == 200
     assert "frankcng@gmail.com" in resp.text
+    assert 'type="time"' in resp.text
+    assert 'value="09:00"' in resp.text
+    assert 'value="21:00"' in resp.text
 
 
 def test_settings_save_persists_recipient(client: TestClient) -> None:
@@ -202,6 +205,37 @@ def test_settings_save_persists_recipient(client: TestClient) -> None:
     assert resp.status_code == 200
     assert "Saved" in resp.text
     assert client.app.state.store.get_setting("alert_recipient") == "frankcng@gmail.com, wife@example.com"
+
+
+def test_settings_shows_saved_times(client: TestClient) -> None:
+    client.app.state.store.set_setting("alert_times", "07:30,19:00")
+    resp = client.get("/settings")
+    assert resp.status_code == 200
+    assert 'value="07:30"' in resp.text
+    assert 'value="19:00"' in resp.text
+
+
+def test_settings_save_roundtrip_times(client: TestClient) -> None:
+    resp = client.post(
+        "/settings",
+        data={"recipient": "frankcng@gmail.com", "alert_times": ["07:30", "19:00"]},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert "Saved" in resp.text
+    assert client.app.state.store.get_setting("alert_times") == "07:30,19:00"
+    assert 'value="07:30"' in resp.text
+    assert 'value="19:00"' in resp.text
+
+
+def test_settings_save_drops_invalid_times(client: TestClient) -> None:
+    resp = client.post(
+        "/settings",
+        data={"recipient": "frankcng@gmail.com", "alert_times": ["bogus", "08:00"]},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert client.app.state.store.get_setting("alert_times") == "08:00"
 
 
 def test_club_watch_toggle_on_and_off(client: TestClient) -> None:
