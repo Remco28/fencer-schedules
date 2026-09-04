@@ -186,6 +186,37 @@ def test_event_watch_reports_anyone(tmp_path, monkeypatch) -> None:
     assert sent and "Junior Men's Epee" in sent[0][2]
 
 
+def test_overlapping_watches_send_one_digest_per_tournament(tmp_path, monkeypatch) -> None:
+    store = Store(tmp_path / "t.db")
+    current = _tournament(
+        [_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club"), _fencer("Smith, James", "Elite FC")])]
+    )
+    _seed(store, current)
+    club_watch = store.set_watch(TRICK_ID, None, "club")
+    event_watch = store.set_watch(TRICK_ID, "e1", "all")
+    baseline = {"e1": [["Doe, Jordan", "Elite Fencers Club"]]}
+    store.save_last_seen(club_watch, baseline)
+    store.save_last_seen(event_watch, baseline)
+
+    loads: list[str] = []
+    monkeypatch.setattr(
+        "fencer_schedules.monitor.load_tournament",
+        lambda aid, s, **kw: loads.append(aid) or current,
+    )
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    subjects = run(_settings(), store, now=NINE_AM)
+
+    assert len(loads) == 1
+    assert len(subjects) == 1
+    assert len(sent) == 1
+    assert sent[0][1] == "New registrants: Trick or Retreat ROC / RJCC (1 new)"
+    assert sent[0][2].count("Smith, James") == 1
+    assert store.watch_for(TRICK_ID, None, "club").last_seen == '{"e1": [["Doe, Jordan", "Elite Fencers Club"], ["Smith, James", "Elite FC"]]}'
+    assert store.watch_for(TRICK_ID, "e1", "all").last_seen == '{"e1": [["Doe, Jordan", "Elite Fencers Club"], ["Smith, James", "Elite FC"]]}'
+
+
 def test_failing_load_does_not_kill_run(tmp_path, monkeypatch) -> None:
     store = Store(tmp_path / "t.db")
     _seed(store, _tournament([_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")])]))

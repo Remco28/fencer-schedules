@@ -141,28 +141,46 @@ def run(
             return []
     recipients = recipients_for(store)
     subjects: list[str] = []
+    watches_by_tournament: dict[str, list[Watch]] = {}
     for watch in store.watches():
-        tournament = store.get(watch.askfred_id)
+        watches_by_tournament.setdefault(watch.askfred_id, []).append(watch)
+
+    for askfred_id, watches in watches_by_tournament.items():
+        tournament = store.get(askfred_id)
         if tournament is None:
             if not dry_run:
-                store.delete_watches(watch.askfred_id)
+                store.delete_watches(askfred_id)
             continue
         try:
-            fresh = load_tournament(watch.askfred_id, settings)
+            # Load once per tournament, even when multiple watch types overlap.
+            fresh = load_tournament(askfred_id, settings)
         except Exception:
-            logger.exception("watch %s failed to load; skipping", watch.askfred_id)
+            logger.exception("watch %s failed to load; skipping", askfred_id)
             continue
-        last_seen = json.loads(watch.last_seen or "{}")
-        additions: list[tuple[Event, list[list[str]]]] = []
-        snapshot: dict[str, list[list[str]]] = {}
-        for event in _watched_events(watch, fresh):
-            current = _names(event, watch, settings)
-            key = event.source_event_id
-            snapshot[key] = current
-            if key in last_seen:
+
+        additions_by_event: dict[str, tuple[Event, list[list[str]]]] = {}
+        snapshots: list[tuple[Watch, dict[str, list[list[str]]]]] = []
+        for watch in watches:
+            last_seen = json.loads(watch.last_seen or "{}")
+            snapshot: dict[str, list[list[str]]] = {}
+            for event in _watched_events(watch, fresh):
+                current = _names(event, watch, settings)
+                key = event.source_event_id
+                snapshot[key] = current
+                if key not in last_seen:
+                    continue
                 new = new_names(last_seen[key], current)
-                if new:
-                    additions.append((event, new))
+                if not new:
+                    continue
+                if key not in additions_by_event:
+                    additions_by_event[key] = (event, [])
+                combined = additions_by_event[key][1]
+                for pair in new:
+                    if pair not in combined:
+                        combined.append(pair)
+            snapshots.append((watch, snapshot))
+
+        additions = list(additions_by_event.values())
         if additions:
             subject, body = build_digest(fresh, additions, settings)
             if dry_run:
@@ -171,10 +189,14 @@ def run(
                 print(body)
                 print()
             else:
+                # One email per tournament per run, not one per overlapping watch.
                 send_digest(settings, subject, body, recipients)
                 subjects.append(subject)
+
+        # Only advance baselines after a successful send (or a no-change run).
         if not dry_run:
-            store.save_last_seen(watch, snapshot)
+            for watch, snapshot in snapshots:
+                store.save_last_seen(watch, snapshot)
     return subjects
 
 
