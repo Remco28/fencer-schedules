@@ -97,6 +97,7 @@ def test_event_roster_track_and_untrack(client: TestClient) -> None:
     assert roster.status_code == 200
     assert "Albrecht-Smith, Anne" in roster.text
     assert "Track" in roster.text
+    assert "2 fencers" in roster.text
     added = client.post(
         "/schedule/track",
         data={

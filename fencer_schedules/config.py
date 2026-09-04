@@ -12,7 +12,7 @@ DEFAULT_ALERT_RECIPIENT = "frankcng@gmail.com"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore", env_prefix="FENCER_SCHEDULES_UNUSED_")
 
     club_name: str = "Elite Fencers Club"
     club_aliases: list[str] = Field(default_factory=list)

@@ -4,9 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ event.name }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -41,6 +38,7 @@
         </button>
       </form>
     </div>
+    <p class="count">{% if rows|length == 1 %}1 fencer{% else %}{{ rows|length }} fencers{% endif %}</p>
     {% for row in rows %}
       <div class="person">
         <div class="avatar {% if row.tracked %}navy{% endif %}">{{ row.fencer.name|initials }}</div>

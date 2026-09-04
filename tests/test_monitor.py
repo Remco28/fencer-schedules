@@ -17,6 +17,8 @@ def _settings() -> Settings:
         club_name="Elite Fencers Club",
         club_aliases=["Elite FC"],
         askfred_api_token="x",
+        agentmail_api_key="",
+        agentmail_inbox="",
     )
 
 
@@ -27,7 +29,7 @@ def _fencer(name: str, club: str) -> Fencer:
 def _event(event_id: str, fencers: list[Fencer], clock: time | None = None) -> Event:
     return Event(
         source_event_id=event_id,
-        name=f"Event {event_id}",
+        name="Junior Men's Epee",
         day=date(2026, 8, 22),
         clock=clock,
         fencers=fencers,
@@ -84,8 +86,10 @@ def test_build_digest_subject_and_body() -> None:
     assert subject == "New registrants: Trick or Retreat ROC / RJCC (2 new)"
     assert "Saturday, August 22" in body
     assert "8:00 AM" in body
+    assert "Junior Men's Epee" in body
     assert "- Doe, Jordan — Elite Fencers Club [CLUB]" in body
     assert "- Smith, James — Other Club" in body
+    assert "Event e1" not in body
 
 
 # ---- run loop ----
@@ -146,8 +150,11 @@ def test_club_watch_filters_to_our_club(tmp_path, monkeypatch) -> None:
     )
     store.save_last_seen(store.watch_for(TRICK_ID, None, "club"), {"e1": [["Doe, Jordan", "Elite Fencers Club"]]})
 
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
     subjects = run(_settings(), store)
     assert subjects == []
+    assert sent == []
 
 
 def test_event_watch_reports_anyone(tmp_path, monkeypatch) -> None:
@@ -162,8 +169,11 @@ def test_event_watch_reports_anyone(tmp_path, monkeypatch) -> None:
             [_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club"), _fencer("Rival, Rob", "EFC")])]
         ),
     )
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
     subjects = run(_settings(), store)
     assert len(subjects) == 1
+    assert sent and "Junior Men's Epee" in sent[0][2]
 
 
 def test_failing_load_does_not_kill_run(tmp_path, monkeypatch) -> None:
@@ -175,8 +185,11 @@ def test_failing_load_does_not_kill_run(tmp_path, monkeypatch) -> None:
         raise RuntimeError("network down")
 
     monkeypatch.setattr("fencer_schedules.monitor.load_tournament", _boom)
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
     subjects = run(_settings(), store)
     assert subjects == []
+    assert sent == []
 
 
 def test_dry_run_sends_nothing_and_does_not_write(tmp_path, monkeypatch) -> None:
