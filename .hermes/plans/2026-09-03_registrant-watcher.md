@@ -198,7 +198,7 @@ AgentMail digests"` → push `main` → verify `git status` clean and
 - [x] Unit test proves: a failing `load_tournament` for one tournament doesn't kill the run.
 - [ ] Manual (optional, if credentials present in `.env`): load Wanglei (local), enable event
   watch, `--dry-run` prints current roster without sending.
-- [ ] `git status` clean; pushed; remote SHA matches local HEAD.
+- [x] `git status` clean; pushed; remote SHA matches local HEAD.
 
 ---
 
