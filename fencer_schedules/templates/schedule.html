@@ -44,6 +44,12 @@
             <path d="M9.5 13.5h5M9.5 17h3.5"/>
           </svg>
         </a>
+        <a class="icon-btn" href="/settings" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.3 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.97z"/>
+          </svg>
+        </a>
       </div>
     </div>
     <div class="meta">
@@ -59,6 +65,21 @@
   </header>
 
   <main class="sheet">
+    {% if tournament.names_available %}
+    <div class="watch-bar">
+      <form action="/schedule/watch" method="post">
+        <input type="hidden" name="next" value="/schedule">
+        <button class="watch-btn {% if club_watching %}on{% endif %}" type="submit">
+          <svg class="bell" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
+          </svg>
+          <span>{% if club_watching %}Watching — Elite FC only{% else %}Watch for new Elite FC fencers{% endif %}</span>
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
     {% if not tournament.names_available %}
       <p class="banner">Names unavailable (AskFRED does not publish entries in the API).</p>
     {% endif %}

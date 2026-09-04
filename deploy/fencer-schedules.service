@@ -1,0 +1,21 @@
+[Unit]
+Description=Fencer Schedules (Elite FC start list)
+Documentation=file:///home/frank/Projects/fencer-schedules/SETUP.md
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+User=frank
+Group=frank
+WorkingDirectory=/home/frank/Projects/fencer-schedules
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/frank/Projects/fencer-schedules/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/frank/Projects/fencer-schedules/.venv/bin/uvicorn fencer_schedules.app:app --host 0.0.0.0 --port 8765
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

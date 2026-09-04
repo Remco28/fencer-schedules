@@ -184,3 +184,77 @@ def test_switch_between_saved_tournaments(client: TestClient) -> None:
     home = client.get("/")
     assert "Second Cup" not in home.text
     assert "Doe, Jordan" in client.get("/schedule").text
+
+
+def test_settings_page_shows_default_recipient(client: TestClient) -> None:
+    resp = client.get("/settings")
+    assert resp.status_code == 200
+    assert "frankcng@gmail.com" in resp.text
+
+
+def test_settings_save_persists_recipient(client: TestClient) -> None:
+    resp = client.post(
+        "/settings",
+        data={"recipient": "frankcng@gmail.com, wife@example.com"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert "Saved" in resp.text
+    assert client.app.state.store.get_setting("alert_recipient") == "frankcng@gmail.com, wife@example.com"
+
+
+def test_club_watch_toggle_on_and_off(client: TestClient) -> None:
+    store = client.app.state.store
+    store.save(
+        Tournament(
+            askfred_id="one",
+            name="First Cup",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+            events=[
+                Event(
+                    source_event_id="e1",
+                    name="Senior Mixed Epee",
+                    day=date(2026, 9, 1),
+                    fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                )
+            ],
+        )
+    )
+    resp = client.post("/schedule/watch", data={"next": "/schedule"}, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "Watching — Elite FC only" in resp.text
+    assert store.watch_for("one", None, "club") is not None
+    # toggle off
+    resp = client.post("/schedule/watch", data={"next": "/schedule"}, follow_redirects=True)
+    assert "Watch for new Elite FC fencers" in resp.text
+    assert store.watch_for("one", None, "club") is None
+
+
+def test_event_watch_toggle(client: TestClient) -> None:
+    store = client.app.state.store
+    store.save(
+        Tournament(
+            askfred_id="one",
+            name="First Cup",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+            events=[
+                Event(
+                    source_event_id="e1",
+                    name="Senior Mixed Epee",
+                    day=date(2026, 9, 1),
+                    fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                )
+            ],
+        )
+    )
+    resp = client.post(
+        "/schedule/events/e1/watch",
+        data={"next": "/schedule/events/e1"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert "Watching this event — anyone" in resp.text
+    assert store.watch_for("one", "e1", "all") is not None
+

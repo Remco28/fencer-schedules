@@ -19,3 +19,13 @@ def test_token_comes_from_env_file(tmp_path: Path) -> None:
     env.write_text("ASKFRED_API_TOKEN=test-token-value\n")
     settings = Settings.load(config_path=cfg, env_path=env)
     assert settings.askfred_api_token == "test-token-value"
+
+
+def test_agentmail_keys_from_env_file(tmp_path: Path) -> None:
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text('club:\n  name: "Elite Fencers Club"\n  aliases: []\n')
+    env = tmp_path / ".env"
+    env.write_text("AGENTMAIL_API_KEY=my-key\nAGENTMAIL_INBOX=chunkymonkey@agentmail.to\n")
+    settings = Settings.load(config_path=cfg, env_path=env)
+    assert settings.agentmail_api_key == "my-key"
+    assert settings.agentmail_inbox == "chunkymonkey@agentmail.to"

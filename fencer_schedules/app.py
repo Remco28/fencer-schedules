@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from fencer_schedules.config import Settings
+from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store
 from fencer_schedules.exports import csv_bytes, filename_for as export_filename, text_version
 from fencer_schedules.load import load_tournament
@@ -134,6 +134,7 @@ def create_app(
                 "settings": settings,
                 "track_q": track_q,
                 "suggestions": suggestions,
+                "club_watching": store.watch_for(tournament.askfred_id, None, "club") is not None,
             },
         )
 
@@ -156,6 +157,7 @@ def create_app(
                 "tournament": tournament,
                 "event": event,
                 "rows": rows,
+                "event_watching": store.watch_for(tournament.askfred_id, event_id, "all") is not None,
             },
         )
 
@@ -196,6 +198,42 @@ def create_app(
         reloaded = load_tournament(tournament.askfred_id, settings, askfred=askfred)
         store.save(apply_overrides(reloaded, overrides))
         return RedirectResponse("/schedule", status_code=303)
+
+    @app.post("/schedule/watch")
+    def toggle_club_watch(next: str = Form(default="/schedule")) -> RedirectResponse:
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        if store.watch_for(tournament.askfred_id, None, "club") is not None:
+            store.delete_watch(tournament.askfred_id, None, "club")
+        else:
+            store.set_watch(tournament.askfred_id, None, "club")
+        return RedirectResponse(next or "/schedule", status_code=303)
+
+    @app.post("/schedule/events/{event_id}/watch")
+    def toggle_event_watch(event_id: str, next: str = Form(default="")) -> RedirectResponse:
+        tournament = store.current()
+        if tournament is None:
+            return RedirectResponse("/", status_code=303)
+        if store.watch_for(tournament.askfred_id, event_id, "all") is not None:
+            store.delete_watch(tournament.askfred_id, event_id, "all")
+        else:
+            store.set_watch(tournament.askfred_id, event_id, "all")
+        return RedirectResponse(next or f"/schedule/events/{event_id}", status_code=303)
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page(request: Request):
+        recipient = store.get_setting("alert_recipient", DEFAULT_ALERT_RECIPIENT)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "settings.html",
+            {"recipient": recipient, "saved": request.query_params.get("saved") == "1"},
+        )
+
+    @app.post("/settings")
+    def settings_save(recipient: str = Form(...)) -> RedirectResponse:
+        store.set_setting("alert_recipient", recipient.strip())
+        return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.get("/schedule.csv")
     def schedule_csv():
@@ -240,5 +278,5 @@ app = create_app()
 def main() -> int:
     import uvicorn
 
-    uvicorn.run("fencer_schedules.app:app", host="127.0.0.1", port=8765, reload=False)
+    uvicorn.run("fencer_schedules.app:app", host="0.0.0.0", port=8765, reload=False)
     return 0

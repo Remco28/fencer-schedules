@@ -17,6 +17,7 @@ dependencies = [
     "fpdf2>=2.8",
     "beautifulsoup4>=4.12",
     "python-multipart>=0.0.9",
+    "agentmail>=0.5",
 ]
 
 [project.optional-dependencies]

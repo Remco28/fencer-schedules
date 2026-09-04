@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div>
+        <a class="back" href="/">← Search</a>
+        <h1>Settings</h1>
+      </div>
+    </div>
+  </header>
+  <main class="sheet">
+    {% if saved %}
+      <p class="flash">Saved.</p>
+    {% endif %}
+    <form class="settings" action="/settings" method="post">
+      <label class="field">
+        <span class="field-label">Send alerts to</span>
+        <input type="text" name="recipient" value="{{ recipient }}" placeholder="frankcng@gmail.com">
+        <span class="field-hint">One email, or several separated by commas.</span>
+      </label>
+      <button class="btn-gold" type="submit">Save</button>
+    </form>
+    <p class="muted note">Used by the registrant watcher. It emails here when a watched tournament or event gets a new sign-up.</p>
+  </main>
+</body>
+</html>

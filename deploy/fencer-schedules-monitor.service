@@ -1,0 +1,16 @@
+[Unit]
+Description=Fencer Schedules registrant watcher (one shot)
+Documentation=file:///home/frank/Projects/fencer-schedules/SETUP.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=frank
+Group=frank
+WorkingDirectory=/home/frank/Projects/fencer-schedules
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/frank/Projects/fencer-schedules/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/frank/Projects/fencer-schedules/.venv/bin/python -m fencer_schedules.monitor --once
+Nice=10
+UMask=0077

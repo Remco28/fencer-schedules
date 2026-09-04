@@ -3,6 +3,22 @@ revision = 3
 requires-python = ">=3.12, <3.14"
 
 [[package]]
+name = "agentmail"
+version = "0.5.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/14/8f/8536c40384dbcece376d375d4f2a1abd28aa738ace1f80b53772d0c405c0/agentmail-0.5.10.tar.gz", hash = "sha256:b39f158c2922e988ff3ed763d4171565f4d4b71d55903d391bbd4a39939ccc88", size = 162741, upload-time = "2026-08-31T23:49:30.001Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/ac/21b775ce14079bfc3f2eefb3238262bcccdb7eec21a266974afc75915f54/agentmail-0.5.10-py3-none-any.whl", hash = "sha256:5233e8d9e19c0fec7f2539a52808db8746f4474ece36d39a8c88e8d68c7c5491", size = 347924, upload-time = "2026-08-31T23:49:28.851Z" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -106,6 +122,7 @@ name = "fencer-schedules"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "agentmail" },
     { name = "beautifulsoup4" },
     { name = "fastapi" },
     { name = "fpdf2" },
@@ -129,6 +146,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agentmail", specifier = ">=0.5" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fpdf2", specifier = ">=2.8" },

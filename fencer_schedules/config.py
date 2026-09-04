@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO = Path(__file__).resolve().parents[1]
 
+DEFAULT_ALERT_RECIPIENT = "frankcng@gmail.com"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
@@ -17,6 +19,8 @@ class Settings(BaseSettings):
     askfred_api_token: str = ""
     askfred_email: str = ""
     askfred_password: str = ""
+    agentmail_api_key: str = ""
+    agentmail_inbox: str = ""
     database_path: Path = _REPO / "fencer_schedules.db"
 
     @classmethod
@@ -34,21 +38,20 @@ class Settings(BaseSettings):
             club = raw.get("club") or {}
             club_name = club.get("name") or club_name
             club_aliases = list(club.get("aliases") or [])
-        token = ""
-        email = ""
-        password = ""
+        env: dict[str, str] = {}
         if env_path.is_file():
             for line in env_path.read_text().splitlines():
-                if line.startswith("ASKFRED_API_TOKEN="):
-                    token = line.split("=", 1)[1].strip().strip('"').strip("'")
-                elif line.startswith("ASKFRED_EMAIL="):
-                    email = line.split("=", 1)[1].strip().strip('"').strip("'")
-                elif line.startswith("ASKFRED_PASSWORD="):
-                    password = line.split("=", 1)[1].strip().strip('"').strip("'")
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                env[key.strip()] = value.strip().strip('"').strip("'")
         return cls(
             club_name=club_name,
             club_aliases=club_aliases,
-            askfred_api_token=token,
-            askfred_email=email,
-            askfred_password=password,
+            askfred_api_token=env.get("ASKFRED_API_TOKEN", ""),
+            askfred_email=env.get("ASKFRED_EMAIL", ""),
+            askfred_password=env.get("ASKFRED_PASSWORD", ""),
+            agentmail_api_key=env.get("AGENTMAIL_API_KEY", ""),
+            agentmail_inbox=env.get("AGENTMAIL_INBOX", ""),
         )

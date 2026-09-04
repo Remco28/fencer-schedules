@@ -190,12 +190,12 @@ AgentMail digests"` → push `main` → verify `git status` clean and
 
 ## 6. Verification checklist (implementing agent must complete)
 
-- [ ] `uv run pytest tests/ -q` — all pass.
-- [ ] `uv run python -m fencer_schedules.monitor --dry-run` exits 0 with no watches (fresh DB).
-- [ ] Unit test proves: first run baselines silently (no email, last_seen recorded).
-- [ ] Unit test proves: added fencer on second run → exactly one digest email, correct subject/body.
-- [ ] Unit test proves: club watch only emails our club; event watch emails anyone; EFC never matches.
-- [ ] Unit test proves: a failing `load_tournament` for one tournament doesn't kill the run.
+- [x] `uv run pytest tests/ -q` — all pass.
+- [x] `uv run python -m fencer_schedules.monitor --dry-run` exits 0 with no watches (fresh DB).
+- [x] Unit test proves: first run baselines silently (no email, last_seen recorded).
+- [x] Unit test proves: added fencer on second run → exactly one digest email, correct subject/body.
+- [x] Unit test proves: club watch only emails our club; event watch emails anyone; EFC never matches.
+- [x] Unit test proves: a failing `load_tournament` for one tournament doesn't kill the run.
 - [ ] Manual (optional, if credentials present in `.env`): load Wanglei (local), enable event
   watch, `--dry-run` prints current roster without sending.
 - [ ] `git status` clean; pushed; remote SHA matches local HEAD.
@@ -216,6 +216,6 @@ AgentMail digests"` → push `main` → verify `git status` clean and
 
 ## 8. Open items (user-side, on the target machine)
 
-- [ ] AgentMail inbox address + API key → `.env` (`AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX`)
-- [ ] `ALERT_RECIPIENT` in `.env`
-- [ ] Install cron (or systemd timer) per SETUP.md; times 09:00/21:00 America/New_York
+- [x] AgentMail inbox address + API key → `.env` (`AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX`)
+- [x] Recipients live in the app Settings page (default `frankcng@gmail.com`; comma-separated)
+- [x] systemd timer 09:00/21:00 America/New_York (`fencer-schedules-monitor.timer`)
