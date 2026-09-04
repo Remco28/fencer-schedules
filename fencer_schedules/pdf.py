@@ -91,11 +91,12 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
         pdf.set_x(pdf.l_margin)
         pdf.set_text_color(*NAVY)
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 7, pdf.day_label, new_x="LMARGIN", new_y="NEXT")
+        label = _latin(pdf.day_label)
+        pdf.cell(0, 7, label, new_x="LMARGIN", new_y="NEXT")
         pdf.set_draw_color(*GOLD)
         pdf.set_line_width(0.6)
         y = pdf.get_y()
-        pdf.line(pdf.l_margin, y, pdf.l_margin + 28, y)
+        pdf.line(pdf.l_margin, y, pdf.l_margin + pdf.get_string_width(label), y)
         pdf.ln(4)
 
         for event in by_day[day]:
