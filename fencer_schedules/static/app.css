@@ -635,6 +635,29 @@ a.event-name:hover { text-decoration: underline; text-decoration-color: var(--go
   text-transform: uppercase;
 }
 
+/* On phones the five header controls need their own row.  Keeping them
+   beside a long tournament title causes the controls to intrude over it. */
+@media (max-width: 699px) {
+  .top { padding-top: 14px; }
+  .brand {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .icon-row {
+    order: -1;
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 6px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.18);
+  }
+  .icon-btn { flex: 0 0 44px; }
+  .brand-copy { flex: none; display: block; }
+  .back { margin-bottom: 6px; }
+}
+
 @media (min-width: 700px) {
   :root { --gutter: 24px; --measure: 44rem; }
   .icon-row { gap: 10px; }
