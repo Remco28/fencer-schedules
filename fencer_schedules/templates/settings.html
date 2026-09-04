@@ -8,6 +8,7 @@
 </head>
 <body>
   <header class="top">
+    <div class="inner">
     <div class="brand">
       <div>
         <a class="back" href="/">← Search</a>
@@ -15,8 +16,10 @@
       </div>
     </div>
     <p class="lede">Who gets watcher emails, and at which morning and evening checks.</p>
+    </div>
   </header>
   <main class="sheet">
+    <div class="inner">
     {% if saved %}
       <p class="flash" role="status">Saved.</p>
     {% endif %}
@@ -44,6 +47,7 @@
       <button class="btn-gold btn-save" type="submit">Save</button>
     </form>
     <p class="muted note">Used by the registrant watcher. It emails here when a watched tournament or event gets a new sign-up.</p>
+    </div>
   </main>
   <script>
   (function () {

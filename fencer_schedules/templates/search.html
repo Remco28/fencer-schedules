@@ -8,8 +8,9 @@
 </head>
 <body>
   <header class="top">
+    <div class="inner">
     <div class="brand">
-      <div style="display:flex;gap:12px;align-items:center">
+      <div class="brand-copy">
         <div class="mark" aria-hidden="true">†</div>
         <div>
           <h1>Fencer Schedules</h1>
@@ -24,8 +25,10 @@
       </a>
     </div>
     <p class="lede">Start lists for upcoming tournaments — find it, track your fencers, print the sheet.</p>
+    </div>
   </header>
   <main class="sheet">
+    <div class="inner">
     <form class="search" action="/search" method="get" role="search">
       <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat" aria-label="Search tournaments">
       <button class="btn-gold" type="submit">Search</button>
@@ -62,7 +65,7 @@
       <h2 class="section-label">Saved tournaments</h2>
       {% for t in loaded %}
         <div class="saved-row">
-          <form action="/tournaments/{{ t.askfred_id }}/open" method="post" style="flex:1;min-width:0">
+          <form action="/tournaments/{{ t.askfred_id }}/open" method="post" class="saved-open">
             <button class="btn-ghost" type="submit">
               <div class="name">{{ t.name }}</div>
               <div class="muted">{{ t.start_date|span(t.end_date) }}{% if current and t.askfred_id == current.askfred_id %} · open{% endif %}</div>
@@ -79,6 +82,7 @@
         <p>Search above, open a tournament, and it will stay here for quick access.</p>
       </div>
     {% endif %}
+    </div>
   </main>
 </body>
 </html>

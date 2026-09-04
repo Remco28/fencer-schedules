@@ -8,8 +8,9 @@
 </head>
 <body>
   <header class="top">
+    <div class="inner">
     <div class="brand">
-      <div style="min-width:0">
+      <div class="brand-copy">
         <a class="back" href="/schedule">← Schedule</a>
         <h1>{{ event.name }}</h1>
       </div>
@@ -24,8 +25,10 @@
     <div class="meta">
       <div class="teal">{{ event.day.strftime("%A, %B %-d") }}{% if event.clock %} · {{ event.clock|clock }}{% endif %}</div>
     </div>
+    </div>
   </header>
   <main class="sheet">
+    <div class="inner">
     <div class="watch-bar">
       <form action="/schedule/events/{{ event.source_event_id }}/watch" method="post">
         <input type="hidden" name="next" value="/schedule/events/{{ event.source_event_id }}">
@@ -68,6 +71,7 @@
         <p>Check back after entries publish.</p>
       </div>
     {% endfor %}
+    </div>
   </main>
 </body>
 </html>

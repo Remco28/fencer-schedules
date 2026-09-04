@@ -8,8 +8,9 @@
 </head>
 <body>
   <header class="top">
+    <div class="inner">
     <div class="brand">
-      <div style="min-width:0">
+      <div class="brand-copy">
         <a class="back" href="/">← Search</a>
         <h1>{{ tournament.name }}</h1>
       </div>
@@ -59,9 +60,11 @@
         {% endif %}
       </div>
     </div>
+    </div>
   </header>
 
   <main class="sheet">
+    <div class="inner">
     {% if tournament.names_available %}
     <div class="watch-bar">
       <form action="/schedule/watch" method="post">
@@ -159,6 +162,7 @@
         </section>
       {% endfor %}
     {% endif %}
+    </div>
   </main>
 </body>
 </html>
