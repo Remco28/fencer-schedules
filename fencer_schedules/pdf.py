@@ -4,6 +4,8 @@ import re
 from collections import defaultdict
 from datetime import date
 
+from pathlib import Path
+
 from fpdf import FPDF
 
 from fencer_schedules.config import Settings
@@ -15,6 +17,7 @@ GOLD = (212, 175, 55)
 MUTED = (100, 116, 139)
 RULE = (226, 232, 240)
 INK = (30, 41, 59)
+LOGO = Path(__file__).resolve().parent / "static" / "logo.png"
 
 
 class SchedulePDF(FPDF):
@@ -29,18 +32,23 @@ class SchedulePDF(FPDF):
     def header(self) -> None:
         self.set_fill_color(*NAVY)
         self.rect(0, 0, self.w, 28, "F")
-        self.set_xy(16, 7)
+        logo_w = 10
+        text_x = 16
+        if LOGO.is_file():
+            self.image(str(LOGO), x=16, y=9, w=logo_w, h=logo_w)
+            text_x = 16 + logo_w + 3
+        self.set_xy(text_x, 7)
         self.set_text_color(*GOLD)
         self.set_font("Helvetica", "B", 8)
         self.cell(90, 4, _latin(self.club.upper()))
         self.set_font("Helvetica", size=8)
         self.set_text_color(203, 213, 225)
-        self.cell(0, 4, _latin(_dates(self.tournament.start_date, self.tournament.end_date)), align="R")
-        self.ln(5)
-        self.set_x(16)
+        self.set_xy(text_x, 7)
+        self.cell(self.w - text_x - 16, 4, _latin(_dates(self.tournament.start_date, self.tournament.end_date)), align="R")
+        self.set_xy(text_x, 12)
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "B", 14)
-        self.cell(0, 7, _latin(self.tournament.name), new_x="LMARGIN", new_y="NEXT")
+        self.cell(self.w - text_x - 16, 7, _latin(self.tournament.name), new_x="LMARGIN", new_y="NEXT")
         self.set_y(34)
 
     def footer(self) -> None:

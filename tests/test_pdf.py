@@ -29,3 +29,4 @@ def test_pdf_contains_club_fencer_and_day() -> None:
     # fpdf2 text is not always extractable as ascii; filename is the other contract
     assert "trick-or-retreat" in filename_for(tournament)
     assert "2026-08-22" in filename_for(tournament)
+    assert b"/Image" in data  # small club logo in the header

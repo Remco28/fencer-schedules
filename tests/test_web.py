@@ -37,6 +37,15 @@ def client(tmp_path):
     return TestClient(app)
 
 
+def test_home_shows_logo(client: TestClient) -> None:
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "/static/logo.png" in home.text
+    logo = client.get("/static/logo.png")
+    assert logo.status_code == 200
+    assert logo.headers["content-type"].startswith("image/png")
+
+
 @respx.mock
 def test_search_trick_lists_trick_or_retreat(client: TestClient) -> None:
     respx.get("https://www.askfred.net/api/v1/tournaments").mock(
