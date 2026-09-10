@@ -88,18 +88,41 @@ def test_new_names_same_roster_returns_nothing() -> None:
 
 def test_build_digest_subject_and_body() -> None:
     event = _event("e1", [], clock=time(8, 0))
-    subject, body = build_digest(
-        _tournament([event]),
+    tournament = _tournament([event])
+    subject, body, html = build_digest(
+        tournament,
         [(event, [["Doe, Jordan", "Elite Fencers Club"], ["Smith, James", "Other Club"]])],
         _settings(),
     )
-    assert subject == "New registrants: Trick or Retreat ROC / RJCC (2 new)"
-    assert "Saturday, August 22" in body
+    assert subject == "2 new registrants · Trick or Retreat ROC / RJCC"
+    assert "SATURDAY, AUGUST 22" in body
     assert "8:00 AM" in body
     assert "Junior Men's Epee" in body
-    assert "- Doe, Jordan — Elite Fencers Club [CLUB]" in body
-    assert "- Smith, James — Other Club" in body
+    assert "★  Doe, Jordan" in body
+    assert "Elite Fencers Club" in body
+    assert "·  Smith, James" in body
+    assert "Other Club" in body
+    assert "[CLUB]" not in body
     assert "Event e1" not in body
+    assert "Elite Fencers Club" in html
+    assert "★" in html
+    assert "Open on AskFRED" in html
+    assert "Doe, Jordan" in html
+    assert html.startswith("<div")
+
+
+def test_build_digest_escapes_html() -> None:
+    event = _event("e1", [], clock=time(8, 0))
+    event = event.model_copy(update={"name": "Cadet <Men's> Epee"})
+    _, _, html = build_digest(
+        _tournament([event]),
+        [(event, [["O'Brien & Co", "Club <X>"]])],
+        _settings(),
+    )
+    assert "<Men's>" not in html
+    assert "&lt;Men's&gt;" in html
+    assert "O'Brien &amp; Co" in html
+    assert "Club &lt;X&gt;" in html
 
 
 # ---- run loop ----
@@ -211,7 +234,7 @@ def test_overlapping_watches_send_one_digest_per_tournament(tmp_path, monkeypatc
     assert len(loads) == 1
     assert len(subjects) == 1
     assert len(sent) == 1
-    assert sent[0][1] == "New registrants: Trick or Retreat ROC / RJCC (1 new)"
+    assert sent[0][1] == "1 new registrant · Trick or Retreat ROC / RJCC"
     assert sent[0][2].count("Smith, James") == 1
     assert store.watch_for(TRICK_ID, None, "club").last_seen == '{"e1": [["Doe, Jordan", "Elite Fencers Club"], ["Smith, James", "Elite FC"]]}'
     assert store.watch_for(TRICK_ID, "e1", "all").last_seen == '{"e1": [["Doe, Jordan", "Elite Fencers Club"], ["Smith, James", "Elite FC"]]}'
@@ -390,4 +413,4 @@ def test_dry_run_ignores_check_window(tmp_path, monkeypatch, capsys) -> None:
     run(_settings(), store, dry_run=True, now=datetime(2026, 8, 22, 14, 0))
     assert sent == []
     out = capsys.readouterr().out
-    assert "New registrants" in out
+    assert "new registrant" in out

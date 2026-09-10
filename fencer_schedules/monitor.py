@@ -89,23 +89,134 @@ def new_names(last_seen: list[list[str]], current: list[list[str]]) -> list[list
     return [pair for pair in current if tuple(pair) not in seen]
 
 
+def _clock(event: Event) -> str:
+    if not event.clock:
+        return ""
+    return event.clock.strftime("%I:%M %p").lstrip("0")
+
+
+def _escape(value: str) -> str:
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
 def build_digest(
     tournament: Tournament,
     additions: list[tuple[Event, list[list[str]]]],
     settings: Settings,
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     total = sum(len(names) for _, names in additions)
-    subject = f"New registrants: {tournament.name} ({total} new)"
-    lines: list[str] = []
+    noun = "registrant" if total == 1 else "registrants"
+    subject = f"{total} new {noun} · {tournament.name}"
+    return subject, _digest_text(tournament, additions, settings, total, noun), _digest_html(
+        tournament, additions, settings, total, noun
+    )
+
+
+def _digest_text(
+    tournament: Tournament,
+    additions: list[tuple[Event, list[list[str]]]],
+    settings: Settings,
+    total: int,
+    noun: str,
+) -> str:
+    lines = [settings.club_name, tournament.name]
+    if tournament.venue:
+        lines.append(tournament.venue)
+    lines.append(f"{total} new {noun}")
+    current_day = None
     for event, names in additions:
-        header = event.day.strftime("%A, %B %-d")
-        if event.clock:
-            header += " · " + event.clock.strftime("%I:%M %p").lstrip("0")
-        lines.append(f"{header} — {event.name}")
+        if event.day != current_day:
+            current_day = event.day
+            lines.append("")
+            lines.append(event.day.strftime("%A, %B %-d").upper())
+        clock = _clock(event)
+        title = f"{clock}  {event.name}" if clock else event.name
+        lines.append(title)
         for name, club in names:
-            mark = " [CLUB]" if is_our_club(club, settings) else ""
-            lines.append(f"  - {name} — {club}{mark}")
-    return subject, "\n".join(lines)
+            star = "★  " if is_our_club(club, settings) else "·  "
+            lines.append(f"  {star}{name}")
+            lines.append(f"     {club}")
+    if tournament.askfred_id:
+        lines.append("")
+        lines.append(f"AskFRED  https://www.askfred.net/tournaments/{tournament.askfred_id}")
+    return "\n".join(lines)
+
+
+def _digest_html(
+    tournament: Tournament,
+    additions: list[tuple[Event, list[list[str]]]],
+    settings: Settings,
+    total: int,
+    noun: str,
+) -> str:
+    blocks: list[str] = []
+    current_day = None
+    for event, names in additions:
+        if event.day != current_day:
+            current_day = event.day
+            blocks.append(
+                f'<p style="margin:24px 0 8px;font-size:11px;letter-spacing:.12em;'
+                f'color:#8a6d14;font-weight:700;text-transform:uppercase;">'
+                f"{_escape(event.day.strftime('%A, %B %-d'))}</p>"
+            )
+        clock = _clock(event)
+        clock_html = (
+            f'<span style="color:#8a6d14;font-weight:600;letter-spacing:.04em;">{_escape(clock)}</span>'
+            if clock
+            else ""
+        )
+        people: list[str] = []
+        for name, club in names:
+            ours = is_our_club(club, settings)
+            mark = (
+                '<span style="color:#0f766e;font-weight:700;">★</span>'
+                if ours
+                else '<span style="color:#94a3b8;">·</span>'
+            )
+            name_style = "font-weight:600;color:#0a1628;" if ours else "font-weight:600;color:#1e293b;"
+            people.append(
+                f'<tr><td style="padding:8px 0 2px;vertical-align:top;width:18px;">{mark}</td>'
+                f'<td style="padding:8px 0 2px;">'
+                f'<div style="{name_style}">{_escape(name)}</div>'
+                f'<div style="color:#64748b;font-size:13px;">{_escape(club)}</div>'
+                f"</td></tr>"
+            )
+        blocks.append(
+            f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            f'style="margin:0 0 16px;border-bottom:1px solid #e7e0cf;">'
+            f'<tr><td style="padding:0 0 8px;font-size:16px;color:#0a1628;">'
+            f'{clock_html}{"&nbsp;&nbsp;" if clock_html else ""}'
+            f"<strong>{_escape(event.name)}</strong></td></tr>"
+            f'<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+            f"{''.join(people)}</table></td></tr></table>"
+        )
+    venue = f'<div style="color:#94a3b8;font-size:13px;margin-top:4px;">{_escape(tournament.venue)}</div>' if tournament.venue else ""
+    link = ""
+    if tournament.askfred_id:
+        href = f"https://www.askfred.net/tournaments/{tournament.askfred_id}"
+        link = (
+            f'<p style="margin:24px 0 0;font-size:13px;">'
+            f'<a href="{href}" style="color:#0f766e;text-decoration:none;">Open on AskFRED →</a></p>'
+        )
+    return (
+        '<div style="font-family:Georgia,\'Times New Roman\',serif;background:#f8fafc;padding:24px;">'
+        '<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e7e0cf;'
+        'border-radius:8px;overflow:hidden;">'
+        '<div style="background:#0a1628;color:#d4af37;padding:18px 24px;">'
+        f'<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;">{_escape(settings.club_name)}</div>'
+        f'<div style="font-size:20px;color:#ffffff;margin-top:6px;line-height:1.3;">{_escape(tournament.name)}</div>'
+        f"{venue}"
+        "</div>"
+        '<div style="padding:8px 24px 28px;">'
+        f'<p style="margin:16px 0 0;color:#334155;">{total} new {noun}</p>'
+        f"{''.join(blocks)}{link}"
+        "</div></div></div>"
+    )
 
 
 def _watched_events(watch: Watch, tournament: Tournament) -> list[Event]:
@@ -182,7 +293,7 @@ def run(
 
         additions = list(additions_by_event.values())
         if additions:
-            subject, body = build_digest(fresh, additions, settings)
+            subject, body, html = build_digest(fresh, additions, settings)
             if dry_run:
                 logger.info("dry-run digest:\n%s\n%s", subject, body)
                 print(subject)
@@ -190,7 +301,7 @@ def run(
                 print()
             else:
                 # One email per tournament per run, not one per overlapping watch.
-                send_digest(settings, subject, body, recipients)
+                send_digest(settings, subject, body, recipients, html=html)
                 subjects.append(subject)
 
         # Only advance baselines after a successful send (or a no-change run).

@@ -7,7 +7,14 @@ from fencer_schedules.config import Settings
 logger = logging.getLogger("fencer_schedules.notify")
 
 
-def send_digest(settings: Settings, subject: str, body: str, recipients: list[str], send: bool = True) -> None:
+def send_digest(
+    settings: Settings,
+    subject: str,
+    body: str,
+    recipients: list[str],
+    send: bool = True,
+    html: str | None = None,
+) -> None:
     """Send one digest email through the AgentMail SDK.
 
     ``send=False`` is the dry-run guard — it never touches the network. The
@@ -28,12 +35,10 @@ def send_digest(settings: Settings, subject: str, body: str, recipients: list[st
 
     client = agentmail.AgentMail(api_key=settings.agentmail_api_key)
     inbox_id = _resolve_inbox_id(client, settings.agentmail_inbox)
-    result = client.inboxes.messages.send(
-        inbox_id,
-        to=to,
-        subject=subject,
-        text=body,
-    )
+    kwargs: dict = {"to": to, "subject": subject, "text": body}
+    if html:
+        kwargs["html"] = html
+    result = client.inboxes.messages.send(inbox_id, **kwargs)
     if not getattr(result, "message_id", None):
         raise RuntimeError("AgentMail did not return a message ID")
     logger.info("sent digest %r to %s", subject, ", ".join(to))

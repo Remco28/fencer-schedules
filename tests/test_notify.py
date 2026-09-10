@@ -25,8 +25,8 @@ class _Messages:
     def __init__(self, calls: list) -> None:
         self._calls = calls
 
-    def send(self, inbox_id, to, subject, text):
-        self._calls.append({"inbox_id": inbox_id, "to": to, "subject": subject, "text": text})
+    def send(self, inbox_id, **kwargs):
+        self._calls.append({"inbox_id": inbox_id, **kwargs})
         return SimpleNamespace(message_id="m_1")
 
 
@@ -51,12 +51,13 @@ class _Client:
 def test_send_digest_calls_sdk(monkeypatch) -> None:
     calls: list = []
     monkeypatch.setattr("agentmail.AgentMail", lambda api_key: _Client(api_key, calls))
-    send_digest(_settings(), "Subject", "Body", ["frankcng@gmail.com", "wife@example.com"])
+    send_digest(_settings(), "Subject", "Body", ["frankcng@gmail.com", "wife@example.com"], html="<p>Body</p>")
     assert len(calls) == 1
     assert calls[0]["inbox_id"] == "in_123"
     assert calls[0]["to"] == ["frankcng@gmail.com", "wife@example.com"]
     assert calls[0]["subject"] == "Subject"
     assert calls[0]["text"] == "Body"
+    assert calls[0]["html"] == "<p>Body</p>"
 
 
 def test_send_digest_send_false_never_calls(monkeypatch) -> None:
