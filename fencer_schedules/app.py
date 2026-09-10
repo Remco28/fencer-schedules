@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
@@ -25,8 +26,10 @@ from fencer_schedules.schedule import (
     untrack_named,
     visible_events,
     other_events,
+    result_place,
 )
 from fencer_schedules.sources.askfred import AskFredClient
+from fencer_schedules.sources.usfa import UsfaClient
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 STATIC_DIR = Path(__file__).parent / "static"
@@ -54,6 +57,10 @@ def event_code(name: str) -> str:
     return match.group(1) if match else ""
 
 
+def event_finished(event, today: date | None = None) -> bool:
+    return event.day < (today or date.today())
+
+
 def format_span(start, end) -> str:
     if start == end:
         return start.strftime("%b %d, %Y").replace(" 0", " ")
@@ -64,12 +71,16 @@ TEMPLATES.env.filters["clock"] = format_clock
 TEMPLATES.env.filters["initials"] = initials
 TEMPLATES.env.filters["code"] = event_code
 TEMPLATES.env.filters["span"] = format_span
+TEMPLATES.env.filters["finished"] = event_finished
+TEMPLATES.env.filters["result_place"] = result_place
+TEMPLATES.env.tests["finished"] = event_finished
 
 
 def create_app(
     settings: Settings | None = None,
     store: Store | None = None,
     askfred: AskFredClient | None = None,
+    usfa: UsfaClient | None = None,
 ) -> FastAPI:
     settings = settings or Settings.load()
     store = store or Store(settings.database_path)
@@ -77,7 +88,37 @@ def create_app(
     app.state.settings = settings
     app.state.store = store
     app.state.askfred = askfred
+    app.state.usfa = usfa
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    def load_visible_results(tournament):
+        if not tournament.usfa_id:
+            return tournament
+        events = visible_events(tournament, settings)
+        wanted = {event.source_event_id for event in events if event_finished(event)}
+        if not wanted:
+            return tournament
+        client = usfa or UsfaClient()
+        changed = False
+        updated_events = []
+        for event in tournament.events:
+            if event.source_event_id not in wanted or event.results is not None:
+                updated_events.append(event)
+                continue
+            try:
+                results = client.fetch_results(tournament.usfa_id, event.source_event_id)
+            except Exception:
+                results = []
+            if results:
+                event = event.model_copy(update={"results": results})
+                changed = True
+            updated_events.append(event)
+        if not changed:
+            return tournament
+        tournament = tournament.model_copy(update={"events": updated_events})
+        store.save(tournament, select=False)
+        return tournament
+
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
@@ -121,6 +162,7 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
+        tournament = load_visible_results(tournament)
         suggestions = search_loaded_fencers(tournament, track_q) if track_q else []
         days = sorted({event.day for event in tournament.events})
         return TEMPLATES.TemplateResponse(
@@ -147,9 +189,43 @@ def create_app(
         event = event_by_id(tournament, event_id)
         if event is None:
             return RedirectResponse("/schedule", status_code=303)
+        if event_finished(event) and tournament.usfa_id and event.results is None:
+            try:
+                results = (usfa or UsfaClient()).fetch_results(tournament.usfa_id, event.source_event_id)
+                if results:
+                    event = event.model_copy(update={"results": results})
+                    tournament = tournament.model_copy(
+                        update={
+                            "events": [
+                                event if candidate.source_event_id == event_id else candidate
+                                for candidate in tournament.events
+                            ]
+                        }
+                    )
+                    store.save(tournament, select=False)
+            except Exception:
+                # Results are a convenience; a temporary upstream failure must
+                # not make the saved roster unavailable.
+                pass
         rows = [
-            {"fencer": fencer, "tracked": is_tracked(fencer, settings)}
+            {
+                "fencer": fencer,
+                "tracked": is_tracked(fencer, settings),
+                "place": result_place(event, fencer),
+            }
             for fencer in event.fencers
+        ]
+        result_rows = [
+            {
+                "result": result,
+                "tracked": any(
+                    fencer.name.casefold() == result.name.casefold()
+                    and fencer.club.casefold() == result.club.casefold()
+                    and is_tracked(fencer, settings)
+                    for fencer in event.fencers
+                ),
+            }
+            for result in (event.results or [])
         ]
         return TEMPLATES.TemplateResponse(
             request,
@@ -159,6 +235,8 @@ def create_app(
                 "event": event,
                 "rows": rows,
                 "event_watching": store.watch_for(tournament.askfred_id, event_id, "all") is not None,
+                "event_finished": event_finished(event),
+                "result_rows": result_rows,
             },
         )
 
@@ -255,6 +333,7 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
+        tournament = load_visible_results(tournament)
         return Response(
             content=csv_bytes(tournament, settings),
             media_type="text/csv; charset=utf-8",
@@ -266,6 +345,7 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
+        tournament = load_visible_results(tournament)
         return Response(
             content=text_version(tournament, settings),
             media_type="text/plain; charset=utf-8",
@@ -277,6 +357,7 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
+        tournament = load_visible_results(tournament)
         data = render_pdf(tournament, settings)
         return Response(
             content=data,

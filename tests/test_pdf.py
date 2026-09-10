@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.models import Event, EventResult, Fencer, Tournament
 from fencer_schedules.pdf import filename_for, render_pdf, SchedulePDF, _latin
 
 
@@ -21,6 +21,7 @@ def _sample():
                 name="Junior Men's Epee",
                 day=date(2026, 8, 22),
                 fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
             )
         ],
     )
@@ -35,6 +36,7 @@ def test_pdf_contains_club_fencer_and_day() -> None:
     assert "trick-or-retreat" in filename_for(tournament)
     assert "2026-08-22" in filename_for(tournament)
     assert b"/Image" in data  # small club logo in the header
+    assert b"8" in data
 
 
 def test_day_underline_matches_label_width() -> None:

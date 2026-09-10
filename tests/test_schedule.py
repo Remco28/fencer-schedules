@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import date
 
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.models import Event, EventResult, Fencer, Tournament
 from fencer_schedules.schedule import (
     add_manual,
     other_events,
+    result_place,
     search_loaded_fencers,
     track_named,
     untrack_named,
@@ -43,6 +44,27 @@ def _tournament() -> Tournament:
             ),
         ],
     )
+
+
+def test_result_place_matches_cached_final_result() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Men's Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+        results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    assert result_place(event, event.fencers[0]) == "8"
+
+
+def test_result_place_is_empty_before_results_are_cached() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Men's Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    assert result_place(event, event.fencers[0]) is None
 
 
 def test_only_our_club_appears_under_events() -> None:

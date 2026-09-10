@@ -10,7 +10,7 @@ from fpdf import FPDF
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Tournament
-from fencer_schedules.schedule import visible_events
+from fencer_schedules.schedule import result_place, visible_events
 
 NAVY = (10, 22, 40)
 GOLD = (212, 175, 55)
@@ -74,8 +74,9 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
 
     days = sorted(by_day)
     usable = pdf.w - 16 - 16
-    name_w = usable * 0.50
-    club_w = usable * 0.50
+    name_w = usable * 0.45
+    place_w = usable * 0.15
+    club_w = usable * 0.40
     indent = 22
 
     for index, day in enumerate(days):
@@ -129,6 +130,7 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
             for fencer in event.fencers:
                 pdf.set_x(pdf.l_margin + indent)
                 pdf.cell(name_w - 4, 5, _latin(fencer.name))
+                pdf.cell(place_w, 5, _latin(result_place(event, fencer) or "-"))
                 pdf.cell(club_w, 5, _latin(fencer.club), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 

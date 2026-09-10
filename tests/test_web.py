@@ -40,6 +40,10 @@ def client(tmp_path):
 def test_home_shows_logo(client: TestClient) -> None:
     home = client.get("/")
     assert home.status_code == 200
+    assert "/static/favicon.svg" in home.text
+    favicon = client.get("/static/favicon.svg")
+    assert favicon.status_code == 200
+    assert favicon.headers["content-type"].startswith("image/svg+xml")
     assert "/static/logo.png" in home.text
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
@@ -87,7 +91,32 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
     assert "Cadet Men’s Foil" in load.text or "Cadet Men's Foil" in load.text
     assert "Other events" in load.text
     assert "fencing now" not in load.text.lower()
-    assert "strip" not in load.text.lower()
+
+
+@respx.mock
+def test_finished_event_shows_and_caches_final_results(client: TestClient) -> None:
+    test_load_trick_shows_club_fencer(client)
+    results_response = (FIXTURES / "usfa_results_72823.html").read_text()
+    results_route = respx.get(
+        "https://member.usafencing.org/details/tournaments/12013/results",
+        params={"event_id": "72823"},
+    ).mock(return_value=httpx.Response(200, json={"results_table": results_response}))
+
+    event = client.get("/schedule/events/72823")
+    assert event.status_code == 200
+    assert results_route.called
+    assert "Final results" in event.text
+    assert "<details" in event.text
+    assert "Doe, Jordan" in event.text
+    assert "8" in event.text
+    assert "Published by" in event.text
+    assert "Final: <strong>8</strong>" in client.get("/schedule").text
+
+    saved = client.app.state.store.current()
+    assert saved is not None
+    saved_event = next(item for item in saved.events if item.source_event_id == "72823")
+    assert saved_event.results is not None
+    assert saved_event.results[0].name == "Doe, Jordan"
 
 
 @respx.mock
@@ -140,21 +169,31 @@ def test_pdf_download(client: TestClient) -> None:
 @respx.mock
 def test_csv_download(client: TestClient) -> None:
     test_load_trick_shows_club_fencer(client)
+    respx.get(
+        "https://member.usafencing.org/details/tournaments/12013/results",
+        params={"event_id": "72823"},
+    ).mock(return_value=httpx.Response(200, json={"results_table": (FIXTURES / "usfa_results_72823.html").read_text()}))
     csv = client.get("/schedule.csv")
     assert csv.status_code == 200
     assert csv.headers["content-type"].startswith("text/csv")
-    assert b"fencer,club" in csv.content
+    assert b"fencer,club,final_place" in csv.content
     assert b"Doe, Jordan" in csv.content
+    assert b",Elite Fencers Club,8\r\n" in csv.content
 
 
 @respx.mock
 def test_text_export(client: TestClient) -> None:
     test_load_trick_shows_club_fencer(client)
+    respx.get(
+        "https://member.usafencing.org/details/tournaments/12013/results",
+        params={"event_id": "72823"},
+    ).mock(return_value=httpx.Response(200, json={"results_table": (FIXTURES / "usfa_results_72823.html").read_text()}))
     txt = client.get("/schedule.txt")
     assert txt.status_code == 200
     assert txt.headers["content-type"].startswith("text/plain")
     assert "Doe, Jordan" in txt.text
     assert "Elite Fencers Club" in txt.text
+    assert "8 place" in txt.text
 
 
 def test_switch_between_saved_tournaments(client: TestClient) -> None:

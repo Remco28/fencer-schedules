@@ -13,6 +13,13 @@ class Fencer(BaseModel):
     membership_id: str | None = None
 
 
+class EventResult(BaseModel):
+    place: str
+    name: str
+    club: str
+    membership_id: str | None = None
+
+
 class Event(BaseModel):
     source_event_id: str
     name: str
@@ -20,6 +27,7 @@ class Event(BaseModel):
     clock: time | None = None
     clock_label: str | None = None
     fencers: list[Fencer] = Field(default_factory=list)
+    results: list[EventResult] | None = None
 
 
 class Tournament(BaseModel):

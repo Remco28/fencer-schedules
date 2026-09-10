@@ -5,19 +5,23 @@ import io
 from datetime import time
 
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Tournament
-from fencer_schedules.schedule import visible_events
+from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.schedule import result_place, visible_events
+
+
+def _place(event: Event, fencer: Fencer) -> str:
+    return result_place(event, fencer) or ""
 
 
 def csv_bytes(tournament: Tournament, settings: Settings) -> bytes:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["day", "time", "event", "fencer", "club"])
+    writer.writerow(["day", "time", "event", "fencer", "club", "final_place"])
     for event in visible_events(tournament, settings):
         day = event.day.isoformat()
         clock = event.clock.strftime("%H:%M") if event.clock else ""
         for fencer in event.fencers:
-            writer.writerow([day, clock, event.name, fencer.name, fencer.club])
+            writer.writerow([day, clock, event.name, fencer.name, fencer.club, _place(event, fencer)])
     return buffer.getvalue().encode("utf-8")
 
 
@@ -37,7 +41,9 @@ def text_version(tournament: Tournament, settings: Settings) -> str:
         lines.append("")
         lines.append(f"{clock} {event.name}")
         for fencer in event.fencers:
-            lines.append(f"  • {fencer.name} ({fencer.club})")
+            place = _place(event, fencer)
+            suffix = f" — {place} place" if place else ""
+            lines.append(f"  • {fencer.name} ({fencer.club}){suffix}")
     return "\n".join(lines).strip() + "\n"
 
 

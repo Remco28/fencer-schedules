@@ -6,10 +6,11 @@ from datetime import date, datetime, time
 import httpx
 from bs4 import BeautifulSoup
 
-from fencer_schedules.models import Event, Fencer
+from fencer_schedules.models import Event, EventResult, Fencer
 
 USFA_HOST = "https://member.usafencing.org"
 _MEMBERSHIP = re.compile(r"#(\d+)")
+_PLACE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*$")
 _CLOSE_REG = re.compile(
     r"(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<ampm>[ap]m)\s+Close of Registration",
     re.I,
@@ -46,6 +47,28 @@ def parse_tournament_events(html: str, year: int | None = None) -> list[Event]:
     return events
 
 
+def parse_results_table(html: str) -> list[EventResult]:
+    """Parse the ranked competitor table returned by the USFA results endpoint."""
+    soup = BeautifulSoup(html, "html.parser")
+    results: list[EventResult] = []
+    for row in soup.select("tr[data-club]"):
+        place_el = row.find("th")
+        name_el = row.find("h4", class_=re.compile(r"thin"))
+        club = " ".join((row.get("data-club") or "").split())
+        if not place_el or not name_el or not club:
+            continue
+        place = " ".join(place_el.get_text(" ", strip=True).split())
+        name = " ".join(name_el.get_text(" ", strip=True).split())
+        if not place or not name or not _PLACE.match(place):
+            continue
+        membership = None
+        match = _MEMBERSHIP.search(row.get_text(" ", strip=True))
+        if match:
+            membership = match.group(1)
+        results.append(EventResult(place=place, name=name, club=club, membership_id=membership))
+    return results
+
+
 def parse_entrants_table(html: str) -> list[Fencer]:
     soup = BeautifulSoup(html, "html.parser")
     fencers: list[Fencer] = []
@@ -67,6 +90,7 @@ def parse_entrants_table(html: str) -> list[Fencer]:
 
 
 def _parse_day(text: str, year: int) -> date | None:
+
     cleaned = re.sub(r"^[A-Za-z]+,\s*", "", text.strip())
     for fmt in ("%B %d", "%b %d"):
         try:
@@ -117,3 +141,17 @@ class UsfaClient:
         resp.raise_for_status()
         payload = resp.json()
         return parse_entrants_table(payload.get("entrants_table") or "")
+
+    def fetch_results(self, usfa_id: str, event_id: str) -> list[EventResult]:
+        resp = self._client.get(
+            f"{USFA_HOST}/details/tournaments/{usfa_id}/results",
+            params={"event_id": event_id},
+            headers={
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": f"{USFA_HOST}/details/tournaments/{usfa_id}",
+            },
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        return parse_results_table(payload.get("results_table") or "")

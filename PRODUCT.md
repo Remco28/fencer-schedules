@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Job | Show **who from our club fences when** so coaches / parents / teammates can support them — **including days before the event** | Locked |
 | v1 ship | **Phone start list and a downloadable PDF of that same list.** | Locked 2026-08-19 |
-| v1 cut | **Start list only.** No strips, results, or fencing-now. FTL is too late for the pre-event PDF. | Locked |
+| v1 cut | **Start list plus final results for completed USFA events.** FTL live strips remain out of scope. | Locked 2026-09-08 |
 | Pre-event PDF | **Core.** Pick a tournament → download a PDF → Frank texts/emails it himself as a club reference. | Locked 2026-08-19 |
 | PDF contents | Same grouping as the phone: day → event → tracked fencers, club shown. **Day + event + names is enough.** Clock start time **if the source has it**; omit if not. | Locked 2026-08-19 |
 | Users | Single operator. **No app accounts.** PDF recipients are not app users. | Locked |
@@ -29,7 +29,7 @@
 | Layout | **One scroll:** day → events (by start time when known) → tracked fencers | Locked |
 | Time grain | Event clock time when present. Not per-fencer pool/DE times. | Locked |
 | Refresh | Re-fetch entries, then regenerate PDF. No live polling. | Locked |
-| After the event | Auto-purge (~48h TTL), or Remove by hand. | Locked |
+| After the event | Auto-purge (~48h TTL), or Remove by hand. Completed USFA events show cached final rankings after the event day. | Locked |
 | Multiple tournaments | Keep several loaded lists. Switch locally. Re-fetch only on first open or Refresh. | Locked 2026-08-19 |
 | Host | Local / self-hosted | Locked |
 | Anti-bot | Polite requests, cache, rate limits. Captcha workarounds within reason. | Locked |
@@ -46,7 +46,7 @@
 | Club schedule PDF | Downloadable copy of that start list, sent around **before** the tournament |
 | Regional / national | USFA-managed (ROC, RJCC, NAC, SYC, …). **USFA names win.** |
 | Local | Division / club events. AskFRED catalog + event times. **Names not in the API** (HTML `/preregistrations` only). |
-| Live status | Strips / results / fencing-now — **not v1** |
+| Live status | Strips / live fencing status — not v1. Final published USFA event results are shown after an event day passes. |
 
 ## Outline / non-goals
 
@@ -54,7 +54,7 @@
 
 **Not v1**
 
-- Strips, results, fencing-now, FTL as a gate
+- Strips, fencing-now, FTL as a gate
 - Local club names via AskFRED `/preregistrations` HTML (captcha; API 404)
 - FencingTracker, app accounts, settings page, email-from-the-app
 - Notifications, auto-refresh, history, multi-tournament
@@ -88,7 +88,7 @@ As a coach/parent on a phone, I want one search box, a pickable upcoming tournam
 - [ ] EFC fencers appear under their events, grouped by day; clock time only if the source has it.
 - [ ] Every fencer row shows that fencer's club.
 - [ ] “Track additional fencer” adds someone to the same lists.
-- [ ] No strip / result / live-status chrome.
+- [ ] For a completed USFA event, its final published ranking is available from the event view and tracked club fencers are visually identifiable.
 
 ### 003 — Hand the club a schedule PDF before the event
 

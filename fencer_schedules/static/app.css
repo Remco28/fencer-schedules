@@ -542,7 +542,46 @@ a.event-name:hover { text-decoration: underline; text-decoration-color: var(--go
 }
 .switcher .on { font-weight: 800; }
 
-/* ---- Empty states, banners, misc ---- */
+
+/* ---- Completed-event results ---- */
+.result-link {
+  display: inline-block;
+  margin: 0 0 8px;
+  color: var(--teal-dark);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+.result-link:hover { text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 2px; }
+.results-panel {
+  background: #fff;
+  border: 1px solid #d9e4e4;
+  border-left: 4px solid var(--teal-dark);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin: 0 0 22px;
+  scroll-margin-top: 12px;
+}
+.results-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
+.results-summary::-webkit-details-marker { display: none; }
+.results-summary::after { content: "+"; color: var(--teal-dark); font-size: 1.35rem; font-weight: 500; line-height: 1; }
+.results-panel[open] .results-summary::after { content: "−"; }
+.results-summary h2, .results-panel h2 { margin: 0; color: var(--navy); font-family: var(--serif); font-size: 1.25rem; line-height: 1.25; }
+.results-panel[open] .result-list { margin-top: 14px; }
+.placement { color: var(--teal-dark); font-size: 0.82rem; line-height: 1.35; }
+.placement strong { font-weight: 900; }
+
+.eyebrow { margin: 0 0 2px; color: var(--teal-dark); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.result-list { border-top: 1px solid var(--gray-2); }
+.result-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--gray-2); }
+.result-row.club-result { margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px; background: #fffdf4; }
+.place { width: 34px; color: var(--gold-dark); font-size: 1rem; font-weight: 900; text-align: center; flex: 0 0 auto; }
+.result-tag { color: var(--teal-dark); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
+.source-note { margin: 12px 0 0; color: var(--muted); font-size: 0.8rem; }
+.source-note a { color: var(--teal-dark); font-weight: 700; }
+.results-pending p:not(.eyebrow) { margin-bottom: 0; }
+
 .empty {
   border: 1.5px dashed #c9c0a6;
   background: #fffdf4;

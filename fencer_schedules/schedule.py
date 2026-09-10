@@ -7,6 +7,16 @@ from fencer_schedules.config import Settings
 from fencer_schedules.models import Event, Fencer, Tournament
 
 
+def result_place(event: Event, fencer: Fencer) -> str | None:
+    """Return a fencer's final place when the event results are cached."""
+    wanted_name = fencer.name.casefold()
+    wanted_club = fencer.club.casefold()
+    for result in event.results or []:
+        if result.name.casefold() == wanted_name and result.club.casefold() == wanted_club:
+            return result.place
+    return None
+
+
 def fencer_key(fencer: Fencer) -> tuple[str, str]:
     return (fencer.name.casefold(), fencer.club.casefold())
 

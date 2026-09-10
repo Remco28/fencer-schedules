@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fencer_schedules.sources.usfa import parse_entrants_table, parse_tournament_events
+from fencer_schedules.sources.usfa import parse_entrants_table, parse_results_table, parse_tournament_events
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -38,4 +38,13 @@ def test_parse_entrants_reads_club_and_name() -> None:
     fencers = parse_entrants_table(payload["entrants_table"])
     assert any(f.club == "Elite Fencers Club" and f.name == "Doe, Jordan" for f in fencers)
     assert any(f.name == "Albrecht-Smith, Anne" for f in fencers)
-    assert any(f.membership_id == "100000001" for f in fencers)
+
+
+def test_parse_results_reads_place_name_club_and_membership() -> None:
+    html = (FIXTURES / "usfa_results_72823.html").read_text()
+    results = parse_results_table(html)
+    assert [(result.place, result.name, result.club) for result in results] == [
+        ("8", "Doe, Jordan", "Elite Fencers Club"),
+        ("9.5", "Ng, Nico", "Other Fencing Club"),
+    ]
+    assert results[0].membership_id == "100000001"

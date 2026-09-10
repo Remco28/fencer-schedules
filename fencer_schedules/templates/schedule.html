@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ tournament.name }}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -127,12 +128,14 @@
           {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
         </div>
         <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+        {% if event|finished and tournament.usfa_id %}<a class="result-link" href="/schedule/events/{{ event.source_event_id }}#results">Final results{% if event.results %} · {{ event.results|length }}{% endif %} ↗</a>{% endif %}
         {% for fencer in event.fencers %}
           <div class="person">
             <div class="avatar" aria-hidden="true">{{ fencer.name|initials }}</div>
             <div class="who">
               <div class="name">{{ fencer.name }}</div>
               <div class="club">{{ fencer.club }}</div>
+              {% if event.results and event|result_place(fencer) %}<div class="placement">Final: <strong>{{ event|result_place(fencer) }}</strong></div>{% endif %}
             </div>
             <form action="/schedule/untrack" method="post">
               <input type="hidden" name="name" value="{{ fencer.name }}">
@@ -159,6 +162,7 @@
             {% if event.name|code %}<span class="badge">{{ event.name|code }}</span>{% endif %}
           </div>
           <a class="event-name" href="/schedule/events/{{ event.source_event_id }}">{{ event.name }}</a>
+          {% if event|finished and tournament.usfa_id %}<a class="result-link" href="/schedule/events/{{ event.source_event_id }}#results">Final results{% if event.results %} · {{ event.results|length }}{% endif %} ↗</a>{% endif %}
         </section>
       {% endfor %}
     {% endif %}

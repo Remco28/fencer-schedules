@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ event.name }}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -41,6 +42,41 @@
         </button>
       </form>
     </div>
+    {% if event_finished and event.results is not none %}
+    <details class="results-panel" id="results">
+      <summary class="results-summary">
+        <div>
+          <p class="eyebrow">Completed event</p>
+          <h2>Final results</h2>
+        </div>
+        <span class="badge">{{ event.results|length }} fencers</span>
+      </summary>
+      <div class="result-list">
+        {% for row in result_rows %}
+        <div class="result-row {% if row.tracked %}club-result{% endif %}">
+          <div class="place">{{ row.result.place }}</div>
+          <div class="who">
+            <div class="name">{{ row.result.name }}</div>
+            <div class="club">{{ row.result.club }}</div>
+          </div>
+          {% if row.tracked %}<span class="result-tag">Tracked</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <p class="source-note">Published by <a href="https://member.usafencing.org/details/tournaments/{{ tournament.usfa_id }}" target="_blank" rel="noopener">USA Fencing ↗</a></p>
+    </details>
+    {% elif event_finished and tournament.usfa_id %}
+    <details class="results-panel results-pending" id="results">
+      <summary class="results-summary">
+        <div>
+          <p class="eyebrow">Completed event</p>
+          <h2>Final results</h2>
+        </div>
+      </summary>
+      <p class="muted">Results are not available yet. Try refreshing this page in a moment.</p>
+    </details>
+    {% endif %}
+
     <p class="count">{% if rows|length == 1 %}1 fencer{% else %}{{ rows|length }} fencers{% endif %}</p>
     {% for row in rows %}
       <div class="person">
@@ -48,6 +84,7 @@
         <div class="who">
           <div class="name">{{ row.fencer.name }}</div>
           <div class="club">{{ row.fencer.club }}</div>
+          {% if row.tracked and row.place %}<div class="placement">Final: <strong>{{ row.place }}</strong></div>{% endif %}
         </div>
         {% if row.tracked %}
           <form action="/schedule/untrack" method="post">
