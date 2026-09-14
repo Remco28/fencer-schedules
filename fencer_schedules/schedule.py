@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unicodedata
 from datetime import time
 
@@ -59,6 +60,47 @@ def preserve_cached_results(old: Tournament, fresh: Tournament) -> Tournament:
             changed = True
         events.append(event)
     return fresh.model_copy(update={"events": events}) if changed else fresh
+
+
+def result_label(event: Event, fencer: Fencer) -> str | None:
+    """Return a human-readable final place, including tie wording."""
+    place = result_place(event, fencer)
+    if place is None:
+        return None
+    tie_place = _tie_place(event, place)
+    if tie_place is not None:
+        return f"Tied for {_ordinal(tie_place)}"
+    if place.isdigit():
+        return _ordinal(int(place))
+    return place
+
+
+def _tie_place(event: Event, place: str) -> int | None:
+    """Return the tied rank represented by a source place, if applicable."""
+    marker = place.strip()
+    tie_marker = re.fullmatch(r"(\d+)\s*[Tt]", marker)
+    if tie_marker:
+        return int(tie_marker.group(1))
+    numeric = re.fullmatch(r"(\d+)(?:\.(\d+))?", marker)
+    if not numeric:
+        return None
+    whole = int(numeric.group(1))
+    fraction = numeric.group(2)
+    if fraction == "5":
+        return whole
+    if fraction is not None:
+        return None
+    if sum(1 for result in (event.results or []) if result.place.strip() == marker) > 1:
+        return whole
+    return None
+
+
+def _ordinal(value: int) -> str:
+    if 10 < value % 100 < 14:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(value % 10, "th")
+    return f"{value}{suffix}"
 
 
 def fencer_key(fencer: Fencer) -> tuple[str, str]:

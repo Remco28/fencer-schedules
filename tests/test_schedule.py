@@ -7,6 +7,7 @@ from fencer_schedules.models import Event, EventResult, Fencer, Tournament
 from fencer_schedules.schedule import (
     add_manual,
     other_events,
+    result_label,
     result_place,
     preserve_cached_results,
     search_loaded_fencers,
@@ -110,6 +111,42 @@ def test_no_show_has_no_place_without_breaking_result_lookup() -> None:
     )
     assert result_place(event, event.fencers[0]) == "8"
     assert result_place(event, event.fencers[1]) is None
+
+
+def test_result_label_explains_average_rank_ties() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Youth Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+        results=[EventResult(place="25.5", name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    assert result_label(event, event.fencers[0]) == "Tied for 25th"
+
+
+def test_result_label_detects_duplicate_integer_tie_places() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Youth Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+        results=[
+            EventResult(place="3", name="Doe, Jordan", club="Elite Fencers Club"),
+            EventResult(place="3", name="Other, Kid", club="Other Club"),
+        ],
+    )
+    assert result_label(event, event.fencers[0]) == "Tied for 3rd"
+
+
+def test_result_label_formats_ordinary_place_as_ordinal() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+        results=[EventResult(place="50", name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    assert result_label(event, event.fencers[0]) == "50th"
 
 
 def test_preserve_cached_results_across_refresh() -> None:

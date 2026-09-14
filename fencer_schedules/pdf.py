@@ -10,7 +10,7 @@ from fpdf import FPDF
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Tournament
-from fencer_schedules.schedule import result_place, visible_events
+from fencer_schedules.schedule import result_label, visible_events
 
 NAVY = (10, 22, 40)
 GOLD = (212, 175, 55)
@@ -128,11 +128,11 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
             pdf.set_font("Helvetica", size=9)
             pdf.set_text_color(*INK)
             for fencer in event.fencers:
-                place = result_place(event, fencer)
+                label = result_label(event, fencer)
                 pdf.set_x(pdf.l_margin + indent)
                 pdf.cell(name_w - 4, 5, _latin(fencer.name))
-                pdf.set_text_color(*(INK if place else MUTED))
-                pdf.cell(place_w, 5, _latin(place or "No result"))
+                pdf.set_text_color(*(INK if label else MUTED))
+                pdf.cell(place_w, 5, _latin(label or "No result"))
                 pdf.set_text_color(*INK)
                 pdf.cell(club_w, 5, _latin(fencer.club), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)

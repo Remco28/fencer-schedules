@@ -52,7 +52,7 @@ def test_pdf_contains_club_fencer_and_day() -> None:
     assert "2026-08-22" in filename_for(tournament)
     assert b"/Image" in data  # small club logo in the header
     streams = b"\n".join(_pdf_streams(data))
-    assert b"(8)" in streams
+    assert b"(8th)" in streams
     assert b"(No result)" in streams
 
 

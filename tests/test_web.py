@@ -113,7 +113,7 @@ def test_finished_event_shows_and_caches_final_results(client: TestClient) -> No
     assert "No result" in event.text
     assert "8" in event.text
     assert "Published by" in event.text
-    assert "Final: <strong>8</strong>" in client.get("/schedule").text
+    assert "Final: <strong>8th</strong>" in client.get("/schedule").text
 
     saved = client.app.state.store.current()
     assert saved is not None
@@ -198,7 +198,7 @@ def test_refresh_preserves_cached_final_results(client: TestClient, monkeypatch)
     assert saved is not None
     assert saved.events[0].results is not None
     assert saved.events[0].results[0].place == "8"
-    assert "Final: <strong>8</strong>" in response.text
+    assert "Final: <strong>8th</strong>" in response.text
 
 
 @respx.mock

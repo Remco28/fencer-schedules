@@ -27,6 +27,7 @@ from fencer_schedules.schedule import (
     visible_events,
     other_events,
     result_place,
+    result_label,
     preserve_cached_results,
 )
 from fencer_schedules.sources.askfred import AskFredClient
@@ -74,6 +75,7 @@ TEMPLATES.env.filters["code"] = event_code
 TEMPLATES.env.filters["span"] = format_span
 TEMPLATES.env.filters["finished"] = event_finished
 TEMPLATES.env.filters["result_place"] = result_place
+TEMPLATES.env.filters["result_label"] = result_label
 TEMPLATES.env.tests["finished"] = event_finished
 
 
@@ -213,6 +215,7 @@ def create_app(
                 "fencer": fencer,
                 "tracked": is_tracked(fencer, settings),
                 "place": result_place(event, fencer),
+                "place_label": result_label(event, fencer),
             }
             for fencer in event.fencers
         ]
