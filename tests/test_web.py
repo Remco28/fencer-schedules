@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from fencer_schedules.app import create_app
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
-from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.models import Event, EventResult, Fencer, Tournament
 from fencer_schedules.sources.askfred import AskFredClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -110,6 +110,7 @@ def test_finished_event_shows_and_caches_final_results(client: TestClient) -> No
     assert "Final results" in event.text
     assert "<details" in event.text
     assert "Doe, Jordan" in event.text
+    assert "No result" in event.text
     assert "8" in event.text
     assert "Published by" in event.text
     assert "Final: <strong>8</strong>" in client.get("/schedule").text
@@ -166,6 +167,38 @@ def test_pdf_download(client: TestClient) -> None:
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
     assert pdf.content.startswith(b"%PDF")
+
+
+def test_refresh_preserves_cached_final_results(client: TestClient, monkeypatch) -> None:
+    old = Tournament(
+        askfred_id="refresh-test",
+        name="Refresh Test",
+        start_date=date(2026, 9, 1),
+        end_date=date(2026, 9, 1),
+        events=[
+            Event(
+                source_event_id="event-1",
+                name="Junior Men's Epee",
+                day=date(2026, 9, 1),
+                fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
+            )
+        ],
+    )
+    client.app.state.store.save(old)
+    fresh = old.model_copy(update={
+        "events": [old.events[0].model_copy(update={"results": None})]
+    })
+    monkeypatch.setattr("fencer_schedules.app.load_tournament", lambda *args, **kwargs: fresh)
+
+    response = client.post("/schedule/refresh", follow_redirects=True)
+
+    assert response.status_code == 200
+    saved = client.app.state.store.current()
+    assert saved is not None
+    assert saved.events[0].results is not None
+    assert saved.events[0].results[0].place == "8"
+    assert "Final: <strong>8</strong>" in response.text
 
 
 @respx.mock

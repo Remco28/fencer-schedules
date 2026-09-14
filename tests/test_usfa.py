@@ -40,6 +40,15 @@ def test_parse_entrants_reads_club_and_name() -> None:
     assert any(f.name == "Albrecht-Smith, Anne" for f in fencers)
 
 
+def test_parse_results_accepts_tie_place_marker() -> None:
+    results = parse_results_table(
+        '<table><tr data-club="Elite Fencers Club"><th>3T</th>'
+        '<td><h4 class="thin">Doe, Jordan</h4>#100000001</td></tr></table>'
+    )
+    assert len(results) == 1
+    assert results[0].place == "3T"
+
+
 def test_parse_results_reads_place_name_club_and_membership() -> None:
     html = (FIXTURES / "usfa_results_72823.html").read_text()
     results = parse_results_table(html)

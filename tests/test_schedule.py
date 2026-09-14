@@ -8,6 +8,7 @@ from fencer_schedules.schedule import (
     add_manual,
     other_events,
     result_place,
+    preserve_cached_results,
     search_loaded_fencers,
     track_named,
     untrack_named,
@@ -94,6 +95,44 @@ def test_result_place_is_empty_before_results_are_cached() -> None:
         fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
     )
     assert result_place(event, event.fencers[0]) is None
+
+
+def test_no_show_has_no_place_without_breaking_result_lookup() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Men's Epee",
+        day=date(2026, 8, 22),
+        fencers=[
+            Fencer(name="Doe, Jordan", club="Elite Fencers Club"),
+            Fencer(name="NoShow, Riley", club="Elite Fencers Club"),
+        ],
+        results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    assert result_place(event, event.fencers[0]) == "8"
+    assert result_place(event, event.fencers[1]) is None
+
+
+def test_preserve_cached_results_across_refresh() -> None:
+    old = _tournament().model_copy(update={"events": [
+        Event(
+            source_event_id="e1",
+            name="Junior Men's Epee",
+            day=date(2026, 8, 22),
+            fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+            results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
+        )
+    ]})
+    fresh = _tournament().model_copy(update={"events": [
+        Event(
+            source_event_id="e1",
+            name="Junior Men's Epee",
+            day=date(2026, 8, 22),
+            fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+        )
+    ]})
+    merged = preserve_cached_results(old, fresh)
+    assert merged.events[0].results is not None
+    assert merged.events[0].results[0].place == "8"
 
 
 def test_only_our_club_appears_under_events() -> None:

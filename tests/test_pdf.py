@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import zlib
 from datetime import date
 
 from fencer_schedules.config import Settings
@@ -20,12 +22,25 @@ def _sample():
                 source_event_id="1",
                 name="Junior Men's Epee",
                 day=date(2026, 8, 22),
-                fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+                fencers=[
+                    Fencer(name="Doe, Jordan", club="Elite Fencers Club"),
+                    Fencer(name="NoShow, Riley", club="Elite Fencers Club"),
+                ],
                 results=[EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
             )
         ],
     )
     return settings, tournament
+
+
+def _pdf_streams(data: bytes) -> list[bytes]:
+    streams = []
+    for match in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", data, re.S):
+        try:
+            streams.append(zlib.decompress(match.group(1)))
+        except zlib.error:
+            continue
+    return streams
 
 
 def test_pdf_contains_club_fencer_and_day() -> None:
@@ -36,7 +51,9 @@ def test_pdf_contains_club_fencer_and_day() -> None:
     assert "trick-or-retreat" in filename_for(tournament)
     assert "2026-08-22" in filename_for(tournament)
     assert b"/Image" in data  # small club logo in the header
-    assert b"8" in data
+    streams = b"\n".join(_pdf_streams(data))
+    assert b"(8)" in streams
+    assert b"(No result)" in streams
 
 
 def test_day_underline_matches_label_width() -> None:

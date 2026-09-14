@@ -84,7 +84,10 @@
         <div class="who">
           <div class="name">{{ row.fencer.name }}</div>
           <div class="club">{{ row.fencer.club }}</div>
-          {% if row.tracked and row.place %}<div class="placement">Final: <strong>{{ row.place }}</strong></div>{% endif %}
+          {% if event.results is not none %}
+            {% set place = row.place %}
+            <div class="placement">{% if place %}Final: <strong>{{ place }}</strong>{% else %}<span class="no-result">No result</span>{% endif %}</div>
+          {% endif %}
         </div>
         {% if row.tracked %}
           <form action="/schedule/untrack" method="post">

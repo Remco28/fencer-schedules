@@ -27,6 +27,7 @@ from fencer_schedules.schedule import (
     visible_events,
     other_events,
     result_place,
+    preserve_cached_results,
 )
 from fencer_schedules.sources.askfred import AskFredClient
 from fencer_schedules.sources.usfa import UsfaClient
@@ -275,6 +276,7 @@ def create_app(
             return RedirectResponse("/", status_code=303)
         overrides = tracking_overrides(tournament)
         reloaded = load_tournament(tournament.askfred_id, settings, askfred=askfred)
+        reloaded = preserve_cached_results(tournament, reloaded)
         store.save(apply_overrides(reloaded, overrides))
         return RedirectResponse("/schedule", status_code=303)
 

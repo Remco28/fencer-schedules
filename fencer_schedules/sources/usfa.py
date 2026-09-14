@@ -10,7 +10,7 @@ from fencer_schedules.models import Event, EventResult, Fencer
 
 USFA_HOST = "https://member.usafencing.org"
 _MEMBERSHIP = re.compile(r"#(\d+)")
-_PLACE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*$")
+_PLACE = re.compile(r"^(?:\d+(?:\.\d+)?\s*[A-Za-z=]*|[A-Za-z]{2,12})$", re.I)
 _CLOSE_REG = re.compile(
     r"(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<ampm>[ap]m)\s+Close of Registration",
     re.I,

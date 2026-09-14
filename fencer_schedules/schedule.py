@@ -41,6 +41,26 @@ def _text_key(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def preserve_cached_results(old: Tournament, fresh: Tournament) -> Tournament:
+    """Carry fetched final results across a roster refresh by stable event ID."""
+    old_results = {
+        event.source_event_id: event.results
+        for event in old.events
+        if event.results is not None
+    }
+    if not old_results:
+        return fresh
+    changed = False
+    events: list[Event] = []
+    for event in fresh.events:
+        results = old_results.get(event.source_event_id)
+        if event.results is None and results is not None:
+            event = event.model_copy(update={"results": results})
+            changed = True
+        events.append(event)
+    return fresh.model_copy(update={"events": events}) if changed else fresh
+
+
 def fencer_key(fencer: Fencer) -> tuple[str, str]:
     return (fencer.name.casefold(), fencer.club.casefold())
 

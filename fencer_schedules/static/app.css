@@ -571,6 +571,7 @@ a.event-name:hover { text-decoration: underline; text-decoration-color: var(--go
 .results-panel[open] .result-list { margin-top: 14px; }
 .placement { color: var(--teal-dark); font-size: 0.82rem; line-height: 1.35; }
 .placement strong { font-weight: 900; }
+.no-result { color: var(--muted); font-style: italic; }
 
 .eyebrow { margin: 0 0 2px; color: var(--teal-dark); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .result-list { border-top: 1px solid var(--gray-2); }
