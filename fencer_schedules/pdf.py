@@ -128,9 +128,12 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
             pdf.set_font("Helvetica", size=9)
             pdf.set_text_color(*INK)
             for fencer in event.fencers:
+                place = result_place(event, fencer)
                 pdf.set_x(pdf.l_margin + indent)
                 pdf.cell(name_w - 4, 5, _latin(fencer.name))
-                pdf.cell(place_w, 5, _latin(result_place(event, fencer) or "-"))
+                pdf.set_text_color(*(INK if place else MUTED))
+                pdf.cell(place_w, 5, _latin(place or "No result"))
+                pdf.set_text_color(*INK)
                 pdf.cell(club_w, 5, _latin(fencer.club), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
