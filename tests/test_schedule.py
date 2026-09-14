@@ -57,6 +57,35 @@ def test_result_place_matches_cached_final_result() -> None:
     assert result_place(event, event.fencers[0]) == "8"
 
 
+def test_result_place_matches_membership_id_when_result_has_country_flag() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Men's Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Lai, Jaxon", club="Medeo Fencing Club", membership_id="100123456")],
+        results=[
+            EventResult(
+                place="7",
+                name="Lai, Jaxon 🇺🇸",
+                club="Medeo Fencing Club",
+                membership_id="100123456",
+            )
+        ],
+    )
+    assert result_place(event, event.fencers[0]) == "7"
+
+
+def test_result_place_normalizes_country_flag_without_membership_id() -> None:
+    event = Event(
+        source_event_id="1",
+        name="Junior Men's Epee",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Lai, Jaxon", club="Medeo Fencing Club")],
+        results=[EventResult(place="7", name="Lai, Jaxon 🇺🇸", club="Medeo Fencing Club")],
+    )
+    assert result_place(event, event.fencers[0]) == "7"
+
+
 def test_result_place_is_empty_before_results_are_cached() -> None:
     event = Event(
         source_event_id="1",

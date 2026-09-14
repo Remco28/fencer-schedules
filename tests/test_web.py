@@ -96,7 +96,9 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
 @respx.mock
 def test_finished_event_shows_and_caches_final_results(client: TestClient) -> None:
     test_load_trick_shows_club_fencer(client)
-    results_response = (FIXTURES / "usfa_results_72823.html").read_text()
+    results_response = (FIXTURES / "usfa_results_72823.html").read_text().replace(
+        "Doe, Jordan", "Doe, Jordan 🇺🇸"
+    )
     results_route = respx.get(
         "https://member.usafencing.org/details/tournaments/12013/results",
         params={"event_id": "72823"},
@@ -116,7 +118,7 @@ def test_finished_event_shows_and_caches_final_results(client: TestClient) -> No
     assert saved is not None
     saved_event = next(item for item in saved.events if item.source_event_id == "72823")
     assert saved_event.results is not None
-    assert saved_event.results[0].name == "Doe, Jordan"
+    assert saved_event.results[0].name == "Doe, Jordan 🇺🇸"
 
 
 @respx.mock

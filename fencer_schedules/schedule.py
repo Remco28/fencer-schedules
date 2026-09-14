@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import time
 
 from fencer_schedules.club import is_our_club
@@ -8,13 +9,36 @@ from fencer_schedules.models import Event, Fencer, Tournament
 
 
 def result_place(event: Event, fencer: Fencer) -> str | None:
-    """Return a fencer's final place when the event results are cached."""
-    wanted_name = fencer.name.casefold()
-    wanted_club = fencer.club.casefold()
-    for result in event.results or []:
-        if result.name.casefold() == wanted_name and result.club.casefold() == wanted_club:
+    """Return a fencer's final place when the event results are cached.
+
+    USA Fencing may append country flags or other display symbols to result
+    names. Membership IDs are the strongest identity match; normalized
+    name/club matching keeps fixtures and sources without IDs working.
+    """
+    results = event.results or []
+    if fencer.membership_id:
+        for result in results:
+            if result.membership_id and result.membership_id == fencer.membership_id:
+                return result.place
+
+    wanted_name = _person_name(fencer.name)
+    wanted_club = _text_key(fencer.club)
+    for result in results:
+        if _person_name(result.name) == wanted_name and _text_key(result.club) == wanted_club:
             return result.place
     return None
+
+
+def _person_name(value: str) -> str:
+    """Normalize source display decorations such as trailing country flags."""
+    value = unicodedata.normalize("NFKC", value).replace("’", "'")
+    return " ".join(
+        "".join(char if (char.isalnum() or char in " ,.'-") else " " for char in value.casefold()).split()
+    )
+
+
+def _text_key(value: str) -> str:
+    return " ".join(value.casefold().split())
 
 
 def fencer_key(fencer: Fencer) -> tuple[str, str]:
