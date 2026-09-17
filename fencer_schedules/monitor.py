@@ -11,7 +11,8 @@ from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store, Watch
 from fencer_schedules.load import load_tournament
 from fencer_schedules.models import Event, Tournament
-from fencer_schedules.notify import send_digest
+from fencer_schedules.notify import SKIPPED, send_digest
+from fencer_schedules.schedule import merge_refresh
 
 logger = logging.getLogger("fencer_schedules.monitor")
 
@@ -227,7 +228,12 @@ def _watched_events(watch: Watch, tournament: Tournament) -> list[Event]:
 
 
 def _names(event: Event, watch: Watch, settings: Settings) -> list[list[str]]:
-    fencers = event.fencers
+    """Names this watch reports on.
+
+    Untracked ("hidden") fencers are excluded: hiding someone in the app should
+    also stop alerts about them rather than mailing behind the user's back.
+    """
+    fencers = [f for f in event.fencers if f.source != "hidden"]
     if watch.notify_kind == "club":
         fencers = [f for f in fencers if is_our_club(f.club, settings)]
     return [[f.name, f.club] for f in fencers]
@@ -257,57 +263,76 @@ def run(
         watches_by_tournament.setdefault(watch.askfred_id, []).append(watch)
 
     for askfred_id, watches in watches_by_tournament.items():
-        tournament = store.get(askfred_id)
-        if tournament is None:
-            if not dry_run:
-                store.delete_watches(askfred_id)
-            continue
+        # One broken tournament must not blackhole the rest of the run.
         try:
+            tournament = store.get(askfred_id)
+            if tournament is None:
+                if not dry_run:
+                    store.delete_watches(askfred_id)
+                continue
+
             # Load once per tournament, even when multiple watch types overlap.
             fresh = load_tournament(askfred_id, settings)
+
+            additions_by_event: dict[str, tuple[Event, list[list[str]]]] = {}
+            snapshots: list[tuple[Watch, dict[str, list[list[str]]]]] = []
+            for watch in watches:
+                last_seen = json.loads(watch.last_seen or "{}")
+                snapshot: dict[str, list[list[str]]] = {}
+                for event in _watched_events(watch, fresh):
+                    current = _names(event, watch, settings)
+                    key = event.source_event_id
+                    snapshot[key] = current
+                    if key not in last_seen:
+                        continue
+                    new = new_names(last_seen[key], current)
+                    if not new:
+                        continue
+                    if key not in additions_by_event:
+                        additions_by_event[key] = (event, [])
+                    combined = additions_by_event[key][1]
+                    for pair in new:
+                        if pair not in combined:
+                            combined.append(pair)
+                snapshots.append((watch, snapshot))
+
+            advance_baseline = True
+            additions = list(additions_by_event.values())
+            if additions:
+                subject, body, html = build_digest(fresh, additions, settings)
+                if dry_run:
+                    logger.info("dry-run digest:\n%s\n%s", subject, body)
+                    print(subject)
+                    print(body)
+                    print()
+                else:
+                    # One email per tournament per run, not one per overlapping watch.
+                    sent = send_digest(settings, subject, body, recipients, html=html)
+                    if sent is SKIPPED:
+                        # Nothing went out, so keep the baseline and report again
+                        # next run instead of silently dropping the alert.
+                        advance_baseline = False
+                        logger.warning(
+                            "digest for %s was not sent; baseline kept for the next run",
+                            askfred_id,
+                        )
+                    else:
+                        subjects.append(subject)
+
+            if not dry_run:
+                # Refresh the stored roster the watcher already paid for, without
+                # discarding tracking choices, cached results, or the row's lease.
+                store.save(
+                    merge_refresh(tournament, fresh),
+                    select=False,
+                    keep_expiry=True,
+                )
+                if advance_baseline:
+                    for watch, snapshot in snapshots:
+                        store.save_last_seen(watch, snapshot)
         except Exception:
-            logger.exception("watch %s failed to load; skipping", askfred_id)
+            logger.exception("watch %s failed; continuing with the rest", askfred_id)
             continue
-
-        additions_by_event: dict[str, tuple[Event, list[list[str]]]] = {}
-        snapshots: list[tuple[Watch, dict[str, list[list[str]]]]] = []
-        for watch in watches:
-            last_seen = json.loads(watch.last_seen or "{}")
-            snapshot: dict[str, list[list[str]]] = {}
-            for event in _watched_events(watch, fresh):
-                current = _names(event, watch, settings)
-                key = event.source_event_id
-                snapshot[key] = current
-                if key not in last_seen:
-                    continue
-                new = new_names(last_seen[key], current)
-                if not new:
-                    continue
-                if key not in additions_by_event:
-                    additions_by_event[key] = (event, [])
-                combined = additions_by_event[key][1]
-                for pair in new:
-                    if pair not in combined:
-                        combined.append(pair)
-            snapshots.append((watch, snapshot))
-
-        additions = list(additions_by_event.values())
-        if additions:
-            subject, body, html = build_digest(fresh, additions, settings)
-            if dry_run:
-                logger.info("dry-run digest:\n%s\n%s", subject, body)
-                print(subject)
-                print(body)
-                print()
-            else:
-                # One email per tournament per run, not one per overlapping watch.
-                send_digest(settings, subject, body, recipients, html=html)
-                subjects.append(subject)
-
-        # Only advance baselines after a successful send (or a no-change run).
-        if not dry_run:
-            for watch, snapshot in snapshots:
-                store.save_last_seen(watch, snapshot)
     return subjects
 
 

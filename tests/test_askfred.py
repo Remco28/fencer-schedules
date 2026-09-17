@@ -7,7 +7,10 @@ from pathlib import Path
 import httpx
 import respx
 
-from fencer_schedules.sources.askfred import AskFredClient, usfa_id_from_registration_url
+from fencer_schedules.sources.askfred import (
+    AskFredClient,
+    usfa_id_from_registration_url,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 TRICK_ID = "f4fbfddf-8316-46d2-9392-8a8245059f86"

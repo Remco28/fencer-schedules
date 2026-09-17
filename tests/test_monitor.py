@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 
-import pytest
-
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
-from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.models import Event, EventResult, Fencer, Tournament
 from fencer_schedules.monitor import (
     alert_times_for,
     build_digest,
@@ -414,3 +412,136 @@ def test_dry_run_ignores_check_window(tmp_path, monkeypatch, capsys) -> None:
     assert sent == []
     out = capsys.readouterr().out
     assert "new registrant" in out
+
+
+# ---- watcher persistence, failure isolation, and baseline safety ----
+
+
+def _tournament_as(askfred_id: str, events: list[Event]) -> Tournament:
+    return _tournament(events).model_copy(update={"askfred_id": askfred_id})
+
+
+def _watch_with_baseline(store: Store, askfred_id: str, baseline: dict) -> None:
+    store.set_watch(askfred_id, None, "club")
+    store.save_last_seen(store.watch_for(askfred_id, None, "club"), baseline)
+
+
+def test_send_failure_does_not_stop_the_rest_of_the_run(tmp_path, monkeypatch) -> None:
+    """One bad email must not blackhole the other watched tournaments."""
+    store = Store(tmp_path / "t.db")
+    for askfred_id in ("aa", "bb"):
+        _seed(store, _tournament_as(askfred_id, [_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")])]))
+        _watch_with_baseline(store, askfred_id, {"e1": []})
+
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", lambda aid, s, **kw: store.get(aid))
+    attempted: list[str] = []
+
+    def _send(settings, subject, body, recipients, **kwargs):
+        attempted.append(subject)
+        if len(attempted) == 1:
+            raise RuntimeError("AgentMail 500")
+        return True
+
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", _send)
+
+    subjects = run(_settings(), store, now=NINE_AM)
+
+    assert len(attempted) == 2, "the second tournament should still be attempted"
+    assert len(subjects) == 1
+    baselines = {aid: store.watch_for(aid, None, "club").last_seen for aid in ("aa", "bb")}
+    assert list(baselines.values()).count('{"e1": []}') == 1  # only the failed one held back
+
+
+def test_watcher_persists_the_roster_it_fetched(tmp_path, monkeypatch) -> None:
+    """The roster the watcher already paid for should reach the app's pages."""
+    store = Store(tmp_path / "t.db")
+    _seed(store, _tournament([_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")])]))
+    _watch_with_baseline(store, TRICK_ID, {"e1": [["Doe, Jordan", "Elite Fencers Club"]]})
+    fresh = _tournament(
+        [_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club"), _fencer("New, Nina", "Elite FC")])]
+    )
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", lambda aid, s, **kw: fresh)
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: True)
+
+    run(_settings(), store, now=NINE_AM)
+
+    stored = store.get(TRICK_ID)
+    assert stored is not None
+    assert "New, Nina" in [f.name for e in stored.events for f in e.fencers]
+
+
+def test_watcher_keeps_tracking_choices_and_cached_results(tmp_path, monkeypatch) -> None:
+    """Persisting a fetch must not wipe manual tracking or cached results."""
+    store = Store(tmp_path / "t.db")
+    old_event = _event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")]).model_copy(
+        update={
+            "fencers": [
+                _fencer("Doe, Jordan", "Elite Fencers Club"),
+                Fencer(name="Guest, Gil", club="Other Club", source="manual"),
+            ],
+            "results": [EventResult(place="8", name="Doe, Jordan", club="Elite Fencers Club")],
+        }
+    )
+    _seed(store, _tournament([old_event]))
+    _watch_with_baseline(store, TRICK_ID, {"e1": [["Doe, Jordan", "Elite Fencers Club"]]})
+    monkeypatch.setattr(
+        "fencer_schedules.monitor.load_tournament",
+        lambda aid, s, **kw: _tournament(
+            [
+                _event(
+                    "e1",
+                    [
+                        _fencer("Doe, Jordan", "Elite Fencers Club"),
+                        _fencer("Guest, Gil", "Other Club"),
+                    ],
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: True)
+    # A different tournament is open on the phone; the watcher must leave it be.
+    store.save(_tournament_as("open-in-app", [_event("e9", [])]), select=True)
+
+    run(_settings(), store, now=NINE_AM)
+
+    stored = store.get(TRICK_ID)
+    assert stored is not None
+    event = stored.events[0]
+    assert event.results is not None, "cached final results must survive"
+    guest = next(f for f in event.fencers if f.name == "Guest, Gil")
+    assert guest.source == "manual", "manual tracking must survive"
+    current = store.current()
+    assert current is not None
+    assert current.askfred_id == "open-in-app", "the open tournament must not change"
+
+
+def test_hidden_fencer_is_not_reported(tmp_path, monkeypatch) -> None:
+    """Untracking someone should silence alerts about them too."""
+    store = Store(tmp_path / "t.db")
+    hidden = _event("e1", []).model_copy(
+        update={"fencers": [Fencer(name="Hidden, Hana", club="Elite Fencers Club", source="hidden")]}
+    )
+    _seed(store, _tournament([hidden]))
+    _watch_with_baseline(store, TRICK_ID, {"e1": []})
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", lambda aid, s, **kw: store.get(aid))
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.monitor.send_digest", lambda *a, **kw: sent.append(a))
+
+    subjects = run(_settings(), store, now=NINE_AM)
+
+    assert subjects == []
+    assert sent == []
+
+
+def test_unsent_digest_keeps_the_baseline(tmp_path, monkeypatch) -> None:
+    """With AgentMail unconfigured nothing is delivered, so nothing is consumed."""
+    store = Store(tmp_path / "t.db")
+    _seed(store, _tournament([_event("e1", [_fencer("Doe, Jordan", "Elite Fencers Club")])]))
+    _watch_with_baseline(store, TRICK_ID, {"e1": []})
+    monkeypatch.setattr("fencer_schedules.monitor.load_tournament", lambda aid, s, **kw: store.get(aid))
+    unconfigured = Settings(club_name="Elite Fencers Club", club_aliases=["Elite FC"])
+
+    subjects = run(unconfigured, store, now=NINE_AM)
+
+    assert subjects == []
+    assert store.watch_for(TRICK_ID, None, "club").last_seen == '{"e1": []}'

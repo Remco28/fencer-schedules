@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from fencer_schedules.models import Event, Tournament
+from fencer_schedules.models import UNKNOWN_DAY, Event, Tournament
 
 BASE = "https://www.askfred.net/api/v1"
 USFA_ID = re.compile(r"/details/tournaments/(\d+)")
@@ -120,7 +120,7 @@ class AskFredClient:
     def _event_from_item(self, item: dict[str, Any]) -> Event:
         attrs = item.get("attributes") or {}
         clock = None
-        day = date.fromisoformat("1970-01-01")
+        day: date | None = None
         raw = attrs.get("close_of_registration")
         if raw:
             dt = datetime.fromisoformat(raw)
@@ -131,7 +131,9 @@ class AskFredClient:
         return Event(
             source_event_id=item["id"],
             name=attrs.get("full_name") or attrs.get("short_name") or "Event",
-            day=day,
+            # AskFRED sometimes omits close_of_registration; don't invent a date.
+            day=day or UNKNOWN_DAY,
+            day_unknown=day is None,
             clock=clock,
             clock_label=None,
         )

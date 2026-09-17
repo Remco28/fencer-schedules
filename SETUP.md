@@ -42,6 +42,15 @@ sudo systemctl enable --now fencer-schedules-monitor.timer
 
 The web app restarts on crash and on boot. The watcher timer ticks hourly (`OnCalendar=hourly`); the app only checks within ±30 minutes of the alert times saved in gear → Settings (default `09:00,21:00` America/New_York).
 
+The watcher also refreshes the saved roster for every watched tournament, so the
+start list stays current without pressing Refresh. It keeps your tracked/hidden
+choices and any cached final results, and it does not extend a tournament's lease.
+
+Saved tournaments expire 48 hours after the event ends (or 48 hours after they were
+last opened, whichever is later), and a watch is deleted along with its tournament.
+That is intentional: alerts stop once the event is over rather than emailing about
+a stale registration list.
+
 Manual one-shot:
 
 ```bash

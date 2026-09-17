@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import time
+from datetime import date, time
 
 from fencer_schedules.club import is_our_club
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Event, Fencer, Tournament
+from fencer_schedules.models import UNKNOWN_DAY, Event, Fencer, Tournament
 
 
 def result_place(event: Event, fencer: Fencer) -> str | None:
@@ -49,8 +49,6 @@ def preserve_cached_results(old: Tournament, fresh: Tournament) -> Tournament:
         for event in old.events
         if event.results is not None
     }
-    if not old_results:
-        return fresh
     changed = False
     events: list[Event] = []
     for event in fresh.events:
@@ -59,7 +57,33 @@ def preserve_cached_results(old: Tournament, fresh: Tournament) -> Tournament:
             event = event.model_copy(update={"results": results})
             changed = True
         events.append(event)
-    return fresh.model_copy(update={"events": events}) if changed else fresh
+    merged = fresh.model_copy(update={"events": events}) if changed else fresh
+    if old.results_checked:
+        merged = merged.model_copy(update={"results_checked": old.results_checked})
+    return merged
+
+
+def merge_refresh(old: Tournament, fresh: Tournament) -> Tournament:
+    """Fold a fresh fetch into the stored copy without losing user state.
+
+    Shared by the manual Refresh button and the background watcher so both
+    preserve cached final results and manual/hidden tracking choices.
+    """
+    return apply_overrides(preserve_cached_results(old, fresh), tracking_overrides(old))
+
+
+def day_label(value: date) -> str:
+    """Human day for an event; never invents a date the source omitted."""
+    if value == UNKNOWN_DAY:
+        return "Day TBD"
+    return value.strftime("%A, %B %-d")
+
+
+def day_parts(value: date) -> tuple[str, str]:
+    """Short (weekday, month day) pair for the jump-to-day tabs."""
+    if value == UNKNOWN_DAY:
+        return ("TBD", "")
+    return (value.strftime("%a"), value.strftime("%b %-d"))
 
 
 def result_label(event: Event, fencer: Fencer) -> str | None:
@@ -217,4 +241,6 @@ def apply_overrides(tournament: Tournament, overrides: list[tuple[str, str, str]
 
 
 def _event_sort(event: Event) -> tuple:
-    return (event.day, event.clock or time.max, event.name)
+    # Events whose day was never published sort last rather than pretending to
+    # be the earliest thing on the schedule.
+    return (event.day_unknown, event.day, event.clock or time.max, event.name)

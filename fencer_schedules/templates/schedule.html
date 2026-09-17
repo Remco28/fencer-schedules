@@ -113,14 +113,15 @@
     {% if days and days|length > 1 %}
       <nav class="days" aria-label="Jump to day">
         {% for day in days %}
-          <a class="day-tab" href="#day-{{ day.isoformat() }}">{{ day.strftime("%a") }}<br>{{ day.strftime("%b %-d") }}</a>
+          {% set parts = day|day_parts %}
+          <a class="day-tab" href="#day-{{ day.isoformat() }}">{{ parts[0] }}{% if parts[1] %}<br>{{ parts[1] }}{% endif %}</a>
         {% endfor %}
       </nav>
     {% endif %}
 
     {% for event in events %}
       {% if loop.first or events[loop.index0 - 1].day != event.day %}
-        <h2 class="day-head" id="day-{{ event.day.isoformat() }}">{{ event.day.strftime("%A, %B %-d") }}</h2>
+        <h2 class="day-head" id="day-{{ event.day.isoformat() }}">{{ event.day|day_label }}</h2>
       {% endif %}
       <section class="card">
         <div class="card-top">

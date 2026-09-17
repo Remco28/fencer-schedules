@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fencer_schedules.sources.usfa import parse_entrants_table, parse_results_table, parse_tournament_events
+from fencer_schedules.sources.usfa import (
+    parse_entrants_table,
+    parse_results_table,
+    parse_tournament_events,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

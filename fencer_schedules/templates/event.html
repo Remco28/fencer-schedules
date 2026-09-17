@@ -24,7 +24,7 @@
       </a>
     </div>
     <div class="meta">
-      <div class="teal">{{ event.day.strftime("%A, %B %-d") }}{% if event.clock %} · {{ event.clock|clock }}{% endif %}</div>
+      <div class="teal">{{ event.day|day_label }}{% if event.clock %} · {{ event.clock|clock }}{% endif %}</div>
     </div>
     </div>
   </header>

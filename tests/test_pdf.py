@@ -6,7 +6,7 @@ from datetime import date
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Event, EventResult, Fencer, Tournament
-from fencer_schedules.pdf import filename_for, render_pdf, SchedulePDF, _latin
+from fencer_schedules.pdf import SchedulePDF, _latin, filename_for, render_pdf
 
 
 def _sample():
@@ -63,3 +63,20 @@ def test_day_underline_matches_label_width() -> None:
     label = _latin("Saturday, September 12")
     width = pdf.get_string_width(label)
     assert round(width, 2) == 48.23
+
+
+def test_pdf_leaves_the_place_blank_before_results_are_fetched() -> None:
+    """An event that has not been fenced must not claim every fencer has no result."""
+    settings, tournament = _sample()
+    unplayed = tournament.model_copy(
+        update={"events": [tournament.events[0].model_copy(update={"results": None})]}
+    )
+    streams = b"\n".join(_pdf_streams(render_pdf(unplayed, settings)))
+    assert b"(Doe, Jordan)" in streams
+    assert b"(No result)" not in streams
+
+
+def test_pdf_marks_published_results_it_cannot_match() -> None:
+    settings, tournament = _sample()
+    streams = b"\n".join(_pdf_streams(render_pdf(tournament, settings)))
+    assert b"(No result)" in streams

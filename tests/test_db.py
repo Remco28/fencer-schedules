@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from fencer_schedules.db import Store
+from fencer_schedules.db import Store, StoredTournament
 from fencer_schedules.models import Tournament
 
 
@@ -50,6 +50,39 @@ def test_cleanup_expired(tmp_path) -> None:
     store.cleanup(now=now)
     assert {t.askfred_id for t in store.list(now=now)} == {"keep"}
     assert store.current(now=now).askfred_id == "keep"
+
+
+def test_save_keep_expiry_does_not_extend_the_lease(tmp_path) -> None:
+    """A background refresh must not keep pushing expiry forward forever."""
+    store = Store(tmp_path / "t.db")
+    tournament = _t("a", "A", date(2026, 9, 10))
+    store.save(tournament, select=False, now=datetime(2026, 9, 11, 12, 0))
+    first = _expiry(store, "a")
+
+    store.save(tournament, select=False, keep_expiry=True, now=datetime(2026, 9, 16, 12, 0))
+    assert _expiry(store, "a") == first
+
+    # Without the guard the lease slides forward, which is the behaviour the
+    # watcher must avoid.
+    store.save(tournament, select=False, now=datetime(2026, 9, 16, 12, 0))
+    assert _expiry(store, "a") > first
+
+
+def test_save_can_leave_the_current_tournament_alone(tmp_path) -> None:
+    store = Store(tmp_path / "t.db")
+    store.save(_t("a", "A", date(2026, 9, 1)))
+    store.save(_t("b", "B", date(2026, 9, 2)))
+    assert store.current().askfred_id == "b"
+    store.save(_t("a", "A", date(2026, 9, 1)), select=False)
+    assert store.current().askfred_id == "b"
+
+
+def _expiry(store: Store, askfred_id: str) -> datetime:
+    with store._session() as session:
+        row = session.get(StoredTournament, askfred_id)
+        assert row is not None
+        session.expunge(row)
+        return row.expires_at
 
 
 def test_watch_upsert_and_toggle(tmp_path) -> None:

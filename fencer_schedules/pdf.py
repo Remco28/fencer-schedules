@@ -3,14 +3,13 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from datetime import date
-
 from pathlib import Path
 
 from fpdf import FPDF
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Tournament
-from fencer_schedules.schedule import result_label, visible_events
+from fencer_schedules.schedule import day_label, result_label, visible_events
 
 NAVY = (10, 22, 40)
 GOLD = (212, 175, 55)
@@ -80,7 +79,7 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
     indent = 22
 
     for index, day in enumerate(days):
-        pdf.day_label = day.strftime("%A, %B %d").replace(" 0", " ")
+        pdf.day_label = day_label(day)
         pdf.add_page()
         if index == 0 and tournament.venue:
             pdf.set_text_color(*INK)
@@ -128,11 +127,17 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
             pdf.set_font("Helvetica", size=9)
             pdf.set_text_color(*INK)
             for fencer in event.fencers:
-                label = result_label(event, fencer)
+                # Only claim "No result" once results were actually fetched; an
+                # event that has not been fenced gets a blank column instead.
+                if event.results is None:
+                    label, text = "", ""
+                else:
+                    label = result_label(event, fencer)
+                    text = label or "No result"
                 pdf.set_x(pdf.l_margin + indent)
                 pdf.cell(name_w - 4, 5, _latin(fencer.name))
                 pdf.set_text_color(*(INK if label else MUTED))
-                pdf.cell(place_w, 5, _latin(label or "No result"))
+                pdf.cell(place_w, 5, _latin(text))
                 pdf.set_text_color(*INK)
                 pdf.cell(club_w, 5, _latin(fencer.club), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)

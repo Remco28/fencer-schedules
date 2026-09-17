@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import DateTime, String, Text, create_engine, delete, select
+from sqlalchemy import DateTime, String, Text, create_engine, delete, event, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from fencer_schedules.models import Tournament
@@ -47,19 +47,48 @@ class AppSetting(Base):
     value: Mapped[str] = mapped_column(Text, default="")
 
 
+def _sqlite_pragmas(connection, _record) -> None:
+    cursor = connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.close()
+
+
 class Store:
     def __init__(self, path: Path) -> None:
-        self._engine = create_engine(f"sqlite:///{path}", future=True)
+        self._engine = create_engine(
+            f"sqlite:///{path}",
+            future=True,
+            connect_args={"timeout": 30},
+        )
+        # The web app and the watcher are separate processes writing the same
+        # file; WAL plus a busy timeout keeps them from failing on lock contention.
+        event.listen(self._engine, "connect", _sqlite_pragmas)
         Base.metadata.create_all(self._engine)
         self._session = sessionmaker(self._engine, expire_on_commit=False)
 
     # ---- tournaments ----
 
-    def save(self, tournament: Tournament, select: bool = True, now: datetime | None = None) -> None:
+    def save(
+        self,
+        tournament: Tournament,
+        select: bool = True,
+        now: datetime | None = None,
+        keep_expiry: bool = False,
+    ) -> None:
+        """Persist a tournament.
+
+        ``keep_expiry`` preserves the row's existing lease so a background
+        refresh cannot keep pushing the expiry forward and make the row immortal.
+        """
         now = now or datetime.now()
         event_expiry = datetime.combine(tournament.end_date, datetime.min.time()) + timedelta(hours=48)
         expires = max(event_expiry, now + timedelta(hours=48))
         with self._session() as session:
+            if keep_expiry:
+                existing = session.get(StoredTournament, tournament.askfred_id)
+                if existing is not None:
+                    expires = existing.expires_at
             session.merge(
                 StoredTournament(
                     askfred_id=tournament.askfred_id,

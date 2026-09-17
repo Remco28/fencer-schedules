@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
 from datetime import date
+from pathlib import Path
 
 import httpx
 import pytest
@@ -63,8 +62,14 @@ def test_search_trick_lists_trick_or_retreat(client: TestClient) -> None:
     assert "fencing now" not in response.text.lower()
 
 
-@respx.mock
-def test_load_trick_shows_club_fencer(client: TestClient) -> None:
+def _mock_upstream_load(results_for: dict[str, str] | None = None) -> dict:
+    """Register the standard AskFRED + USA Fencing mocks.
+
+    Must be called inside an active respx context. Every finished event returns
+    an empty results table unless ``results_for`` supplies one, so a page load
+    neither retries nor warns about events the test does not care about.
+    """
+    results_for = results_for or {}
     respx.get(f"https://www.askfred.net/api/v1/tournaments/{TRICK_ID}").mock(
         return_value=httpx.Response(200, json=_json("askfred_tournament_trick.json"))
     )
@@ -82,6 +87,22 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
             else _json("usfa_entrants_72823.json"),
         )
     )
+    routes = {}
+    for event_id in ("72823", "72806", "72829", "99999"):
+        routes[event_id] = respx.get(
+            "https://member.usafencing.org/details/tournaments/12013/results",
+            params={"event_id": event_id},
+        ).mock(
+            return_value=httpx.Response(
+                200, json={"results_table": results_for.get(event_id, "")}
+            )
+        )
+    return routes
+
+
+@respx.mock
+def test_load_trick_shows_club_fencer(client: TestClient) -> None:
+    _mock_upstream_load()
     load = client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     assert load.status_code == 200
     assert "Doe, Jordan" in load.text
@@ -95,18 +116,18 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
 
 @respx.mock
 def test_finished_event_shows_and_caches_final_results(client: TestClient) -> None:
-    test_load_trick_shows_club_fencer(client)
     results_response = (FIXTURES / "usfa_results_72823.html").read_text().replace(
         "Doe, Jordan", "Doe, Jordan 🇺🇸"
     )
-    results_route = respx.get(
-        "https://member.usafencing.org/details/tournaments/12013/results",
-        params={"event_id": "72823"},
-    ).mock(return_value=httpx.Response(200, json={"results_table": results_response}))
+    # Supplied up front: results are fetched during the load and the attempt is
+    # remembered, instead of being retried on every page view.
+    routes = _mock_upstream_load(results_for={"72823": results_response})
+    load = client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
+    assert load.status_code == 200
 
     event = client.get("/schedule/events/72823")
     assert event.status_code == 200
-    assert results_route.called
+    assert routes["72823"].called
     assert "Final results" in event.text
     assert "<details" in event.text
     assert "Doe, Jordan" in event.text
@@ -169,6 +190,20 @@ def test_pdf_download(client: TestClient) -> None:
     assert pdf.content.startswith(b"%PDF")
 
 
+@respx.mock
+def test_results_are_not_refetched_on_every_page_load(client: TestClient) -> None:
+    """An event whose results are not published yet must not be re-requested."""
+    routes = _mock_upstream_load()
+    client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
+    after_load = routes["72823"].call_count
+    assert after_load >= 1, "the first load should ask once"
+
+    client.get("/schedule")
+    client.get("/schedule/events/72823")
+
+    assert routes["72823"].call_count == after_load
+
+
 def test_refresh_preserves_cached_final_results(client: TestClient, monkeypatch) -> None:
     old = Tournament(
         askfred_id="refresh-test",
@@ -203,32 +238,30 @@ def test_refresh_preserves_cached_final_results(client: TestClient, monkeypatch)
 
 @respx.mock
 def test_csv_download(client: TestClient) -> None:
-    test_load_trick_shows_club_fencer(client)
-    respx.get(
-        "https://member.usafencing.org/details/tournaments/12013/results",
-        params={"event_id": "72823"},
-    ).mock(return_value=httpx.Response(200, json={"results_table": (FIXTURES / "usfa_results_72823.html").read_text()}))
+    _mock_upstream_load(
+        results_for={"72823": (FIXTURES / "usfa_results_72823.html").read_text()}
+    )
+    client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     csv = client.get("/schedule.csv")
     assert csv.status_code == 200
     assert csv.headers["content-type"].startswith("text/csv")
     assert b"fencer,club,final_place" in csv.content
     assert b"Doe, Jordan" in csv.content
-    assert b",Elite Fencers Club,8\r\n" in csv.content
+    assert b",Elite Fencers Club,8th\r\n" in csv.content
 
 
 @respx.mock
 def test_text_export(client: TestClient) -> None:
-    test_load_trick_shows_club_fencer(client)
-    respx.get(
-        "https://member.usafencing.org/details/tournaments/12013/results",
-        params={"event_id": "72823"},
-    ).mock(return_value=httpx.Response(200, json={"results_table": (FIXTURES / "usfa_results_72823.html").read_text()}))
+    _mock_upstream_load(
+        results_for={"72823": (FIXTURES / "usfa_results_72823.html").read_text()}
+    )
+    client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     txt = client.get("/schedule.txt")
     assert txt.status_code == 200
     assert txt.headers["content-type"].startswith("text/plain")
     assert "Doe, Jordan" in txt.text
     assert "Elite Fencers Club" in txt.text
-    assert "8 place" in txt.text
+    assert "8th" in txt.text
 
 
 def test_switch_between_saved_tournaments(client: TestClient) -> None:

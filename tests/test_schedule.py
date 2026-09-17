@@ -3,13 +3,15 @@ from __future__ import annotations
 from datetime import date
 
 from fencer_schedules.config import Settings
-from fencer_schedules.models import Event, EventResult, Fencer, Tournament
+from fencer_schedules.models import UNKNOWN_DAY, Event, EventResult, Fencer, Tournament
 from fencer_schedules.schedule import (
     add_manual,
+    day_label,
+    day_parts,
     other_events,
+    preserve_cached_results,
     result_label,
     result_place,
-    preserve_cached_results,
     search_loaded_fencers,
     track_named,
     untrack_named,
@@ -96,6 +98,32 @@ def test_result_place_is_empty_before_results_are_cached() -> None:
         fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
     )
     assert result_place(event, event.fencers[0]) is None
+
+
+def test_day_label_marks_a_day_the_source_never_published() -> None:
+    assert day_label(date(2026, 9, 12)) == "Saturday, September 12"
+    assert day_label(UNKNOWN_DAY) == "Day TBD"
+    assert day_parts(UNKNOWN_DAY) == ("TBD", "")
+    assert day_parts(date(2026, 9, 12)) == ("Sat", "Sep 12")
+
+
+def test_events_without_a_published_day_sort_last() -> None:
+    dated = Event(
+        source_event_id="1",
+        name="Dated Event",
+        day=date(2026, 8, 22),
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    undated = Event(
+        source_event_id="2",
+        name="Undated Event",
+        day=UNKNOWN_DAY,
+        day_unknown=True,
+        fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+    )
+    tournament = _tournament().model_copy(update={"events": [undated, dated]})
+    names = [e.name for e in visible_events(tournament, _settings())]
+    assert names == ["Dated Event", "Undated Event"]
 
 
 def test_no_show_has_no_place_without_breaking_result_lookup() -> None:

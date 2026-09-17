@@ -6,7 +6,7 @@ from datetime import date, datetime, time
 import httpx
 from bs4 import BeautifulSoup
 
-from fencer_schedules.models import Event, EventResult, Fencer
+from fencer_schedules.models import UNKNOWN_DAY, Event, EventResult, Fencer
 
 USFA_HOST = "https://member.usafencing.org"
 _MEMBERSHIP = re.compile(r"#(\d+)")
@@ -39,7 +39,9 @@ def parse_tournament_events(html: str, year: int | None = None) -> list[Event]:
             Event(
                 source_event_id=str(event_id),
                 name=name,
-                day=current_day or date.min,
+                # No date header above this card: keep it, but mark the day unknown.
+                day=current_day or UNKNOWN_DAY,
+                day_unknown=current_day is None,
                 clock=clock,
                 clock_label=label,
             )

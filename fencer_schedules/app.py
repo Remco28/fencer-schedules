@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import re
-from datetime import date
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
@@ -11,31 +14,42 @@ from fastapi.templating import Jinja2Templates
 
 from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store
-from fencer_schedules.monitor import alert_times_for, normalize_alert_times
-from fencer_schedules.exports import csv_bytes, filename_for as export_filename, text_version
+from fencer_schedules.exports import csv_bytes, text_version
+from fencer_schedules.exports import filename_for as export_filename
 from fencer_schedules.load import load_tournament
+from fencer_schedules.monitor import alert_times_for, normalize_alert_times
 from fencer_schedules.pdf import filename_for, render_pdf
 from fencer_schedules.schedule import (
     add_manual,
-    apply_overrides,
+    day_label,
+    day_parts,
     event_by_id,
     is_tracked,
+    merge_refresh,
+    other_events,
+    result_label,
+    result_place,
     search_loaded_fencers,
     track_named,
-    tracking_overrides,
     untrack_named,
     visible_events,
-    other_events,
-    result_place,
-    result_label,
-    preserve_cached_results,
 )
 from fencer_schedules.sources.askfred import AskFredClient
 from fencer_schedules.sources.usfa import UsfaClient
 
+logger = logging.getLogger("fencer_schedules.app")
+
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 STATIC_DIR = Path(__file__).parent / "static"
 _CODE = re.compile(r"\(([A-Z0-9]{2,8})\)\s*$")
+
+
+def _results_due(tournament, event, now: datetime) -> bool:
+    """False while a recent attempt to fetch this event's results is still fresh."""
+    checked = tournament.results_checked.get(event.source_event_id)
+    if checked is None:
+        return True
+    return now - checked >= RESULTS_RETRY
 
 
 def format_clock(clock) -> str:
@@ -76,7 +90,13 @@ TEMPLATES.env.filters["span"] = format_span
 TEMPLATES.env.filters["finished"] = event_finished
 TEMPLATES.env.filters["result_place"] = result_place
 TEMPLATES.env.filters["result_label"] = result_label
+TEMPLATES.env.filters["day_label"] = day_label
+TEMPLATES.env.filters["day_parts"] = day_parts
 TEMPLATES.env.tests["finished"] = event_finished
+
+# How long to leave a finished event alone before asking USA Fencing again for
+# results it has not published yet.
+RESULTS_RETRY = timedelta(minutes=30)
 
 
 def create_app(
@@ -87,7 +107,20 @@ def create_app(
 ) -> FastAPI:
     settings = settings or Settings.load()
     store = store or Store(settings.database_path)
-    app = FastAPI(title="Fencer Schedules")
+    # One HTTP client per upstream for the whole process: building them per
+    # request leaked connection pools and defeated the AskFRED search cache.
+    askfred = askfred or AskFredClient(settings.askfred_api_token)
+    usfa = usfa or UsfaClient()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        yield
+        for client in (app.state.askfred, app.state.usfa):
+            close = getattr(client, "close", None)
+            if callable(close):
+                close()
+
+    app = FastAPI(title="Fencer Schedules", lifespan=lifespan)
     app.state.settings = settings
     app.state.store = store
     app.state.askfred = askfred
@@ -98,28 +131,44 @@ def create_app(
         if not tournament.usfa_id:
             return tournament
         events = visible_events(tournament, settings)
-        wanted = {event.source_event_id for event in events if event_finished(event)}
+        now = datetime.now()
+        wanted = {
+            event.source_event_id
+            for event in events
+            if event_finished(event)
+            and event.results is None
+            and _results_due(tournament, event, now)
+        }
         if not wanted:
             return tournament
-        client = usfa or UsfaClient()
         changed = False
+        checked = dict(tournament.results_checked)
         updated_events = []
         for event in tournament.events:
-            if event.source_event_id not in wanted or event.results is not None:
+            if event.source_event_id not in wanted:
                 updated_events.append(event)
                 continue
+            checked[event.source_event_id] = now
             try:
-                results = client.fetch_results(tournament.usfa_id, event.source_event_id)
-            except Exception:
+                results = usfa.fetch_results(tournament.usfa_id, event.source_event_id)
+            except Exception as exc:
                 results = []
+                logger.warning(
+                    "results fetch failed for %s/%s: %s",
+                    tournament.usfa_id,
+                    event.source_event_id,
+                    exc,
+                )
             if results:
                 event = event.model_copy(update={"results": results})
                 changed = True
             updated_events.append(event)
-        if not changed:
+        if not changed and checked == tournament.results_checked:
             return tournament
-        tournament = tournament.model_copy(update={"events": updated_events})
-        store.save(tournament, select=False)
+        tournament = tournament.model_copy(
+            update={"events": updated_events, "results_checked": checked}
+        )
+        store.save(tournament, select=False, keep_expiry=True)
         return tournament
 
 
@@ -133,8 +182,7 @@ def create_app(
 
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = ""):
-        client = askfred or AskFredClient(settings.askfred_api_token)
-        hits = client.search(q)
+        hits = askfred.search(q)
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
@@ -146,7 +194,7 @@ def create_app(
         if store.has(askfred_id):
             store.select(askfred_id)
         else:
-            store.save(load_tournament(askfred_id, settings, askfred=askfred))
+            store.save(load_tournament(askfred_id, settings, askfred=askfred, usfa=usfa))
         return RedirectResponse("/schedule", status_code=303)
 
     @app.post("/tournaments/{askfred_id}/load")
@@ -192,24 +240,37 @@ def create_app(
         event = event_by_id(tournament, event_id)
         if event is None:
             return RedirectResponse("/schedule", status_code=303)
-        if event_finished(event) and tournament.usfa_id and event.results is None:
+        if (
+            event_finished(event)
+            and tournament.usfa_id
+            and event.results is None
+            and _results_due(tournament, event, datetime.now())
+        ):
+            checked = dict(tournament.results_checked)
+            checked[event.source_event_id] = datetime.now()
             try:
-                results = (usfa or UsfaClient()).fetch_results(tournament.usfa_id, event.source_event_id)
+                results = usfa.fetch_results(tournament.usfa_id, event.source_event_id)
                 if results:
                     event = event.model_copy(update={"results": results})
-                    tournament = tournament.model_copy(
-                        update={
-                            "events": [
-                                event if candidate.source_event_id == event_id else candidate
-                                for candidate in tournament.events
-                            ]
-                        }
-                    )
-                    store.save(tournament, select=False)
-            except Exception:
+            except Exception as exc:
                 # Results are a convenience; a temporary upstream failure must
                 # not make the saved roster unavailable.
-                pass
+                logger.warning(
+                    "results fetch failed for %s/%s: %s",
+                    tournament.usfa_id,
+                    event.source_event_id,
+                    exc,
+                )
+            tournament = tournament.model_copy(
+                update={
+                    "events": [
+                        event if candidate.source_event_id == event_id else candidate
+                        for candidate in tournament.events
+                    ],
+                    "results_checked": checked,
+                }
+            )
+            store.save(tournament, select=False, keep_expiry=True)
         rows = [
             {
                 "fencer": fencer,
@@ -277,10 +338,10 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
-        overrides = tracking_overrides(tournament)
-        reloaded = load_tournament(tournament.askfred_id, settings, askfred=askfred)
-        reloaded = preserve_cached_results(tournament, reloaded)
-        store.save(apply_overrides(reloaded, overrides))
+        reloaded = load_tournament(
+            tournament.askfred_id, settings, askfred=askfred, usfa=usfa
+        )
+        store.save(merge_refresh(tournament, reloaded))
         return RedirectResponse("/schedule", status_code=303)
 
     @app.post("/schedule/watch")
