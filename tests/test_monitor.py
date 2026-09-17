@@ -515,8 +515,8 @@ def test_watcher_keeps_tracking_choices_and_cached_results(tmp_path, monkeypatch
     assert current.askfred_id == "open-in-app", "the open tournament must not change"
 
 
-def test_hidden_fencer_is_not_reported(tmp_path, monkeypatch) -> None:
-    """Untracking someone should silence alerts about them too."""
+def test_hidden_fencer_still_triggers_an_alert(tmp_path, monkeypatch) -> None:
+    """Untracking hides a fencer from the page but must not silence the club watch."""
     store = Store(tmp_path / "t.db")
     hidden = _event("e1", []).model_copy(
         update={"fencers": [Fencer(name="Hidden, Hana", club="Elite Fencers Club", source="hidden")]}
@@ -529,8 +529,9 @@ def test_hidden_fencer_is_not_reported(tmp_path, monkeypatch) -> None:
 
     subjects = run(_settings(), store, now=NINE_AM)
 
-    assert subjects == []
-    assert sent == []
+    assert len(subjects) == 1
+    assert len(sent) == 1
+    assert "Hidden, Hana" in sent[0][2]
 
 
 def test_unsent_digest_keeps_the_baseline(tmp_path, monkeypatch) -> None:

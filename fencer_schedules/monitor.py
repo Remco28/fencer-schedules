@@ -230,10 +230,10 @@ def _watched_events(watch: Watch, tournament: Tournament) -> list[Event]:
 def _names(event: Event, watch: Watch, settings: Settings) -> list[list[str]]:
     """Names this watch reports on.
 
-    Untracked ("hidden") fencers are excluded: hiding someone in the app should
-    also stop alerts about them rather than mailing behind the user's back.
+    Untracking only hides a fencer from the page; a club fencer who is hidden
+    still counts as a club sign-up and is still reported.
     """
-    fencers = [f for f in event.fencers if f.source != "hidden"]
+    fencers = event.fencers
     if watch.notify_kind == "club":
         fencers = [f for f in fencers if is_our_club(f.club, settings)]
     return [[f.name, f.club] for f in fencers]
