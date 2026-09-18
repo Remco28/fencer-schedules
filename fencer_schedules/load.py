@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import time
 from typing import Protocol
 
@@ -8,6 +9,8 @@ from fencer_schedules.models import Event, Fencer, Tournament
 from fencer_schedules.sources.askfred import AskFredClient
 from fencer_schedules.sources.askfred_prereg import AskFredSite
 from fencer_schedules.sources.usfa import UsfaClient
+
+logger = logging.getLogger("fencer_schedules.load")
 
 
 class PreregSource(Protocol):
@@ -64,7 +67,8 @@ def _with_askfred_names(
     try:
         by_title = site.fetch_preregistrations(askfred_id)
         clocks = {_norm(title): clock for title, clock in site.fetch_preregistration_clocks(askfred_id).items()}
-    except RuntimeError:
+    except Exception:
+        logger.warning("AskFRED prereg names failed for %s", askfred_id, exc_info=True)
         return events
     index = {_norm(title): fencers for title, fencers in by_title.items()}
     attached: list[Event] = []

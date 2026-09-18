@@ -637,6 +637,11 @@ a.event-name:hover { text-decoration: underline; text-decoration-color: var(--go
   font-weight: 700;
   margin: 0 0 16px;
 }
+.flash.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: #fecaca;
+}
 .settings { display: flex; flex-direction: column; gap: 18px; }
 .field { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .field-label { font-weight: 800; font-size: 0.95rem; color: var(--navy); letter-spacing: -0.01em; padding: 0; }

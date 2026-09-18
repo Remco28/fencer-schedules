@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from fencer_schedules.models import UNKNOWN_DAY, Event, Tournament
+from fencer_schedules.sources.cloudflare import impersonated_session, is_cloudflare_challenge
 
 BASE = "https://www.askfred.net/api/v1"
 USFA_ID = re.compile(r"/details/tournaments/(\d+)")
@@ -26,10 +27,13 @@ class AskFredClient:
         client: httpx.Client | None = None,
         today: date | None = None,
         window_days: int = 45,
+        browser: Any | None = None,
     ) -> None:
         self._token = token
         self._client = client or httpx.Client(timeout=30.0)
         self._owns_client = client is None
+        self._browser = browser
+        self._owns_browser = browser is None
         self._today = today or date.today()
         self._window_days = window_days
         self._window_cache: list[Tournament] | None = None
@@ -37,16 +41,27 @@ class AskFredClient:
     def close(self) -> None:
         if self._owns_client:
             self._client.close()
+        if self._owns_browser and self._browser is not None:
+            close = getattr(self._browser, "close", None)
+            if callable(close):
+                close()
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._token}",
+            "Accept": "application/json",
+        }
+
+    def _browser_get(self, url: str, params: dict[str, Any] | None) -> Any:
+        if self._browser is None:
+            self._browser = impersonated_session()
+        return self._browser.get(url, headers=self._headers(), params=params, timeout=30)
 
     def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        resp = self._client.get(
-            f"{BASE}{path}",
-            params=params,
-            headers={
-                "Authorization": f"Bearer {self._token}",
-                "Accept": "application/json",
-            },
-        )
+        url = f"{BASE}{path}"
+        resp = self._client.get(url, params=params, headers=self._headers())
+        if is_cloudflare_challenge(resp):
+            resp = self._browser_get(url, params)
         if resp.status_code == 429:
             raise RuntimeError("AskFRED rate limited")
         resp.raise_for_status()

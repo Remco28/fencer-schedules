@@ -71,3 +71,50 @@ def test_local_load_uses_prereg_names() -> None:
     assert tournament.names_available
     y14 = next(e for e in tournament.events if e.name == "Y14 Mixed Epee")
     assert y14.fencers[0].name == "Anderson, Connor"
+
+
+@respx.mock
+def test_local_load_keeps_events_when_prereg_is_forbidden() -> None:
+    respx.get(f"https://www.askfred.net/api/v1/tournaments/{LOCAL_ID}").mock(
+        return_value=httpx.Response(
+            200, json=json.loads((FIXTURES / "askfred_tournament_wanglei.json").read_text())
+        )
+    )
+    respx.get(f"https://www.askfred.net/api/v1/tournaments/{LOCAL_ID}/events").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "e1",
+                        "type": "event",
+                        "attributes": {
+                            "full_name": "Y14 Mixed Epee",
+                            "close_of_registration": "2026-08-29T09:30:00.000-04:00",
+                        },
+                    }
+                ],
+                "metadata": {"page": 1, "per_page": 50, "last_page": 1},
+            },
+        )
+    )
+
+    class BoomSite:
+        def fetch_preregistrations(self, tournament_id: str):
+            request = httpx.Request("GET", "https://www.askfred.net/users/sign_in")
+            response = httpx.Response(403, request=request)
+            raise httpx.HTTPStatusError("403", request=request, response=response)
+
+        def fetch_preregistration_clocks(self, tournament_id: str):
+            raise AssertionError("clocks should not be fetched after prereg fails")
+
+    settings = Settings(club_name="Elite Fencers Club", club_aliases=["Elite FC"], askfred_api_token="x")
+    tournament = load_tournament(
+        LOCAL_ID,
+        settings,
+        askfred=AskFredClient(token="x", today=date(2026, 8, 19)),
+        askfred_site=BoomSite(),
+    )
+    assert tournament.events[0].name == "Y14 Mixed Epee"
+    assert tournament.events[0].fencers == []
+    assert not tournament.names_available

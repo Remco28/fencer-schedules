@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 from datetime import time
+from typing import Any
 
-import httpx
 from bs4 import BeautifulSoup, Tag
 
 from fencer_schedules.models import Fencer
+from fencer_schedules.sources.cloudflare import impersonated_session, is_cloudflare_challenge
 
 HOST = "https://www.askfred.net"
 _SPACE = re.compile(r"\s+")
@@ -102,28 +103,61 @@ class AskFredSite:
         self,
         email: str,
         password: str,
-        client: httpx.Client | None = None,
+        client: Any | None = None,
     ) -> None:
         self._email = email
         self._password = password
-        self._client = client or httpx.Client(timeout=30.0, follow_redirects=True)
-        self._owns = client is None
+        if client is None:
+            self._client = impersonated_session()
+            self._owns = True
+            self._impersonating = True
+        else:
+            self._client = client
+            self._owns = False
+            self._impersonating = False
         self._authed = False
         self._html_cache: dict[str, str] = {}
 
     def close(self) -> None:
         if self._owns:
-            self._client.close()
+            close = getattr(self._client, "close", None)
+            if callable(close):
+                close()
+
+    def _send(self, method: str, url: str, **kwargs):
+        if method == "POST":
+            return self._client.post(url, **kwargs)
+        return self._client.get(url, **kwargs)
+
+    def _use_browser(self) -> None:
+        if self._owns:
+            close = getattr(self._client, "close", None)
+            if callable(close):
+                close()
+        self._client = impersonated_session()
+        self._owns = True
+        self._impersonating = True
+        self._authed = False
+
+    def _request(self, method: str, url: str, **kwargs):
+        resp = self._send(method, url, **kwargs)
+        if is_cloudflare_challenge(resp) and not self._impersonating:
+            self._use_browser()
+            resp = self._send(method, url, **kwargs)
+        return resp
 
     def login(self) -> None:
-        page = self._client.get(f"{HOST}/users/sign_in")
+        page = self._request("GET", f"{HOST}/users/sign_in")
+        if is_cloudflare_challenge(page):
+            raise RuntimeError("AskFRED login hit a bot challenge")
         page.raise_for_status()
-        if "bot-challenge" in str(page.url) or "verify you are human" in page.text.casefold():
+        if "bot-challenge" in str(page.url):
             raise RuntimeError("AskFRED login hit a bot challenge")
         soup = BeautifulSoup(page.text, "html.parser")
         token_el = soup.select_one('form[action="/users/sign_in"] input[name="authenticity_token"]')
         token = token_el.get("value") if token_el else ""
-        resp = self._client.post(
+        resp = self._request(
+            "POST",
             f"{HOST}/users/sign_in",
             data={
                 "authenticity_token": token,
@@ -131,6 +165,8 @@ class AskFredSite:
                 "user[password]": self._password,
             },
         )
+        if is_cloudflare_challenge(resp):
+            raise RuntimeError("AskFRED login hit a bot challenge")
         resp.raise_for_status()
         if "bot-challenge" in str(resp.url):
             raise RuntimeError("AskFRED login hit a bot challenge")
@@ -154,9 +190,11 @@ class AskFredSite:
             return cached
         if not self._authed:
             self.login()
-        resp = self._client.get(f"{HOST}/tournaments/{tournament_id}/preregistrations")
+        resp = self._request("GET", f"{HOST}/tournaments/{tournament_id}/preregistrations")
+        if is_cloudflare_challenge(resp):
+            raise RuntimeError("AskFRED preregistrations hit a bot challenge")
         resp.raise_for_status()
-        if "bot-challenge" in str(resp.url) or "verify you are human" in resp.text.casefold():
+        if "bot-challenge" in str(resp.url):
             raise RuntimeError("AskFRED preregistrations hit a bot challenge")
         self._html_cache[tournament_id] = resp.text
         return resp.text

@@ -65,8 +65,10 @@
   </header>
 
   <main class="sheet">
-    <div class="inner">
-    {% if tournament.names_available %}
+  <div class="inner">
+  {% if error %}<p class="flash error" role="alert">{{ error }}</p>{% endif %}
+  {% if notice %}<p class="flash" role="status">{{ notice }}</p>{% endif %}
+  {% if tournament.names_available %}
     <div class="watch-bar">
       <form action="/schedule/watch" method="post">
         <input type="hidden" name="next" value="/schedule">

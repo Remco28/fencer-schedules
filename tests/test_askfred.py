@@ -69,3 +69,44 @@ def test_fetch_events_maps_close_of_registration() -> None:
     assert len(events) == 2
     assert events[0].clock is not None
     assert events[0].name.startswith("Division IA")
+
+
+def test_cloudflare_html_is_a_challenge() -> None:
+    blocked = httpx.Response(
+        403,
+        headers={"content-type": "text/html; charset=UTF-8"},
+        text="<!DOCTYPE html><title>Just a moment...</title>",
+    )
+    ok = httpx.Response(200, json={"data": {}})
+    api_forbidden = httpx.Response(
+        403, headers={"content-type": "application/json"}, json={"error": "unauthorized"}
+    )
+    from fencer_schedules.sources.cloudflare import is_cloudflare_challenge
+
+    assert is_cloudflare_challenge(blocked)
+    assert not is_cloudflare_challenge(ok)
+    assert not is_cloudflare_challenge(api_forbidden)
+
+
+@respx.mock
+def test_fetch_tournament_retries_through_cloudflare() -> None:
+    respx.get(f"https://www.askfred.net/api/v1/tournaments/{TRICK_ID}").mock(
+        return_value=httpx.Response(
+            403,
+            headers={"content-type": "text/html; charset=UTF-8"},
+            text="<!DOCTYPE html><title>Just a moment...</title>",
+        )
+    )
+
+    class Browser:
+        def get(self, url, **kwargs):
+            assert url.endswith(f"/tournaments/{TRICK_ID}")
+            return httpx.Response(
+                200,
+                request=httpx.Request("GET", url),
+                json=_json("askfred_tournament_trick.json"),
+            )
+
+    tournament = AskFredClient(token="x", browser=Browser()).fetch_tournament(TRICK_ID)
+    assert tournament.name == "Trick or Retreat ROC / RJCC"
+    assert tournament.usfa_id == "12013"

@@ -234,6 +234,41 @@ def test_refresh_preserves_cached_final_results(client: TestClient, monkeypatch)
     assert saved.events[0].results is not None
     assert saved.events[0].results[0].place == "8"
     assert "Final: <strong>8th</strong>" in response.text
+    assert "Start list updated." in response.text
+
+
+def test_refresh_keeps_schedule_when_upstream_fails(client: TestClient, monkeypatch) -> None:
+    old = Tournament(
+        askfred_id="refresh-fail",
+        name="Refresh Fail",
+        start_date=date(2026, 9, 1),
+        end_date=date(2026, 9, 1),
+        events=[
+            Event(
+                source_event_id="event-1",
+                name="Junior Men's Epee",
+                day=date(2026, 9, 1),
+                fencers=[Fencer(name="Doe, Jordan", club="Elite Fencers Club")],
+            )
+        ],
+    )
+    client.app.state.store.save(old)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("AskFRED blocked")
+
+    monkeypatch.setattr("fencer_schedules.app.load_tournament", boom)
+    response = client.post("/schedule/refresh", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("/schedule?error=refresh")
+    page = client.get("/schedule?error=refresh")
+    assert page.status_code == 200
+    assert "Could not refresh from AskFRED" in page.text
+    assert "flash error" in page.text
+    saved = client.app.state.store.current()
+    assert saved is not None
+    assert saved.askfred_id == "refresh-fail"
+    assert saved.events[0].fencers[0].name == "Doe, Jordan"
 
 
 @respx.mock

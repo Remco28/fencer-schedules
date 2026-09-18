@@ -29,8 +29,9 @@
     </div>
   </header>
   <main class="sheet">
-    <div class="inner">
-    <form class="search" action="/search" method="get" role="search">
+  <div class="inner">
+  {% if error %}<p class="flash error" role="alert">{{ error }}</p>{% endif %}
+  <form class="search" action="/search" method="get" role="search">
       <input type="search" name="q" value="{{ q }}" placeholder="Trick or Retreat" aria-label="Search tournaments">
       <button class="btn-gold" type="submit">Search</button>
     </form>

@@ -98,6 +98,23 @@ TEMPLATES.env.tests["finished"] = event_finished
 # results it has not published yet.
 RESULTS_RETRY = timedelta(minutes=30)
 
+_SOURCE_ERRORS = {
+    "refresh": "Could not refresh from AskFRED. The saved start list is unchanged.",
+    "search": "Could not search AskFRED right now. Try again in a moment.",
+    "load": "Could not load that tournament from AskFRED. Try again in a moment.",
+}
+_SOURCE_NOTICES = {
+    "refresh": "Start list updated.",
+}
+
+
+def source_error(request: Request) -> str | None:
+    return _SOURCE_ERRORS.get(request.query_params.get("error") or "")
+
+
+def source_notice(request: Request) -> str | None:
+    return _SOURCE_NOTICES.get(request.query_params.get("ok") or "")
+
 
 def create_app(
     settings: Settings | None = None,
@@ -177,24 +194,46 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
-            {"hits": None, "current": store.current(), "loaded": store.list(), "q": ""},
+            {
+                "hits": None,
+                "current": store.current(),
+                "loaded": store.list(),
+                "q": "",
+                "error": source_error(request),
+            },
         )
 
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = ""):
-        hits = askfred.search(q)
+        try:
+            hits = askfred.search(q)
+            error = None
+        except Exception:
+            logger.exception("AskFRED search failed")
+            hits = []
+            error = _SOURCE_ERRORS["search"]
         return TEMPLATES.TemplateResponse(
             request,
             "search.html",
-            {"hits": hits, "current": store.current(), "loaded": store.list(), "q": q},
+            {
+                "hits": hits,
+                "current": store.current(),
+                "loaded": store.list(),
+                "q": q,
+                "error": error,
+            },
         )
 
     @app.post("/tournaments/{askfred_id}/open")
     def open_tournament(askfred_id: str) -> RedirectResponse:
         if store.has(askfred_id):
             store.select(askfred_id)
-        else:
+            return RedirectResponse("/schedule", status_code=303)
+        try:
             store.save(load_tournament(askfred_id, settings, askfred=askfred, usfa=usfa))
+        except Exception:
+            logger.exception("load failed for %s", askfred_id)
+            return RedirectResponse("/?error=load", status_code=303)
         return RedirectResponse("/schedule", status_code=303)
 
     @app.post("/tournaments/{askfred_id}/load")
@@ -229,6 +268,8 @@ def create_app(
                 "track_q": track_q,
                 "suggestions": suggestions,
                 "club_watching": store.watch_for(tournament.askfred_id, None, "club") is not None,
+                "error": source_error(request),
+                "notice": source_notice(request),
             },
         )
 
@@ -338,11 +379,15 @@ def create_app(
         tournament = store.current()
         if tournament is None:
             return RedirectResponse("/", status_code=303)
-        reloaded = load_tournament(
-            tournament.askfred_id, settings, askfred=askfred, usfa=usfa
-        )
+        try:
+            reloaded = load_tournament(
+                tournament.askfred_id, settings, askfred=askfred, usfa=usfa
+            )
+        except Exception:
+            logger.exception("refresh failed for %s", tournament.askfred_id)
+            return RedirectResponse("/schedule?error=refresh", status_code=303)
         store.save(merge_refresh(tournament, reloaded))
-        return RedirectResponse("/schedule", status_code=303)
+        return RedirectResponse("/schedule?ok=refresh", status_code=303)
 
     @app.post("/schedule/watch")
     def toggle_club_watch(next: str = Form(default="/schedule")) -> RedirectResponse:
