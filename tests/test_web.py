@@ -12,15 +12,19 @@ from fastapi.testclient import TestClient
 from fencer_schedules.app import create_app
 from fencer_schedules.config import Settings
 from fencer_schedules.db import Store
+from fencer_schedules.fencing_api import FencingApi
 from fencer_schedules.models import Event, EventResult, Fencer, Tournament
-from fencer_schedules.sources.askfred import AskFredClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 TRICK_ID = "f4fbfddf-8316-46d2-9392-8a8245059f86"
 
 
-def _json(name: str):
-    return json.loads((FIXTURES / name).read_text())
+API = "http://api.test"
+
+
+def _api(name: str):
+    """fencing-api responses, built from saved AskFRED/USA Fencing pages by fencing-api's own parsers."""
+    return json.loads((FIXTURES / "api" / name).read_text())
 
 
 @pytest.fixture
@@ -28,11 +32,12 @@ def client(tmp_path):
     settings = Settings(
         club_name="Elite Fencers Club",
         club_aliases=["Elite FC"],
-        askfred_api_token="x",
+        fencing_api_url=API,
+        fencing_api_key="fapi_test",
         database_path=tmp_path / "t.db",
     )
-    askfred = AskFredClient(token="x", today=__import__("datetime").date(2026, 8, 19))
-    app = create_app(settings=settings, store=Store(settings.database_path), askfred=askfred)
+    api = FencingApi(API, "fapi_test", wait_s=2)
+    app = create_app(settings=settings, store=Store(settings.database_path), api=api)
     return TestClient(app)
 
 
@@ -51,8 +56,8 @@ def test_home_shows_logo(client: TestClient) -> None:
 
 @respx.mock
 def test_search_trick_lists_trick_or_retreat(client: TestClient) -> None:
-    respx.get("https://www.askfred.net/api/v1/tournaments").mock(
-        return_value=httpx.Response(200, json=_json("askfred_window.json"))
+    respx.get(f"{API}/v1/tournaments").mock(
+        return_value=httpx.Response(200, json=_api("search_trick.json"))
     )
     response = client.get("/search", params={"q": "trick"})
     assert response.status_code == 200
@@ -62,41 +67,26 @@ def test_search_trick_lists_trick_or_retreat(client: TestClient) -> None:
     assert "fencing now" not in response.text.lower()
 
 
-def _mock_upstream_load(results_for: dict[str, str] | None = None) -> dict:
-    """Register the standard AskFRED + USA Fencing mocks.
+def _mock_upstream_load(results_for: dict[str, dict] | None = None) -> dict:
+    """Register the standard fencing-api mocks.
 
     Must be called inside an active respx context. Every finished event returns
     an empty results table unless ``results_for`` supplies one, so a page load
     neither retries nor warns about events the test does not care about.
     """
     results_for = results_for or {}
-    respx.get(f"https://www.askfred.net/api/v1/tournaments/{TRICK_ID}").mock(
-        return_value=httpx.Response(200, json=_json("askfred_tournament_trick.json"))
+    respx.get(f"{API}/v1/askfred/tournaments/{TRICK_ID}").mock(
+        return_value=httpx.Response(200, json=_api("trick_tournament.json"))
     )
-    respx.get(f"https://www.askfred.net/api/v1/tournaments/{TRICK_ID}/events").mock(
-        return_value=httpx.Response(200, json=_json("askfred_events_trick.json"))
-    )
-    respx.get("https://member.usafencing.org/details/tournaments/12013").mock(
-        return_value=httpx.Response(200, text=(FIXTURES / "usfa_tournament_12013.html").read_text())
-    )
-    respx.get("https://member.usafencing.org/details/tournaments/12013/entrants").mock(
-        side_effect=lambda request: httpx.Response(
-            200,
-            json={"entrants_table": "<table></table>"}
-            if request.url.params.get("event_id") == "99999"
-            else _json("usfa_entrants_72823.json"),
-        )
+    respx.get(f"{API}/v1/usfa/tournaments/12013/entries").mock(
+        return_value=httpx.Response(200, json=_api("trick_usfa_entries.json"))
     )
     routes = {}
     for event_id in ("72823", "72806", "72829", "99999"):
+        body = results_for.get(event_id) or {"fetched_at": "2026-08-19T12:00:00Z", "items": []}
         routes[event_id] = respx.get(
-            "https://member.usafencing.org/details/tournaments/12013/results",
-            params={"event_id": event_id},
-        ).mock(
-            return_value=httpx.Response(
-                200, json={"results_table": results_for.get(event_id, "")}
-            )
-        )
+            f"{API}/v1/usfa/tournaments/12013/events/{event_id}/results"
+        ).mock(return_value=httpx.Response(200, json=body))
     return routes
 
 
@@ -116,9 +106,7 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
 
 @respx.mock
 def test_finished_event_shows_and_caches_final_results(client: TestClient) -> None:
-    results_response = (FIXTURES / "usfa_results_72823.html").read_text().replace(
-        "Doe, Jordan", "Doe, Jordan 🇺🇸"
-    )
+    results_response = _api("trick_results_72823.json")
     # Supplied up front: results are fetched during the load and the attempt is
     # remembered, instead of being retried on every page view.
     routes = _mock_upstream_load(results_for={"72823": results_response})
@@ -140,7 +128,8 @@ def test_finished_event_shows_and_caches_final_results(client: TestClient) -> No
     assert saved is not None
     saved_event = next(item for item in saved.events if item.source_event_id == "72823")
     assert saved_event.results is not None
-    assert saved_event.results[0].name == "Doe, Jordan 🇺🇸"
+    # fencing-api moves a name's flag emoji into a separate country field.
+    assert saved_event.results[0].name == "Doe, Jordan"
 
 
 @respx.mock
@@ -263,7 +252,7 @@ def test_refresh_keeps_schedule_when_upstream_fails(client: TestClient, monkeypa
     assert response.headers["location"].endswith("/schedule?error=refresh")
     page = client.get("/schedule?error=refresh")
     assert page.status_code == 200
-    assert "Could not refresh from AskFRED" in page.text
+    assert "Could not refresh the start list" in page.text
     assert "flash error" in page.text
     saved = client.app.state.store.current()
     assert saved is not None
@@ -274,7 +263,7 @@ def test_refresh_keeps_schedule_when_upstream_fails(client: TestClient, monkeypa
 @respx.mock
 def test_csv_download(client: TestClient) -> None:
     _mock_upstream_load(
-        results_for={"72823": (FIXTURES / "usfa_results_72823.html").read_text()}
+        results_for={"72823": _api("trick_results_72823.json")}
     )
     client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     csv = client.get("/schedule.csv")
@@ -288,7 +277,7 @@ def test_csv_download(client: TestClient) -> None:
 @respx.mock
 def test_text_export(client: TestClient) -> None:
     _mock_upstream_load(
-        results_for={"72823": (FIXTURES / "usfa_results_72823.html").read_text()}
+        results_for={"72823": _api("trick_results_72823.json")}
     )
     client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
     txt = client.get("/schedule.txt")
@@ -506,3 +495,27 @@ def test_event_watch_toggle(client: TestClient) -> None:
     assert "Watching this event — anyone" in resp.text
     assert store.watch_for("one", "e1", "all") is not None
 
+
+
+@respx.mock
+def test_slow_first_open_shows_a_self_refreshing_loading_page(client: TestClient) -> None:
+    respx.get(f"{API}/v1/askfred/tournaments/{TRICK_ID}").mock(
+        return_value=httpx.Response(200, json=_api("trick_tournament.json"))
+    )
+    entries = respx.get(f"{API}/v1/usfa/tournaments/12013/entries").mock(
+        return_value=httpx.Response(202, json={"fetched_at": None, "status": "processing", "job_id": 3})
+    )
+    respx.get(f"{API}/v1/jobs/3").mock(return_value=httpx.Response(200, json={"id": 3, "status": "running"}))
+    opened = client.post(f"/tournaments/{TRICK_ID}/open", follow_redirects=False)
+    assert opened.headers["location"] == f"/tournaments/{TRICK_ID}/loading"
+    page = client.get(opened.headers["location"])
+    assert page.status_code == 200
+    assert 'http-equiv="refresh"' in page.text and "Loading the start list" in page.text
+    # fencing-api finishes: the next automatic reload opens the schedule.
+    entries.mock(return_value=httpx.Response(200, json=_api("trick_usfa_entries.json")))
+    for event_id in ("72823", "72806", "72829", "99999"):
+        respx.get(f"{API}/v1/usfa/tournaments/12013/events/{event_id}/results").mock(
+            return_value=httpx.Response(200, json={"fetched_at": "2026-08-19T12:00:00Z", "items": []})
+        )
+    ready = client.get(f"/tournaments/{TRICK_ID}/loading", follow_redirects=True)
+    assert "Doe, Jordan" in ready.text

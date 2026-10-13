@@ -34,6 +34,7 @@
 | Host | Local / self-hosted | Locked |
 | Notifications | Sign-up alerts when a watched tournament gets a new registrant, plus a once-a-day schedule snapshot of every watched tournament (included even when nobody has entered). | Locked 2026-10-07 |
 | Anti-bot | Polite requests, cache, rate limits. Captcha workarounds within reason. | Locked |
+| Data source | **All tournament data through fencing-api** (search, events, USA Fencing entrants and results, AskFRED registrations). No scrapers in this app; when data breaks, fix fencing-api. | Locked 2026-10-13 |
 | First tournament | Trick or Retreat ROC / RJCC — USFA `12013` (`member.usafencing.org/details/tournaments/12013`), AskFRED `f4fbfddf-8316-46d2-9392-8a8245059f86`, Aug 22–23, Edison NJ. Regional → **USFA names**. Example, not a hard ship date. | Locked |
 
 ## Vocabulary

@@ -1,0 +1,31 @@
+{
+ "source": "live",
+ "fetched_at": "2026-08-19T12:00:00Z",
+ "stale": false,
+ "items": [
+  {
+   "place": 8,
+   "place_label": "8",
+   "tied": false,
+   "name": "Doe, Jordan",
+   "club": "Elite Fencers Club",
+   "division": null,
+   "rating": "",
+   "membership_id": "100000001",
+   "country": null,
+   "status": "ok"
+  },
+  {
+   "place": 9,
+   "place_label": "9.5",
+   "tied": false,
+   "name": "Ng, Nico",
+   "club": "Other Fencing Club",
+   "division": null,
+   "rating": "",
+   "membership_id": null,
+   "country": null,
+   "status": "ok"
+  }
+ ]
+}

@@ -23,6 +23,7 @@ from fencer_schedules.digest import (
 )
 from fencer_schedules.exports import csv_bytes, text_version
 from fencer_schedules.exports import filename_for as export_filename
+from fencer_schedules.fencing_api import FencingApi, StillLoading
 from fencer_schedules.load import load_tournament
 from fencer_schedules.monitor import alert_times_for, normalize_alert_times
 from fencer_schedules.pdf import filename_for, render_pdf
@@ -41,8 +42,6 @@ from fencer_schedules.schedule import (
     untrack_named,
     visible_events,
 )
-from fencer_schedules.sources.askfred import AskFredClient
-from fencer_schedules.sources.usfa import UsfaClient
 
 logger = logging.getLogger("fencer_schedules.app")
 
@@ -106,9 +105,10 @@ TEMPLATES.env.tests["finished"] = event_finished
 RESULTS_RETRY = timedelta(minutes=30)
 
 _SOURCE_ERRORS = {
-    "refresh": "Could not refresh from AskFRED. The saved start list is unchanged.",
-    "search": "Could not search AskFRED right now. Try again in a moment.",
-    "load": "Could not load that tournament from AskFRED. Try again in a moment.",
+    "refresh": "Could not refresh the start list. The saved one is unchanged.",
+    "search": "Could not search tournaments right now. Try again in a moment.",
+    "load": "Could not load that tournament. Try again in a moment.",
+    "loading": "Still reading the start list from the source. Try Refresh again in a minute.",
 }
 _SOURCE_NOTICES = {
     "refresh": "Start list updated.",
@@ -131,29 +131,24 @@ def source_notice(request: Request) -> str | None:
 def create_app(
     settings: Settings | None = None,
     store: Store | None = None,
-    askfred: AskFredClient | None = None,
-    usfa: UsfaClient | None = None,
+    api: FencingApi | None = None,
 ) -> FastAPI:
     settings = settings or Settings.load()
     store = store or Store(settings.database_path)
-    # One HTTP client per upstream for the whole process: building them per
-    # request leaked connection pools and defeated the AskFRED search cache.
-    askfred = askfred or AskFredClient(settings.askfred_api_token)
-    usfa = usfa or UsfaClient()
+    # One fencing-api client for the whole process (one connection pool).
+    api = api or settings.fencing_api()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
-        for client in (app.state.askfred, app.state.usfa):
-            close = getattr(client, "close", None)
-            if callable(close):
-                close()
+        close = getattr(app.state.api, "close", None)
+        if callable(close):
+            close()
 
     app = FastAPI(title="Fencer Schedules", lifespan=lifespan)
     app.state.settings = settings
     app.state.store = store
-    app.state.askfred = askfred
-    app.state.usfa = usfa
+    app.state.api = api
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     def load_visible_results(tournament):
@@ -179,7 +174,7 @@ def create_app(
                 continue
             checked[event.source_event_id] = now
             try:
-                results = usfa.fetch_results(tournament.usfa_id, event.source_event_id)
+                results = api.usfa_results(tournament.usfa_id, event.source_event_id)
             except Exception as exc:
                 results = []
                 logger.warning(
@@ -221,10 +216,10 @@ def create_app(
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = ""):
         try:
-            hits = askfred.search(q)
+            hits = api.search(q) if q.strip() else []
             error = None
         except Exception:
-            logger.exception("AskFRED search failed")
+            logger.exception("tournament search failed")
             hits = []
             error = _SOURCE_ERRORS["search"]
         return TEMPLATES.TemplateResponse(
@@ -248,7 +243,25 @@ def create_app(
             store.select(askfred_id)
             return RedirectResponse("/schedule", status_code=303)
         try:
-            store.save(load_tournament(askfred_id, settings, askfred=askfred, usfa=usfa))
+            store.save(load_tournament(askfred_id, settings, api=api))
+        except StillLoading:
+            # A big tournament's first load can take a couple of minutes.
+            return RedirectResponse(f"/tournaments/{askfred_id}/loading", status_code=303)
+        except Exception:
+            logger.exception("load failed for %s", askfred_id)
+            return RedirectResponse("/?error=load", status_code=303)
+        return RedirectResponse("/schedule", status_code=303)
+
+    @app.get("/tournaments/{askfred_id}/loading", response_class=HTMLResponse)
+    def loading(request: Request, askfred_id: str):
+        """Waits for fencing-api to finish a big first load; the page reloads itself."""
+        if store.has(askfred_id):
+            store.select(askfred_id)
+            return RedirectResponse("/schedule", status_code=303)
+        try:
+            store.save(load_tournament(askfred_id, settings, api=api, wait_s=8))
+        except StillLoading:
+            return TEMPLATES.TemplateResponse(request, "loading.html", {"askfred_id": askfred_id})
         except Exception:
             logger.exception("load failed for %s", askfred_id)
             return RedirectResponse("/?error=load", status_code=303)
@@ -308,7 +321,7 @@ def create_app(
             checked = dict(tournament.results_checked)
             checked[event.source_event_id] = datetime.now()
             try:
-                results = usfa.fetch_results(tournament.usfa_id, event.source_event_id)
+                results = api.usfa_results(tournament.usfa_id, event.source_event_id)
                 if results:
                     event = event.model_copy(update={"results": results})
             except Exception as exc:
@@ -398,9 +411,9 @@ def create_app(
         if tournament is None:
             return RedirectResponse("/", status_code=303)
         try:
-            reloaded = load_tournament(
-                tournament.askfred_id, settings, askfred=askfred, usfa=usfa
-            )
+            reloaded = load_tournament(tournament.askfred_id, settings, api=api)
+        except StillLoading:
+            return RedirectResponse("/schedule?error=loading", status_code=303)
         except Exception:
             logger.exception("refresh failed for %s", tournament.askfred_id)
             return RedirectResponse("/schedule?error=refresh", status_code=303)

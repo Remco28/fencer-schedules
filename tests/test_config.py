@@ -12,13 +12,16 @@ def test_club_names_come_from_yaml(tmp_path: Path) -> None:
     assert "EFC" not in settings.club_aliases
 
 
-def test_token_comes_from_env_file(tmp_path: Path) -> None:
+def test_fencing_api_settings_come_from_env_file(tmp_path: Path) -> None:
     cfg = tmp_path / "config.yaml"
     cfg.write_text('club:\n  name: "Elite Fencers Club"\n  aliases: []\n')
     env = tmp_path / ".env"
-    env.write_text("ASKFRED_API_TOKEN=test-token-value\n")
+    env.write_text("FENCING_API_KEY=fapi_test\nFENCING_API_URL=http://api.test\n")
     settings = Settings.load(config_path=cfg, env_path=env)
-    assert settings.askfred_api_token == "test-token-value"
+    assert settings.fencing_api_key == "fapi_test"
+    assert settings.fencing_api_url == "http://api.test"
+    defaults = Settings.load(config_path=cfg, env_path=tmp_path / "missing.env")
+    assert defaults.fencing_api_url == "http://127.0.0.1:8780"
 
 
 def test_agentmail_keys_from_env_file(tmp_path: Path) -> None:

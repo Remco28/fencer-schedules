@@ -1,6 +1,6 @@
 # Setup
 
-Club start list + PDF. Regional/national names come from USA Fencing. Search uses the AskFRED API.
+Club start list + PDF. Regional/national names come from USA Fencing, locals from AskFRED registrations, all read through fencing-api.
 
 ## Once
 
@@ -11,8 +11,10 @@ uv sync --extra dev --python 3.12
 
 Secrets live in gitignored `.env`:
 
-- `ASKFRED_API_TOKEN` — catalog + events
-- `ASKFRED_EMAIL` / `ASKFRED_PASSWORD` — local tournament names (logged-in prereg page)
+- `FENCING_API_KEY` (and `FENCING_API_URL`, default `http://127.0.0.1:8780`) — every tournament,
+  entrant and result comes from fencing-api (`~/Projects/fencing-api`), the home server's shared
+  AskFRED / USA Fencing scraper. This app has no scrapers of its own: if data is wrong or
+  missing, fix it in fencing-api. Create the key there: `fencing-api keys add fencer-schedules`.
 - `AGENTMAIL_API_KEY` / `AGENTMAIL_INBOX` — registrant-watcher emails (same inbox as other AgentMail jobs on this machine)
 
 Do not paste secrets in chat. Club name is `config.yaml`.
@@ -20,6 +22,10 @@ Do not paste secrets in chat. Club name is `config.yaml`.
 Alert recipients are **not** in `.env`. Default is `frankcng@gmail.com`. Change them in the app: gear → Settings. Comma-separated for more than one person. Sign-up alerts and the daily schedule have separate recipient lists.
 
 The daily schedule goes out once a day (default 07:00, also in Settings) to its own recipient list. It lists every tournament you are watching and who from the club is entered. A watched tournament with nobody entered yet is still included; if you are watching nothing, no email is sent. The same snapshot can be sent on demand from the main page — the button only appears while something is being watched — and that does not count as the day's send.
+
+The first open of a big tournament (30+ events) takes a minute or two: fencing-api reads every
+event's entry list at a polite pace. The app shows a "Loading the start list…" page that checks
+again every few seconds. After that it is quick; the watcher keeps it fresh in the background.
 
 ## Run locally
 

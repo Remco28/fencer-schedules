@@ -2,75 +2,58 @@ from __future__ import annotations
 
 import logging
 from datetime import time
-from typing import Protocol
 
 from fencer_schedules.config import Settings
+from fencer_schedules.fencing_api import FencingApi, NotAvailable, StillLoading
 from fencer_schedules.models import Event, Fencer, Tournament
-from fencer_schedules.sources.askfred import AskFredClient
-from fencer_schedules.sources.askfred_prereg import AskFredSite
-from fencer_schedules.sources.usfa import UsfaClient
 
 logger = logging.getLogger("fencer_schedules.load")
-
-
-class PreregSource(Protocol):
-    def fetch_preregistrations(self, tournament_id: str) -> dict[str, list[Fencer]]: ...
-
-    def fetch_preregistration_clocks(self, tournament_id: str) -> dict[str, time]: ...
-
 
 
 def load_tournament(
     askfred_id: str,
     settings: Settings,
-    askfred: AskFredClient | None = None,
-    usfa: UsfaClient | None = None,
-    askfred_site: PreregSource | None = None,
+    api: FencingApi | None = None,
+    wait_s: float | None = None,
 ) -> Tournament:
-    askfred = askfred or AskFredClient(settings.askfred_api_token)
-    tournament = askfred.fetch_tournament(askfred_id)
-    askfred_events = askfred.fetch_events(askfred_id)
+    """One tournament with every event and its entrants, all from fencing-api.
+
+    Regional/national tournaments (AskFRED links to USA Fencing) take events and
+    names from USA Fencing; locals take AskFRED events plus preregistration names.
+    Raises StillLoading when fencing-api is still reading a big tournament.
+    """
+    api = api or settings.fencing_api()
+    tournament, askfred_events = api.tournament(askfred_id, wait_s=wait_s)
     if not tournament.usfa_id:
-        tournament.events = _with_askfred_names(askfred_events, askfred_id, settings, askfred_site)
+        tournament.events = _with_askfred_names(askfred_events, askfred_id, api, wait_s)
         tournament.names_available = any(event.fencers for event in tournament.events)
         return tournament
 
-    usfa = usfa or UsfaClient()
-    usfa_events = usfa.fetch_events(tournament.usfa_id, year=tournament.start_date.year)
+    usfa_events = api.usfa_tournament_entries(tournament.usfa_id, wait_s=wait_s)
     clocks = _clocks_by_name(askfred_events)
     filled: list[Event] = []
     for event in usfa_events:
-        entrants = usfa.fetch_entrants(tournament.usfa_id, event.source_event_id)
         clock, label = event.clock, event.clock_label
         if clock is None:
             clock, label = clocks.get(_norm(event.name), (None, None))
-        filled.append(
-            event.model_copy(
-                update={"fencers": entrants, "clock": clock, "clock_label": label}
-            )
-        )
+        filled.append(event.model_copy(update={"clock": clock, "clock_label": label}))
     tournament.events = filled
     tournament.names_available = True
     return tournament
 
 
-def _with_askfred_names(
-    events: list[Event],
-    askfred_id: str,
-    settings: Settings,
-    site: PreregSource | None,
-) -> list[Event]:
-    if site is None:
-        if not (settings.askfred_email and settings.askfred_password):
-            return events
-        site = AskFredSite(settings.askfred_email, settings.askfred_password)
+def _with_askfred_names(events: list[Event], askfred_id: str, api: FencingApi, wait_s: float | None) -> list[Event]:
     try:
-        by_title = site.fetch_preregistrations(askfred_id)
-        clocks = {_norm(title): clock for title, clock in site.fetch_preregistration_clocks(askfred_id).items()}
-    except Exception:
-        logger.warning("AskFRED prereg names failed for %s", askfred_id, exc_info=True)
+        registrations = api.askfred_entries(askfred_id, wait_s=wait_s)
+    except StillLoading:
+        raise
+    except NotAvailable:
         return events
-    index = {_norm(title): fencers for title, fencers in by_title.items()}
+    except Exception:
+        logger.warning("AskFRED registrations failed for %s", askfred_id, exc_info=True)
+        return events
+    index: dict[str, list[Fencer]] = {_norm(title): fencers for title, _, fencers in registrations}
+    clocks: dict[str, time] = {_norm(title): clock for title, clock, _ in registrations if clock}
     attached: list[Event] = []
     for event in events:
         fencers = _match_event_fencers(event.name, index)

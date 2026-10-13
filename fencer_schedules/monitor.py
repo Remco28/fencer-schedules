@@ -15,6 +15,8 @@ from fencer_schedules.models import Event, Tournament
 from fencer_schedules.notify import SKIPPED, send_digest
 from fencer_schedules.schedule import merge_refresh
 
+WATCHER_WAIT_S = 300
+
 logger = logging.getLogger("fencer_schedules.monitor")
 
 ALERT_TIMES_KEY = "alert_times"
@@ -273,7 +275,8 @@ def run(
                 continue
 
             # Load once per tournament, even when multiple watch types overlap.
-            fresh = load_tournament(askfred_id, settings)
+            # In the background, so it can wait out a big tournament's first read.
+            fresh = load_tournament(askfred_id, settings, wait_s=WATCHER_WAIT_S)
 
             additions_by_event: dict[str, tuple[Event, list[list[str]]]] = {}
             snapshots: list[tuple[Watch, dict[str, list[list[str]]]]] = []

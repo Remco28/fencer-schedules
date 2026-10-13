@@ -1,0 +1,25 @@
+{
+ "source": "live",
+ "fetched_at": "2026-08-19T12:00:00Z",
+ "stale": false,
+ "items": [
+  {
+   "askfred_id": "f4fbfddf-8316-46d2-9392-8a8245059f86",
+   "name": "Trick or Retreat ROC / RJCC",
+   "start_date": "2026-08-22",
+   "end_date": "2026-08-23",
+   "timezone": null,
+   "venue": "NJ Convention & Exposition Center",
+   "venue_address": null,
+   "state": null,
+   "registration_url": "https://member.usafencing.org/details/tournaments/12013",
+   "usfa_id": "12013",
+   "url": null,
+   "prereg_open": null,
+   "prereg_close": null,
+   "tournament_type": null,
+   "is_cancelled": false
+  }
+ ],
+ "truncated": false
+}

@@ -1,0 +1,108 @@
+{
+ "source": "live",
+ "fetched_at": "2026-08-19T12:00:00Z",
+ "stale": false,
+ "tournament": {
+  "usfa_id": "12013",
+  "name": null
+ },
+ "items": [
+  {
+   "usfa_event_id": "72823",
+   "name": "Junior Men’s Epee (JNRME)",
+   "day": "2026-08-22",
+   "day_unknown": false,
+   "clock": "08:00",
+   "clock_label": "close of registration",
+   "entries": [
+    {
+     "name": "Doe, Jordan",
+     "club": "Elite Fencers Club",
+     "division": "New Jersey",
+     "rating": "U",
+     "membership_id": "100000001",
+     "country": null,
+     "status": "approved"
+    },
+    {
+     "name": "Albrecht-Smith, Anne",
+     "club": "Manchen Academy Of Fencing",
+     "division": "New Jersey",
+     "rating": "E25",
+     "membership_id": "100295488",
+     "country": null,
+     "status": "approved"
+    }
+   ],
+   "entrant_count": 2
+  },
+  {
+   "usfa_event_id": "72806",
+   "name": "Division IA Women’s Epee (D1AWE)",
+   "day": "2026-08-22",
+   "day_unknown": false,
+   "clock": "12:00",
+   "clock_label": "close of registration",
+   "entries": [
+    {
+     "name": "Doe, Jordan",
+     "club": "Elite Fencers Club",
+     "division": "New Jersey",
+     "rating": "U",
+     "membership_id": "100000001",
+     "country": null,
+     "status": "approved"
+    },
+    {
+     "name": "Albrecht-Smith, Anne",
+     "club": "Manchen Academy Of Fencing",
+     "division": "New Jersey",
+     "rating": "E25",
+     "membership_id": "100295488",
+     "country": null,
+     "status": "approved"
+    }
+   ],
+   "entrant_count": 2
+  },
+  {
+   "usfa_event_id": "72829",
+   "name": "Cadet Men’s Epee (CDTME)",
+   "day": "2026-08-23",
+   "day_unknown": false,
+   "clock": "10:30",
+   "clock_label": "close of registration",
+   "entries": [
+    {
+     "name": "Doe, Jordan",
+     "club": "Elite Fencers Club",
+     "division": "New Jersey",
+     "rating": "U",
+     "membership_id": "100000001",
+     "country": null,
+     "status": "approved"
+    },
+    {
+     "name": "Albrecht-Smith, Anne",
+     "club": "Manchen Academy Of Fencing",
+     "division": "New Jersey",
+     "rating": "E25",
+     "membership_id": "100295488",
+     "country": null,
+     "status": "approved"
+    }
+   ],
+   "entrant_count": 2
+  },
+  {
+   "usfa_event_id": "99999",
+   "name": "Cadet Men’s Foil (CDTMF)",
+   "day": "2026-08-23",
+   "day_unknown": false,
+   "clock": "09:00",
+   "clock_label": "close of registration",
+   "entries": [],
+   "entrant_count": 0
+  }
+ ]
+}

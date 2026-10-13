@@ -1,6 +1,6 @@
 # Fencer Schedules
 
-Phone start list and PDF for Elite Fencers Club at upcoming tournaments.
+Phone start list and PDF for Elite Fencers Club at upcoming tournaments. All tournament data comes from fencing-api (`~/Projects/fencing-api`).
 
 - Spec: `PRODUCT.md`
 - Access notes: `FEASIBILITY.md`

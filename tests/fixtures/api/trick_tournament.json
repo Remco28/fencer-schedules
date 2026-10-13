@@ -1,0 +1,54 @@
+{
+ "source": "live",
+ "fetched_at": "2026-08-19T12:00:00Z",
+ "stale": false,
+ "tournament": {
+  "askfred_id": "f4fbfddf-8316-46d2-9392-8a8245059f86",
+  "name": "Trick or Retreat ROC / RJCC",
+  "start_date": "2026-08-22",
+  "end_date": "2026-08-23",
+  "timezone": "America/New_York",
+  "venue": "NJ Convention & Exposition Center",
+  "venue_address": "97 Sunfield Avenue, Edison, New Jersey 08837 US",
+  "state": null,
+  "registration_url": "https://member.usafencing.org/details/tournaments/12013",
+  "usfa_id": "12013",
+  "url": "https://www.askfred.net/tournaments/f4fbfddf-8316-46d2-9392-8a8245059f86",
+  "prereg_open": "2026-06-08",
+  "prereg_close": "2026-08-11",
+  "tournament_type": "tournament",
+  "is_cancelled": false
+ },
+ "items": [
+  {
+   "askfred_event_id": "evt-d1awe",
+   "name": "Division IA Women’s Epee",
+   "short_name": "D1AWE",
+   "weapon": "epee",
+   "gender": null,
+   "age_limit": null,
+   "rating_limit": null,
+   "close_of_registration": "2026-08-22T12:00:00Z",
+   "day": "2026-08-22",
+   "clock": "08:00",
+   "clock_label": "close of registration",
+   "day_unknown": false,
+   "entrant_count": null
+  },
+  {
+   "askfred_event_id": "evt-jnrme",
+   "name": "Junior Men’s Epee",
+   "short_name": "JNRME",
+   "weapon": "epee",
+   "gender": null,
+   "age_limit": null,
+   "rating_limit": null,
+   "close_of_registration": "2026-08-22T16:00:00Z",
+   "day": "2026-08-22",
+   "clock": "12:00",
+   "clock_label": "close of registration",
+   "day_unknown": false,
+   "entrant_count": null
+  }
+ ]
+}

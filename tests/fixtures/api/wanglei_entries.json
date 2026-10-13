@@ -1,0 +1,34 @@
+{
+ "source": "live",
+ "fetched_at": "2026-08-19T12:00:00Z",
+ "stale": false,
+ "items": [
+  {
+   "event_name": "Y14 Mixed Epee",
+   "check_in": "09:30",
+   "entries": [
+    {
+     "name": "Anderson, Connor",
+     "club": "Elite Fencers Club",
+     "rating": "U"
+    },
+    {
+     "name": "Chen, Aiden",
+     "club": "Wanglei International Fencing Club",
+     "rating": "B2026"
+    }
+   ]
+  },
+  {
+   "event_name": "Senior Mixed Epee",
+   "check_in": "14:00",
+   "entries": [
+    {
+     "name": "Sun, Kang",
+     "club": "Elite Fencers Club",
+     "rating": ""
+    }
+   ]
+  }
+ ]
+}

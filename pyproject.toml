@@ -15,10 +15,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
     "fpdf2>=2.8",
-    "beautifulsoup4>=4.12",
     "python-multipart>=0.0.9",
     "agentmail>=0.5",
-    "curl-cffi>=0.16.3",
 ]
 
 [project.optional-dependencies]
