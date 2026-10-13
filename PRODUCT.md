@@ -28,10 +28,11 @@
 | Clock | USFA card time is the **event start**. Show it as a time only. | Locked 2026-08-19 |
 | Layout | **One scroll:** day → events (by start time when known) → tracked fencers | Locked |
 | Time grain | Event clock time when present. Not per-fencer pool/DE times. | Locked |
-| Refresh | Re-fetch entries, then regenerate PDF. No live polling. | Locked |
+| Refresh | Re-fetch entries, then regenerate PDF. The watcher also writes back the roster it fetches for watched tournaments, keeping tracking choices and cached results. | Locked |
 | After the event | Auto-purge (~48h TTL), or Remove by hand. Completed USFA events show cached final rankings after the event day. | Locked |
 | Multiple tournaments | Keep several loaded lists. Switch locally. Re-fetch only on first open or Refresh. | Locked 2026-08-19 |
 | Host | Local / self-hosted | Locked |
+| Notifications | Sign-up alerts when a watched tournament gets a new registrant, plus a once-a-day schedule snapshot of every watched tournament (included even when nobody has entered). | Locked 2026-10-07 |
 | Anti-bot | Polite requests, cache, rate limits. Captcha workarounds within reason. | Locked |
 | First tournament | Trick or Retreat ROC / RJCC — USFA `12013` (`member.usafencing.org/details/tournaments/12013`), AskFRED `f4fbfddf-8316-46d2-9392-8a8245059f86`, Aug 22–23, Edison NJ. Regional → **USFA names**. Example, not a hard ship date. | Locked |
 
@@ -56,8 +57,7 @@
 
 - Strips, fencing-now, FTL as a gate
 - Local club names via AskFRED `/preregistrations` HTML (captcha; API 404)
-- FencingTracker, app accounts, settings page, email-from-the-app
-- Notifications, auto-refresh, history, multi-tournament
+- FencingTracker, app accounts, email-from-the-app for anything other than the watcher alerts and the daily schedule
 - Weapon filter, per-fencer home cards
 - Reusing the old app in place
 

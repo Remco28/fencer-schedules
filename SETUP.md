@@ -17,7 +17,9 @@ Secrets live in gitignored `.env`:
 
 Do not paste secrets in chat. Club name is `config.yaml`.
 
-Alert recipients are **not** in `.env`. Default is `frankcng@gmail.com`. Change them in the app: gear → Settings. Comma-separated for more than one person.
+Alert recipients are **not** in `.env`. Default is `frankcng@gmail.com`. Change them in the app: gear → Settings. Comma-separated for more than one person. Sign-up alerts and the daily schedule have separate recipient lists.
+
+The daily schedule goes out once a day (default 07:00, also in Settings) to its own recipient list. It lists every tournament you are watching and who from the club is entered. A watched tournament with nobody entered yet is still included; if you are watching nothing, no email is sent. The same snapshot can be sent on demand from the main page — the button only appears while something is being watched — and that does not count as the day's send.
 
 ## Run locally
 

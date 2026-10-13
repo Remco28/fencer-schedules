@@ -14,6 +14,13 @@ from fastapi.templating import Jinja2Templates
 
 from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store
+from fencer_schedules.digest import (
+    DIGEST_RECIPIENT_KEY,
+    digest_recipients_for,
+    digest_time_for,
+    parse_digest_time,
+    send_daily_digest,
+)
 from fencer_schedules.exports import csv_bytes, text_version
 from fencer_schedules.exports import filename_for as export_filename
 from fencer_schedules.load import load_tournament
@@ -105,11 +112,16 @@ _SOURCE_ERRORS = {
 }
 _SOURCE_NOTICES = {
     "refresh": "Start list updated.",
+    "digest": "Schedule email sent.",
+}
+_DIGEST_ERRORS = {
+    "digest": "Schedule email was not sent. Check the recipients and try again.",
 }
 
 
 def source_error(request: Request) -> str | None:
-    return _SOURCE_ERRORS.get(request.query_params.get("error") or "")
+    code = request.query_params.get("error") or ""
+    return _SOURCE_ERRORS.get(code) or _DIGEST_ERRORS.get(code)
 
 
 def source_notice(request: Request) -> str | None:
@@ -200,6 +212,9 @@ def create_app(
                 "loaded": store.list(),
                 "q": "",
                 "error": source_error(request),
+                "notice": source_notice(request),
+                "watching": bool(store.watches()),
+                "digest_recipients": digest_recipients_for(store),
             },
         )
 
@@ -221,6 +236,9 @@ def create_app(
                 "loaded": store.list(),
                 "q": q,
                 "error": error,
+                "notice": None,
+                "watching": bool(store.watches()),
+                "digest_recipients": digest_recipients_for(store),
             },
         )
 
@@ -411,15 +429,24 @@ def create_app(
             store.set_watch(tournament.askfred_id, event_id, "all")
         return RedirectResponse(next or f"/schedule/events/{event_id}", status_code=303)
 
+    @app.post("/digest")
+    def send_digest_now() -> RedirectResponse:
+        sent = send_daily_digest(settings, store, force=True)
+        flag = "ok=digest" if sent else "error=digest"
+        return RedirectResponse(f"/?{flag}", status_code=303)
+
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):
         recipient = store.get_setting("alert_recipient", DEFAULT_ALERT_RECIPIENT)
+        digest_recipient = store.get_setting(DIGEST_RECIPIENT_KEY, DEFAULT_ALERT_RECIPIENT)
         return TEMPLATES.TemplateResponse(
             request,
             "settings.html",
             {
                 "recipient": recipient,
                 "alert_times": alert_times_for(store),
+                "digest_recipient": digest_recipient,
+                "digest_time": digest_time_for(store),
                 "saved": request.query_params.get("saved") == "1",
             },
         )
@@ -430,7 +457,12 @@ def create_app(
         recipient = str(form.get("recipient", "") or "").strip()
         raw_times = form.getlist("alert_times")
         normalized = normalize_alert_times(raw_times)
+        digest_recipient = str(form.get("digest_recipient", "") or "").strip()
+        digest_time = parse_digest_time(str(form.get("digest_time", "") or ""))
         store.set_setting("alert_recipient", recipient)
+        store.set_setting(DIGEST_RECIPIENT_KEY, digest_recipient)
+        # An invalid post keeps the previously saved time rather than the default.
+        store.set_setting("digest_time", digest_time or digest_time_for(store))
         if normalized:
             store.set_setting("alert_times", normalized)
         else:

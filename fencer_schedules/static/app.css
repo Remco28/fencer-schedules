@@ -300,7 +300,8 @@ a:focus-visible, button:focus-visible, input:focus-visible {
 .icon-btn:focus-visible { box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.55); }
 
 /* ---- Watch bar ---- */
-.watch-bar { margin-bottom: 18px; }
+.watch-bar { margin-bottom: 12px; }
+.digest-bar { margin-bottom: 18px; }
 .watch-btn {
   width: 100%;
   display: flex;

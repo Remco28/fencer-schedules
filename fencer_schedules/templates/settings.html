@@ -16,7 +16,7 @@
         <h1>Settings</h1>
       </div>
     </div>
-    <p class="lede">Who gets watcher emails, and at which morning and evening checks.</p>
+    <p class="lede">Who gets emails, and when the checks run.</p>
     </div>
   </header>
   <main class="sheet">
@@ -28,7 +28,7 @@
       <label class="field">
         <span class="field-label">Send alerts to</span>
         <input type="text" name="recipient" value="{{ recipient }}" placeholder="frankcng@gmail.com" autocomplete="email" inputmode="email">
-        <span class="field-hint">One email, or several separated by commas.</span>
+        <span class="field-hint">One email, or several separated by commas. Sent only when someone new signs up.</span>
       </label>
       <fieldset class="field times-field">
         <legend class="field-label">Check times <span class="field-inline-hint">(Eastern)</span></legend>
@@ -45,9 +45,19 @@
         </div>
         <span class="field-hint">The watcher wakes hourly and only checks within ±30 minutes of these times.</span>
       </fieldset>
+      <label class="field">
+        <span class="field-label">Send the daily schedule to</span>
+        <input type="text" name="digest_recipient" value="{{ digest_recipient }}" placeholder="frankcng@gmail.com" autocomplete="email" inputmode="email">
+        <span class="field-hint">One email, or several separated by commas. Separate from the sign-up alerts above.</span>
+      </label>
+      <label class="field">
+        <span class="field-label">Daily schedule time <span class="field-inline-hint">(Eastern)</span></span>
+        <input type="time" name="digest_time" value="{{ digest_time }}" required>
+        <span class="field-hint">One email a day listing every watched tournament, including ones nobody has entered yet.</span>
+      </label>
       <button class="btn-gold btn-save" type="submit">Save</button>
     </form>
-    <p class="muted note">Used by the registrant watcher. It emails here when a watched tournament or event gets a new sign-up.</p>
+    <p class="muted note">Sign-up alerts go out when a watched tournament or event gets a new registrant. The daily schedule is a snapshot of every tournament you are watching.</p>
     </div>
   </main>
   <script>

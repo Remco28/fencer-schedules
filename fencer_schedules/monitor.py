@@ -9,6 +9,7 @@ from datetime import datetime
 from fencer_schedules.club import is_our_club
 from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store, Watch
+from fencer_schedules.digest import send_daily_digest
 from fencer_schedules.load import load_tournament
 from fencer_schedules.models import Event, Tournament
 from fencer_schedules.notify import SKIPPED, send_digest
@@ -346,6 +347,11 @@ def main() -> int:
     settings = Settings.load()
     store = Store(settings.database_path)
     subjects = run(settings, store, dry_run=args.dry_run)
+    if not args.dry_run:
+        # After the roster refresh, so the snapshot reports what was just fetched.
+        daily = send_daily_digest(settings, store)
+        if daily:
+            logger.info("sent daily schedule digest: %s", daily)
     if args.dry_run:
         print(f"{len(subjects)} digest(s) would be sent (dry-run)")
     return 0

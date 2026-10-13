@@ -341,7 +341,10 @@ def test_switch_between_saved_tournaments(client: TestClient) -> None:
 def test_settings_page_shows_default_recipient(client: TestClient) -> None:
     resp = client.get("/settings")
     assert resp.status_code == 200
-    assert "frankcng@gmail.com" in resp.text
+    assert resp.text.count("frankcng@gmail.com") >= 2
+    assert 'name="digest_recipient"' in resp.text
+    assert 'name="digest_time"' in resp.text
+    assert 'value="07:00"' in resp.text
     assert 'type="time"' in resp.text
     assert 'value="09:00"' in resp.text
     assert 'value="21:00"' in resp.text
@@ -387,6 +390,65 @@ def test_settings_save_drops_invalid_times(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     assert client.app.state.store.get_setting("alert_times") == "08:00"
+
+
+def test_settings_save_persists_digest_recipients(client: TestClient) -> None:
+    resp = client.post(
+        "/settings",
+        data={
+            "recipient": "frankcng@gmail.com",
+            "digest_recipient": "coach@example.com, parent@example.com",
+            "digest_time": "06:30",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    store = client.app.state.store
+    assert store.get_setting("digest_recipient") == "coach@example.com, parent@example.com"
+    assert store.get_setting("digest_time") == "06:30"
+    assert store.get_setting("alert_recipient") == "frankcng@gmail.com"
+
+
+def test_schedule_digest_button_sends_and_reports(client: TestClient, monkeypatch) -> None:
+    store = client.app.state.store
+    store.save(
+        Tournament(
+            askfred_id="one",
+            name="First Cup",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+            events=[],
+        )
+    )
+    store.set_watch("one", None, "club")
+    sent: list = []
+    monkeypatch.setattr("fencer_schedules.digest.send_digest", lambda *a, **kw: sent.append(a) or True)
+
+    page = client.get("/")
+    assert 'action="/digest"' in page.text
+    assert 'action="/schedule/digest"' not in client.get("/schedule").text
+    resp = client.post("/digest", follow_redirects=True)
+    assert resp.status_code == 200
+    assert "Schedule email sent." in resp.text
+    assert len(sent) == 1
+    assert "Nobody signed up yet." in sent[0][2]
+
+
+def test_schedule_digest_button_reports_a_missed_send(client: TestClient, monkeypatch) -> None:
+    store = client.app.state.store
+    store.save(
+        Tournament(
+            askfred_id="one",
+            name="First Cup",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+        )
+    )
+    from fencer_schedules.notify import SKIPPED
+
+    monkeypatch.setattr("fencer_schedules.digest.send_digest", lambda *a, **kw: SKIPPED)
+    resp = client.post("/digest", follow_redirects=True)
+    assert "Schedule email was not sent." in resp.text
 
 
 def test_club_watch_toggle_on_and_off(client: TestClient) -> None:
