@@ -113,3 +113,29 @@ def test_api_down_or_key_rejected_is_unavailable_not_silent() -> None:
     respx.get(f"{API}/v1/askfred/tournaments/{TRICK_ID}").mock(side_effect=httpx.ConnectError("refused"))
     with pytest.raises(ApiUnavailable, match="unreachable"):
         load_tournament(TRICK_ID, SETTINGS, api=_client())
+
+
+@respx.mock
+def test_pending_signups_are_kept_and_marked() -> None:
+    # AskFRED: "Pending or Invalid Registrations" arrive as pending_or_invalid.
+    respx.get(f"{API}/v1/askfred/tournaments/{LOCAL_ID}").mock(return_value=httpx.Response(200, json=LOCAL_TOURNAMENT))
+    respx.get(f"{API}/v1/askfred/tournaments/{LOCAL_ID}/entries").mock(return_value=httpx.Response(200, json=_stored({
+        "items": [{"event_name": "Y14 Mixed Epee", "check_in": "09:30", "entrant_count": 1,
+                   "entries": [{"name": "Anderson, Connor", "club": "Medeo Fencing Club"}],
+                   "pending_or_invalid": [{"name": "Li, Owen", "club": "Elite Fencers Club"}]}],
+    })))
+    y14 = next(e for e in load_tournament(LOCAL_ID, SETTINGS, api=_client()).events if e.name == "Y14 Mixed Epee")
+    assert [(f.name, f.pending) for f in y14.fencers] == [("Anderson, Connor", False), ("Li, Owen", True)]
+
+
+@respx.mock
+def test_usfa_pending_status_is_marked() -> None:
+    body = _api("trick_usfa_entries.json")
+    body["items"][0]["entries"][0]["status"] = "pending"
+    respx.get(f"{API}/v1/askfred/tournaments/{TRICK_ID}").mock(
+        return_value=httpx.Response(200, json=_api("trick_tournament.json")))
+    respx.get(f"{API}/v1/usfa/tournaments/12013/entries").mock(return_value=httpx.Response(200, json=body))
+    tournament = load_tournament(TRICK_ID, SETTINGS, api=_client())
+    first = body["items"][0]["entries"][0]["name"]
+    marked = [f for e in tournament.events for f in e.fencers if f.pending]
+    assert [f.name for f in marked] == [first]

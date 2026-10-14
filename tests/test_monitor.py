@@ -109,6 +109,19 @@ def test_build_digest_subject_and_body() -> None:
     assert html.startswith("<div")
 
 
+def test_build_digest_marks_pending_signups() -> None:
+    event = _event("e1", [Fencer(name="Li, Owen", club="Elite Fencers Club", pending=True),
+                          Fencer(name="Doe, Jordan", club="Elite Fencers Club")], clock=time(8, 0))
+    _, body, html = build_digest(
+        _tournament([event]),
+        [(event, [["Li, Owen", "Elite Fencers Club"], ["Doe, Jordan", "Elite Fencers Club"]])],
+        _settings(),
+    )
+    assert "Li, Owen (pending: signed up, not confirmed)" in body
+    assert "Doe, Jordan (pending" not in body
+    assert html.count(">pending</span>") == 1
+
+
 def test_build_digest_escapes_html() -> None:
     event = _event("e1", [], clock=time(8, 0))
     event = event.model_copy(update={"name": "Cadet <Men's> Epee"})

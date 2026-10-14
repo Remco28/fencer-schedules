@@ -77,12 +77,14 @@
     </details>
     {% endif %}
 
-    <p class="count">{% if rows|length == 1 %}1 fencer{% else %}{{ rows|length }} fencers{% endif %}</p>
+    {% set pending_count = rows|selectattr("fencer.pending")|list|length %}
+    {% set entered = rows|length - pending_count %}
+    <p class="count">{% if entered == 1 %}1 fencer{% else %}{{ entered }} fencers{% endif %}{% if pending_count %} · {{ pending_count }} pending<small> (signed up, not confirmed yet)</small>{% endif %}</p>
     {% for row in rows %}
       <div class="person">
         <div class="avatar {% if row.tracked %}navy{% endif %}" aria-hidden="true">{{ row.fencer.name|initials }}</div>
         <div class="who">
-          <div class="name">{{ row.fencer.name }}</div>
+          <div class="name">{{ row.fencer.name }}{% if row.fencer.pending %} <span class="badge soft">Pending</span>{% endif %}</div>
           <div class="club">{{ row.fencer.club }}</div>
           {% if event.results is not none %}
             {% set label = row.place_label %}

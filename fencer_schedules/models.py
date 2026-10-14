@@ -15,6 +15,10 @@ class Fencer(BaseModel):
     club: str
     source: Literal["club", "manual", "hidden"] = "club"
     membership_id: str | None = None
+    # Signed up but not confirmed: AskFRED's "Pending or Invalid Registrations"
+    # (often unpaid until the field fills) or a USA Fencing entry marked Pending.
+    # Shown, marked as pending, and not counted as entered.
+    pending: bool = False
 
 
 class EventResult(BaseModel):

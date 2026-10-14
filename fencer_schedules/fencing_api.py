@@ -110,7 +110,7 @@ class FencingApi:
         body = self.get(f"/v1/usfa/tournaments/{usfa_id}/entries", wait_s=wait_s)
         return [
             _event(item.get("usfa_event_id"), item).model_copy(update={
-                "fencers": [_fencer(row) for row in item.get("entries") or []],
+                "fencers": [_fencer(row, pending=row.get("status") == "pending") for row in item.get("entries") or []],
             })
             for item in body.get("items") or []
         ]
@@ -119,7 +119,12 @@ class FencingApi:
         """(event title, check-in clock, entrants) from AskFRED preregistrations."""
         body = self.get(f"/v1/askfred/tournaments/{askfred_id}/entries", wait_s=wait_s)
         return [
-            (item.get("event_name") or "", _clock(item.get("check_in")), [_fencer(row) for row in item.get("entries") or []])
+            (
+                item.get("event_name") or "",
+                _clock(item.get("check_in")),
+                [_fencer(row) for row in item.get("entries") or []]
+                + [_fencer(row, pending=True) for row in item.get("pending_or_invalid") or []],
+            )
             for item in body.get("items") or []
         ]
 
@@ -178,5 +183,6 @@ def _event(event_id: Any, item: dict[str, Any]) -> Event:
     )
 
 
-def _fencer(row: dict[str, Any]) -> Fencer:
-    return Fencer(name=row.get("name") or "", club=row.get("club") or "", membership_id=row.get("membership_id"))
+def _fencer(row: dict[str, Any], pending: bool = False) -> Fencer:
+    return Fencer(name=row.get("name") or "", club=row.get("club") or "", membership_id=row.get("membership_id"),
+                  pending=pending)

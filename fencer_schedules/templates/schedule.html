@@ -136,7 +136,7 @@
           <div class="person">
             <div class="avatar" aria-hidden="true">{{ fencer.name|initials }}</div>
             <div class="who">
-              <div class="name">{{ fencer.name }}</div>
+              <div class="name">{{ fencer.name }}{% if fencer.pending %} <span class="badge soft">Pending</span>{% endif %}</div>
               <div class="club">{{ fencer.club }}</div>
               {% if event.results is not none %}
                 {% set label = event|result_label(fencer) %}

@@ -93,6 +93,17 @@ def new_names(last_seen: list[list[str]], current: list[list[str]]) -> list[list
     return [pair for pair in current if tuple(pair) not in seen]
 
 
+_PENDING_HTML = (
+    ' <span style="font-weight:400;font-size:12px;color:#0369a1;background:#e0f2fe;'
+    'border-radius:999px;padding:1px 8px;">pending</span>'
+)
+
+
+def _is_pending(event: Event, name: str, club: str) -> bool:
+    """Alerts carry (name, club) pairs; the pending mark lives on the event's fencer."""
+    return any(f.pending and f.name == name and f.club == club for f in event.fencers)
+
+
 def _clock(event: Event) -> str:
     if not event.clock:
         return ""
@@ -143,7 +154,8 @@ def _digest_text(
         lines.append(title)
         for name, club in names:
             star = "★  " if is_our_club(club, settings) else "·  "
-            lines.append(f"  {star}{name}")
+            pending = " (pending: signed up, not confirmed)" if _is_pending(event, name, club) else ""
+            lines.append(f"  {star}{name}{pending}")
             lines.append(f"     {club}")
     if tournament.askfred_id:
         lines.append("")
@@ -186,7 +198,7 @@ def _digest_html(
             people.append(
                 f'<tr><td style="padding:8px 0 2px;vertical-align:top;width:18px;">{mark}</td>'
                 f'<td style="padding:8px 0 2px;">'
-                f'<div style="{name_style}">{_escape(name)}</div>'
+                f'<div style="{name_style}">{_escape(name)}{_PENDING_HTML if _is_pending(event, name, club) else ""}</div>'
                 f'<div style="color:#64748b;font-size:13px;">{_escape(club)}</div>'
                 f"</td></tr>"
             )

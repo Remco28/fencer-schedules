@@ -271,7 +271,7 @@ def test_csv_download(client: TestClient) -> None:
     assert csv.headers["content-type"].startswith("text/csv")
     assert b"fencer,club,final_place" in csv.content
     assert b"Doe, Jordan" in csv.content
-    assert b",Elite Fencers Club,8th\r\n" in csv.content
+    assert b",Elite Fencers Club,8th,\r\n" in csv.content
 
 
 @respx.mock

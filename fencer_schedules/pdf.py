@@ -135,7 +135,7 @@ def render_pdf(tournament: Tournament, settings: Settings) -> bytes:
                     label = result_label(event, fencer)
                     text = label or "No result"
                 pdf.set_x(pdf.l_margin + indent)
-                pdf.cell(name_w - 4, 5, _latin(fencer.name))
+                pdf.cell(name_w - 4, 5, _latin(fencer.name + (" (pending)" if fencer.pending else "")))
                 pdf.set_text_color(*(INK if label else MUTED))
                 pdf.cell(place_w, 5, _latin(text))
                 pdf.set_text_color(*INK)

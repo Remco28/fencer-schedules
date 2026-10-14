@@ -22,12 +22,13 @@ def _place(event: Event, fencer: Fencer) -> str:
 def csv_bytes(tournament: Tournament, settings: Settings) -> bytes:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["day", "time", "event", "fencer", "club", "final_place"])
+    writer.writerow(["day", "time", "event", "fencer", "club", "final_place", "pending"])
     for event in visible_events(tournament, settings):
         day = "" if event.day_unknown else event.day.isoformat()
         clock = event.clock.strftime("%H:%M") if event.clock else ""
         for fencer in event.fencers:
-            writer.writerow([day, clock, event.name, fencer.name, fencer.club, _place(event, fencer)])
+            writer.writerow([day, clock, event.name, fencer.name, fencer.club, _place(event, fencer),
+                             "yes" if fencer.pending else ""])
     return buffer.getvalue().encode("utf-8")
 
 
@@ -54,7 +55,8 @@ def text_version(tournament: Tournament, settings: Settings) -> str:
                 suffix = " — No result"
             else:
                 suffix = f" — {place}"
-            lines.append(f"  • {fencer.name} ({fencer.club}){suffix}")
+            pending = " [pending]" if fencer.pending else ""
+            lines.append(f"  • {fencer.name}{pending} ({fencer.club}){suffix}")
     return "\n".join(lines).strip() + "\n"
 
 

@@ -36,8 +36,8 @@ def _settings() -> Settings:
 def test_csv_bytes_has_header_and_row() -> None:
     data = csv_bytes(_tournament(), _settings())
     rows = list(csv.reader(io.StringIO(data.decode("utf-8"))))
-    assert rows[0] == ["day", "time", "event", "fencer", "club", "final_place"]
-    assert ["2026-08-22", "08:00", "Junior Men's Epee", "Doe, Jordan", "Elite Fencers Club", "8th"] in rows
+    assert rows[0] == ["day", "time", "event", "fencer", "club", "final_place", "pending"]
+    assert ["2026-08-22", "08:00", "Junior Men's Epee", "Doe, Jordan", "Elite Fencers Club", "8th", ""] in rows
 
 
 def test_text_version_has_day_and_fencer() -> None:
