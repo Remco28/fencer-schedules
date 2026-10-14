@@ -519,3 +519,21 @@ def test_slow_first_open_shows_a_self_refreshing_loading_page(client: TestClient
         )
     ready = client.get(f"/tournaments/{TRICK_ID}/loading", follow_redirects=True)
     assert "Doe, Jordan" in ready.text
+
+
+@respx.mock
+def test_pending_signup_is_shown_marked_and_not_counted(client: TestClient) -> None:
+    _mock_upstream_load()
+    body = _api("trick_usfa_entries.json")
+    junior = next(i for i in body["items"] if i["usfa_event_id"] == "72823")
+    for row in junior["entries"]:
+        if row["name"] == "Doe, Jordan":
+            row["status"] = "pending"
+    respx.get(f"{API}/v1/usfa/tournaments/12013/entries").mock(return_value=httpx.Response(200, json=body))
+    client.post(f"/tournaments/{TRICK_ID}/load", follow_redirects=True)
+    schedule = client.get("/schedule").text
+    assert "Doe, Jordan" in schedule and 'class="badge soft">Pending</span>' in schedule
+    page = client.get("/schedule/events/72823").text
+    entered = len(junior["entries"]) - 1
+    assert f"{entered} fencer{'' if entered == 1 else 's'} · 1 pending" in page
+    assert 'class="badge soft">Pending</span>' in page
