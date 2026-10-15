@@ -53,3 +53,7 @@ class Tournament(BaseModel):
     # event id -> when results were last sought, so an event whose results are
     # not published yet is not re-fetched on every page load.
     results_checked: dict[str, datetime] = Field(default_factory=dict)
+    # When fencing-api last read the source sites for this tournament (the oldest of the answers
+    # it was built from), and whether any answer was an old copy fencing-api could not refresh.
+    data_as_of: datetime | None = None
+    data_stale: bool = False

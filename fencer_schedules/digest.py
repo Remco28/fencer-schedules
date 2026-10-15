@@ -8,7 +8,7 @@ from fencer_schedules.config import DEFAULT_ALERT_RECIPIENT, Settings
 from fencer_schedules.db import Store
 from fencer_schedules.models import Event, Tournament
 from fencer_schedules.notify import SKIPPED, send_digest
-from fencer_schedules.schedule import day_label, is_tracked, result_label, visible_events
+from fencer_schedules.schedule import data_as_of, day_label, is_tracked, result_label, visible_events
 
 DIGEST_RECIPIENT_KEY = "digest_recipient"
 DIGEST_TIME_KEY = "digest_time"
@@ -95,6 +95,8 @@ def _digest_text(tournaments: list[Tournament], settings: Settings) -> str:
         if tournament.end_date != tournament.start_date:
             span += f"–{tournament.end_date.strftime('%b %-d')}"
         lines.append(span)
+        if data_as_of(tournament):
+            lines.append(data_as_of(tournament))
         events = visible_events(tournament, settings)
         if not events:
             lines.append("Nobody signed up yet.")
@@ -142,7 +144,9 @@ def _digest_html(
             f'<div style="font-size:18px;color:#0a1628;font-weight:700;">{_escape(tournament.name)}</div>'
             f"{venue}"
             f'<div style="color:#8a6d14;font-size:13px;margin-top:2px;">{_escape(span)}</div>'
-            f"{body}</div>"
+            + (f'<div style="color:#94a3b8;font-size:12px;margin-top:2px;">{_escape(data_as_of(tournament))}</div>'
+               if data_as_of(tournament) else "")
+            + f"{body}</div>"
         )
     return (
         "<div style=\"font-family:Georgia,'Times New Roman',serif;background:#f8fafc;padding:24px;\">"

@@ -9,7 +9,7 @@ from fpdf import FPDF
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Tournament
-from fencer_schedules.schedule import day_label, result_label, visible_events
+from fencer_schedules.schedule import data_as_of, day_label, result_label, visible_events
 
 NAVY = (10, 22, 40)
 GOLD = (212, 175, 55)
@@ -58,6 +58,8 @@ class SchedulePDF(FPDF):
         self.set_font("Helvetica", size=8)
         self.set_text_color(*MUTED)
         left = self.day_label or f"Club schedule  ·  {self.club}"
+        if data_as_of(self.tournament):
+            left += f"  ·  {data_as_of(self.tournament)}"
         self.cell(0, 6, _latin(left), align="L")
         self.set_xy(16, -12)
         self.cell(0, 6, f"Page {self.page_no()}", align="R")

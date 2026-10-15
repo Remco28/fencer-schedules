@@ -177,3 +177,10 @@ def test_on_demand_ignores_the_window_and_does_not_consume_the_day(tmp_path, mon
     assert store.get_setting(DIGEST_SENT_ON_KEY) == ""
     assert send_daily_digest(_settings(), store, now=SEVEN_AM)
     assert len(sent) == 2
+
+
+def test_daily_digest_says_how_fresh_each_tournament_is() -> None:
+    from datetime import datetime, timezone
+    t = _tournament(events=[]).model_copy(update={"data_as_of": datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)})
+    _, body, html = build_daily_digest([t], _settings(), date(2026, 8, 22))
+    assert "Data as of Aug 19," in body and "Data as of Aug 19," in html

@@ -102,6 +102,10 @@ def test_load_trick_shows_club_fencer(client: TestClient) -> None:
     assert "Cadet Men’s Foil" in load.text or "Cadet Men's Foil" in load.text
     assert "Other events" in load.text
     assert "fencing now" not in load.text.lower()
+    assert "Data as of Aug 19," in load.text  # when fencing-api read the sites (fixtures: 2026-08-19 12:00Z)
+    event_page = client.get("/schedule/events/72823")
+    assert "Data as of Aug 19," in event_page.text
+    assert "Data as of Aug 19," in client.get("/schedule.txt").text
 
 
 @respx.mock
@@ -271,7 +275,7 @@ def test_csv_download(client: TestClient) -> None:
     assert csv.headers["content-type"].startswith("text/csv")
     assert b"fencer,club,final_place" in csv.content
     assert b"Doe, Jordan" in csv.content
-    assert b",Elite Fencers Club,8th,\r\n" in csv.content
+    assert b",Elite Fencers Club,8th,," in csv.content
 
 
 @respx.mock

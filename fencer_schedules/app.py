@@ -29,6 +29,7 @@ from fencer_schedules.monitor import alert_times_for, normalize_alert_times
 from fencer_schedules.pdf import filename_for, render_pdf
 from fencer_schedules.schedule import (
     add_manual,
+    data_as_of,
     day_label,
     day_parts,
     event_by_id,
@@ -98,6 +99,7 @@ TEMPLATES.env.filters["result_place"] = result_place
 TEMPLATES.env.filters["result_label"] = result_label
 TEMPLATES.env.filters["day_label"] = day_label
 TEMPLATES.env.filters["day_parts"] = day_parts
+TEMPLATES.env.filters["as_of"] = data_as_of
 TEMPLATES.env.tests["finished"] = event_finished
 
 # How long to leave a finished event alone before asking USA Fencing again for

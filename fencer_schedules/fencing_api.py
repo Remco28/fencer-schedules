@@ -36,6 +36,8 @@ class FencingApi:
         self.wait_s = wait_s
         self._client = client or httpx.Client(timeout=30.0)
         self._owns = client is None
+        # (fetched_at, stale) of every answer, so callers can say how fresh their data is.
+        self.reads: list[tuple[str, bool]] = []
 
     def close(self) -> None:
         if self._owns:
@@ -73,7 +75,7 @@ class FencingApi:
         give_up_at = _time.monotonic() + (self.wait_s if wait_s is None else wait_s)
         body = self._call(path, {**(params or {}), "live": "true"}, give_up_at)
         if body.get("fetched_at"):
-            return body
+            return self._read(body)
         job_id = body.get("job_id")
         if not job_id:
             raise ApiUnavailable("fencing-api returned no data")
@@ -83,11 +85,15 @@ class FencingApi:
             if job.get("status") in ("done", "failed"):
                 result = job.get("result") or {}
                 if result.get("fetched_at"):
-                    return result
+                    return self._read(result)
                 if str(job.get("error") or "").startswith("not_available"):
                     raise NotAvailable(job["error"])
                 raise ApiUnavailable(f"fencing-api could not read the site: {job.get('error')}")
         raise StillLoading("fencing-api is still reading the site")
+
+    def _read(self, body: dict[str, Any]) -> dict[str, Any]:
+        self.reads.append((body["fetched_at"], bool(body.get("stale")) or body.get("source") == "fallback"))
+        return body
 
     # -- what this app needs -------------------------------------------------
     def search(self, query: str) -> list[Tournament]:

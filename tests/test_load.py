@@ -139,3 +139,15 @@ def test_usfa_pending_status_is_marked() -> None:
     first = body["items"][0]["entries"][0]["name"]
     marked = [f for e in tournament.events for f in e.fencers if f.pending]
     assert [f.name for f in marked] == [first]
+
+
+@respx.mock
+def test_data_as_of_is_the_oldest_answer_and_flags_an_old_copy() -> None:
+    respx.get(f"{API}/v1/askfred/tournaments/{TRICK_ID}").mock(
+        return_value=httpx.Response(200, json=_api("trick_tournament.json")))  # read 12:00
+    older = {**_api("trick_usfa_entries.json"), "fetched_at": "2026-08-19T09:00:00Z", "stale": True,
+             "source": "fallback"}
+    respx.get(f"{API}/v1/usfa/tournaments/12013/entries").mock(return_value=httpx.Response(200, json=older))
+    tournament = load_tournament(TRICK_ID, SETTINGS, api=_client())
+    assert tournament.data_as_of.isoformat() == "2026-08-19T09:00:00+00:00"
+    assert tournament.data_stale is True

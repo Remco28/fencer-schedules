@@ -72,6 +72,16 @@ def merge_refresh(old: Tournament, fresh: Tournament) -> Tournament:
     return apply_overrides(preserve_cached_results(old, fresh), tracking_overrides(old))
 
 
+def data_as_of(tournament: Tournament) -> str:
+    """'Data as of Oct 14, 7:45 PM', in this machine's time zone; '' when unknown (saved before
+    fencing-api gave times). Says so when fencing-api could only give an old copy."""
+    if tournament.data_as_of is None:
+        return ""
+    local = tournament.data_as_of.astimezone()
+    label = f"Data as of {local.strftime('%b %-d, %-I:%M %p')}"
+    return label + " (could not refresh)" if tournament.data_stale else label
+
+
 def day_label(value: date) -> str:
     """Human day for an event; never invents a date the source omitted."""
     if value == UNKNOWN_DAY:

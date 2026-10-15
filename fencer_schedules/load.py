@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import time
+from datetime import datetime, time
 
 from fencer_schedules.config import Settings
 from fencer_schedules.fencing_api import FencingApi, NotAvailable, StillLoading
@@ -23,6 +23,16 @@ def load_tournament(
     Raises StillLoading when fencing-api is still reading a big tournament.
     """
     api = api or settings.fencing_api()
+    first_read = len(api.reads)
+    tournament = _load(askfred_id, api, wait_s)
+    reads = api.reads[first_read:]
+    if reads:
+        tournament.data_as_of = min(datetime.fromisoformat(at.replace("Z", "+00:00")) for at, _ in reads)
+        tournament.data_stale = any(stale for _, stale in reads)
+    return tournament
+
+
+def _load(askfred_id: str, api: FencingApi, wait_s: float | None) -> Tournament:
     tournament, askfred_events = api.tournament(askfred_id, wait_s=wait_s)
     if not tournament.usfa_id:
         tournament.events = _with_askfred_names(askfred_events, askfred_id, api, wait_s)

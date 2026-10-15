@@ -559,3 +559,12 @@ def test_unsent_digest_keeps_the_baseline(tmp_path, monkeypatch) -> None:
 
     assert subjects == []
     assert store.watch_for(TRICK_ID, None, "club").last_seen == '{"e1": []}'
+
+
+def test_alert_email_says_how_fresh_the_data_is() -> None:
+    from datetime import datetime, timezone
+    event = _event("e1", [], clock=time(8, 0))
+    tournament = _tournament([event]).model_copy(
+        update={"data_as_of": datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)})
+    _, body, html = build_digest(tournament, [(event, [["Doe, Jordan", "Elite Fencers Club"]])], _settings())
+    assert "Data as of Aug 19," in body and "Data as of Aug 19," in html

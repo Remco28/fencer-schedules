@@ -13,7 +13,7 @@ from fencer_schedules.digest import send_daily_digest
 from fencer_schedules.load import load_tournament
 from fencer_schedules.models import Event, Tournament
 from fencer_schedules.notify import SKIPPED, send_digest
-from fencer_schedules.schedule import merge_refresh
+from fencer_schedules.schedule import data_as_of, merge_refresh
 
 WATCHER_WAIT_S = 300
 
@@ -160,6 +160,8 @@ def _digest_text(
     if tournament.askfred_id:
         lines.append("")
         lines.append(f"AskFRED  https://www.askfred.net/tournaments/{tournament.askfred_id}")
+    if data_as_of(tournament):
+        lines.append(data_as_of(tournament))
     return "\n".join(lines)
 
 
@@ -219,6 +221,9 @@ def _digest_html(
             f'<p style="margin:24px 0 0;font-size:13px;">'
             f'<a href="{href}" style="color:#0f766e;text-decoration:none;">Open on AskFRED →</a></p>'
         )
+    if data_as_of(tournament):
+        link += f'<p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">{_escape(data_as_of(tournament))}</p>'
+
     return (
         '<div style="font-family:Georgia,\'Times New Roman\',serif;background:#f8fafc;padding:24px;">'
         '<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e7e0cf;'

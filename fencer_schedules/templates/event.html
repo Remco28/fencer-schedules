@@ -25,6 +25,7 @@
     </div>
     <div class="meta">
       <div class="teal">{{ event.day|day_label }}{% if event.clock %} · {{ event.clock|clock }}{% endif %}</div>
+      {% if tournament|as_of %}<div class="dim">{{ tournament|as_of }}</div>{% endif %}
     </div>
     </div>
   </header>

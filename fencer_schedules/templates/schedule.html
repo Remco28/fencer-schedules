@@ -60,6 +60,7 @@
           · <a href="https://member.usafencing.org/details/tournaments/{{ tournament.usfa_id }}" target="_blank" rel="noopener" class="dim-link">USFA ↗</a>
         {% endif %}
       </div>
+      {% if tournament|as_of %}<div class="dim">{{ tournament|as_of }}</div>{% endif %}
     </div>
     </div>
   </header>

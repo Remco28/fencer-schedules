@@ -36,8 +36,8 @@ def _settings() -> Settings:
 def test_csv_bytes_has_header_and_row() -> None:
     data = csv_bytes(_tournament(), _settings())
     rows = list(csv.reader(io.StringIO(data.decode("utf-8"))))
-    assert rows[0] == ["day", "time", "event", "fencer", "club", "final_place", "pending"]
-    assert ["2026-08-22", "08:00", "Junior Men's Epee", "Doe, Jordan", "Elite Fencers Club", "8th", ""] in rows
+    assert rows[0] == ["day", "time", "event", "fencer", "club", "final_place", "pending", "data_as_of"]
+    assert ["2026-08-22", "08:00", "Junior Men's Epee", "Doe, Jordan", "Elite Fencers Club", "8th", "", ""] in rows
 
 
 def test_text_version_has_day_and_fencer() -> None:
@@ -107,3 +107,17 @@ def test_exports_mark_a_day_the_source_never_published() -> None:
     rows = list(csv.reader(io.StringIO(csv_bytes(tournament, _settings()).decode("utf-8"))))
     assert rows[1][0] == ""
     assert "Day TBD" in text_version(tournament, _settings())
+
+
+def test_exports_say_how_fresh_the_data_is() -> None:
+    from datetime import datetime, timezone
+
+    from fencer_schedules.schedule import data_as_of
+    t = _tournament().model_copy(update={"data_as_of": datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)})
+    label = data_as_of(t)
+    assert label.startswith("Data as of Aug 19,") and "could not refresh" not in label
+    assert label in text_version(t, _settings())
+    rows = list(csv.reader(io.StringIO(csv_bytes(t, _settings()).decode("utf-8"))))
+    assert rows[1][-1].startswith("2026-08-19T")
+    assert data_as_of(t.model_copy(update={"data_stale": True})).endswith("(could not refresh)")
+    assert data_as_of(_tournament()) == ""  # saved before fencing-api gave times: say nothing

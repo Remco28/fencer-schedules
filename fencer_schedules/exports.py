@@ -5,7 +5,7 @@ import io
 
 from fencer_schedules.config import Settings
 from fencer_schedules.models import Event, Fencer, Tournament
-from fencer_schedules.schedule import day_label, result_label, visible_events
+from fencer_schedules.schedule import data_as_of, day_label, result_label, visible_events
 
 
 def _place(event: Event, fencer: Fencer) -> str:
@@ -22,13 +22,14 @@ def _place(event: Event, fencer: Fencer) -> str:
 def csv_bytes(tournament: Tournament, settings: Settings) -> bytes:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["day", "time", "event", "fencer", "club", "final_place", "pending"])
+    writer.writerow(["day", "time", "event", "fencer", "club", "final_place", "pending", "data_as_of"])
+    as_of = tournament.data_as_of.astimezone().isoformat(timespec="minutes") if tournament.data_as_of else ""
     for event in visible_events(tournament, settings):
         day = "" if event.day_unknown else event.day.isoformat()
         clock = event.clock.strftime("%H:%M") if event.clock else ""
         for fencer in event.fencers:
             writer.writerow([day, clock, event.name, fencer.name, fencer.club, _place(event, fencer),
-                             "yes" if fencer.pending else ""])
+                             "yes" if fencer.pending else "", as_of])
     return buffer.getvalue().encode("utf-8")
 
 
@@ -38,6 +39,8 @@ def text_version(tournament: Tournament, settings: Settings) -> str:
     if tournament.venue:
         header += f" — {tournament.venue}"
     lines.append(header)
+    if data_as_of(tournament):
+        lines.append(data_as_of(tournament))
     current_day = None
     for event in visible_events(tournament, settings):
         if event.day != current_day:
